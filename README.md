@@ -21,5 +21,8 @@ Any changes are immediately available to users.
 ## Install
  ... 
 
-## Contribute
- ...
+## Develop
+
+### Requirements
+Go (version specified in backend/go.mod)
+Node ()
