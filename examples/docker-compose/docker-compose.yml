@@ -1,0 +1,9 @@
+services:
+  packwiz-web:
+    image: ghcr.io/leocov-dev/packwiz-web:latest
+    environment:
+    volumes:
+  postgres:
+    image:
+    environment:
+    volumes:

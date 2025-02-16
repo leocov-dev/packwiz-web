@@ -1,0 +1,74 @@
+# API checks
+
+# modpack/ ---
+### GET static modpack files
+GET {{host}}/packwiz/modA/mods/balm.pw.toml
+
+# v1/ --------------------------------------------------------------------------
+### GET Health check status
+GET {{apiRoot}}/v1/health
+Accept: application/json
+
+# v1/packwiz/ ------------------------------------------------------------------
+
+### GET all possible packwiz loaders
+GET {{apiRoot}}/v1/packwiz/loaders
+Accept: application/json
+
+### GET all packwiz modpacks
+GET {{apiRoot}}/v1/packwiz/pack
+Accept: application/json
+
+### POST create a new modpack
+POST {{apiRoot}}/v1/packwiz/pack
+Content-Type: application/json
+
+{
+  "name": "packA",
+  "minecraft": {
+    "latest": true
+  },
+  "loader": {
+    "name": "forge",
+    "latest": true
+  }
+}
+
+### HEAD check if modpack exists
+HEAD {{apiRoot}}/v1/packwiz/pack/packA
+
+### GET a packs details
+GET {{apiRoot}}/v1/packwiz/pack/packA
+
+### DELETE remove a modpack
+DELETE {{apiRoot}}/v1/packwiz/pack/packC
+
+### POST add a mod
+POST {{apiRoot}}/v1/packwiz/pack/packA
+Content-Type: application/json
+
+{
+  "modrinth": {
+    "name": "waystones"
+  }
+}
+
+### DELETE remove a named mod
+DELETE {{apiRoot}}/v1/packwiz/pack/packA/mod/balm
+
+### PATCH update a named mod
+PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/update
+
+### PATCH update a mods side
+PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/side
+Content-Type: application/json
+
+{
+  "side": "server"
+}
+
+### PATCH pin a named modpack to prevent updates
+PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/pin
+
+### PATCH un-pin a named modpack to prevent updates
+PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/unpin

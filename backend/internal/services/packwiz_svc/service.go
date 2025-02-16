@@ -1,0 +1,185 @@
+package packwiz_svc
+
+import (
+	"errors"
+	"fmt"
+	"gorm.io/gorm"
+	"packwiz-web/internal/logger"
+	"packwiz-web/internal/services/packwiz_cli"
+	"packwiz-web/internal/types"
+	dto2 "packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/tables"
+	"packwiz-web/internal/utils"
+)
+
+type PackwizService struct {
+	db *gorm.DB
+}
+
+func NewPackwizService(db *gorm.DB) *PackwizService {
+	return &PackwizService{
+		db,
+	}
+}
+
+func (ps *PackwizService) hydratePackData(pack *tables.Pack) error {
+	var err error
+	pack.PackData, err = getModpackData(pack.Slug)
+
+	return err
+}
+
+func (ps *PackwizService) hydrateModData(pack *tables.Pack) error {
+	var err error
+	pack.ModData, err = getModpackMods(pack.Slug)
+
+	return err
+}
+
+func (ps *PackwizService) GetPacks() ([]*tables.Pack, error) {
+	var packs []*tables.Pack
+	err := ps.db.Preload("Users").Find(&packs).Error
+
+	for _, pack := range packs {
+		err = ps.hydratePackData(pack)
+		if err != nil {
+			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s", pack.Slug))
+			continue
+		}
+	}
+
+	logger.Info(fmt.Sprintf("Found %d packs", len(packs)))
+
+	return packs, err
+}
+
+func (ps *PackwizService) PackExists(name string) bool {
+	slug := utils.ToCamelCase(name)
+	if slug == "" {
+		return false
+	}
+
+	return packwiz_cli.PackExists(slug)
+}
+
+func (ps *PackwizService) NewPack(request dto2.NewPackRequest, author tables.User) error {
+	slug := request.Slug()
+
+	return ps.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&tables.Pack{
+			Slug:      slug,
+			CreatedBy: author.ID,
+			Users:     []tables.User{author},
+		}).Error; err != nil {
+			return err
+		}
+		return packwiz_cli.NewModpack(
+			slug,
+			request.Name,
+			author.Username,
+			request.MinecraftDef.AsCliType(),
+			request.LoaderDef.AsCliType(),
+		)
+	})
+}
+
+func (ps *PackwizService) GetPack(slug string, hydrateMods bool) (tables.Pack, error) {
+	var pack tables.Pack
+	err := ps.db.Preload("Users").Where(&tables.Pack{Slug: slug}).First(&pack).Error
+	if err != nil {
+		return pack, err
+	}
+	err = ps.hydratePackData(&pack)
+	if err != nil {
+		return pack, err
+	}
+
+	err = ps.hydrateModData(&pack)
+	if err != nil {
+		return pack, err
+	}
+
+	return pack, nil
+}
+
+// AddMod
+// Add a new mod to an existing pack
+func (ps *PackwizService) AddMod(slug string, request dto2.AddModRequest) error {
+	if request.Modrinth.IsSet() {
+		data := request.Modrinth
+		return packwiz_cli.AddModrinthMod(slug, data.Name, data.ProjectId, data.VersionFilename, data.VersionId)
+	} else if request.Curseforge.IsSet() {
+		data := request.Curseforge
+		return packwiz_cli.AddCurseforgeMod(slug, data.Name, data.AddonId, data.Category, data.FileId, data.Game)
+	}
+
+	return errors.New("invalid add mod request")
+}
+
+// RemovePack
+// remove a pack and all mods from disk and db
+func (ps *PackwizService) RemovePack(slug string) error {
+	return ps.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&tables.Pack{Slug: slug}).Error; err != nil {
+			return err
+		}
+		return packwiz_cli.DeleteModpack(slug)
+	})
+}
+
+// SetAcceptableVersions
+// set a mod packs acceptable minecraft versions
+func (ps *PackwizService) SetAcceptableVersions(slug string, request dto2.SetAcceptableVersionsRequest) error {
+	return packwiz_cli.SetAcceptableVersions(slug, request.Versions...)
+}
+
+// UpdateAll
+// update all the mods in a pack, skipping pinned mods
+func (ps *PackwizService) UpdateAll(slug string) error {
+	return packwiz_cli.UpdateAll(slug)
+}
+
+// ModExists
+// check if a mod exists in a pack
+func (ps *PackwizService) ModExists(slug, mod string) bool {
+	return packwiz_cli.ModExists(slug, mod) == nil
+}
+
+// RemoveMod
+// remove a given mod from a given pack
+func (ps *PackwizService) RemoveMod(slug, mod string) error {
+	return packwiz_cli.RemoveMod(slug, mod)
+}
+
+// UpdateMod
+// update a given mod from a given pack
+func (ps *PackwizService) UpdateMod(slug, mod string) error {
+	return packwiz_cli.UpdateOne(slug, mod)
+}
+
+// GetMod
+// get a single mods data
+func (ps *PackwizService) GetMod(slug, mod string) (types.ModData, error) {
+	data, err := findModData(slug, mod)
+	if err != nil {
+		return types.ModData{}, err
+	}
+
+	return data, nil
+}
+
+func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) error {
+	return packwiz_cli.ChangeModSide(slug, mod, side)
+}
+
+// PinMod
+// pin a mod to prevent it from being updated
+func (ps *PackwizService) PinMod(slug, mod string) error {
+	return packwiz_cli.PinMod(slug, mod)
+}
+
+// UnpinMod
+// unpin a mod to allow it to be updated
+func (ps *PackwizService) UnpinMod(slug, mod string) error {
+	return packwiz_cli.UnpinMod(slug, mod)
+}

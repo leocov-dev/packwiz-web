@@ -1,0 +1,6 @@
+/backend/bin
+/backend/internal/server/public
+/backend/.go-version
+
+/frontend/node_modules
+/frontend/.node-version
