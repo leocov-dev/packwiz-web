@@ -1,20 +1,30 @@
-import type {Packs} from "@/interfaces/pack";
+import {Packs, Pack} from "@/interfaces/pack";
 import axios from 'axios';
+import {apiClient} from "@/services/api.service";
+import {plainToInstance} from "class-transformer";
 
 
 class PacksService {
 
-  private readonly API_URL = 'http://localhost:8080/api/v1/packwiz/pack';
-
   async fetchAllPacks(): Promise<Packs> {
     try {
-      const response = await axios.get<Packs>(this.API_URL); // Use axios to make a GET request
-      return response.data; // Return the packs data
+      const response = await apiClient.get('/packs');
+      return plainToInstance(Packs, response.data)
     } catch (error) {
       console.error('Error fetching packs:', error);
-      throw error; // Re-throw the error for handling outside
+      throw error;
     }
 
+  }
+
+  async fetchOnePack(slug: string): Promise<Pack> {
+    try {
+      const response = await apiClient.get(`/packs/${slug}`);
+      return plainToInstance(Pack, response.data)
+    } catch (error) {
+      console.error('Error fetching pack:', error);
+      throw error;
+    }
   }
 
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"packwiz-web/internal/interfaces"
 	"packwiz-web/internal/services/packwiz_cli"
-	"packwiz-web/internal/utils"
+	"regexp"
 )
 
 type MinecraftDef struct {
@@ -59,8 +59,10 @@ type NewPackRequest struct {
 	LoaderDef    LoaderDef    `json:"loader" validate:"required"`
 }
 
+var allowedSlugRegex = regexp.MustCompile(`[^a-zA-Z0-9\-._]+`)
+
 func (r NewPackRequest) Slug() string {
-	return utils.ToCamelCase(r.Name)
+	return allowedSlugRegex.ReplaceAllString(r.Name, "-")
 }
 
 func (r NewPackRequest) Validate() error {

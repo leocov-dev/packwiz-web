@@ -15,17 +15,19 @@ type Config struct {
 	DataDir        string
 	PackwizDir     string
 	Database       string
+	SessionSecret  []byte
 }
 
 var C Config
 
 const (
-	envMode    = "MODE"
-	envPort    = "PORT"
-	envProxies = "TRUSTED_PROXIES"
-	envData    = "DATA_DIR"
-	envPackwiz = "PACKWIZ_DIR"
-	envDb      = "DATABASE"
+	envMode          = "MODE"
+	envPort          = "PORT"
+	envProxies       = "TRUSTED_PROXIES"
+	envData          = "DATA_DIR"
+	envPackwiz       = "PACKWIZ_DIR"
+	envDb            = "DATABASE"
+	envSessionSecret = "SESSION_SECRET"
 )
 
 func init() {
@@ -54,13 +56,17 @@ func init() {
 	config.BindEnv(envDb)
 	config.SetDefault(envDb, "sqlite")
 
+	config.BindEnv(envSessionSecret)
+	config.SetDefault(envSessionSecret, "2TcgtSsVEkZp9_KSAX5hBTsCKNlyhBAztAXYGwElbWw")
+
 	C = Config{
 		Mode:           config.GetString(envMode),
 		Port:           config.GetString(envPort),
 		TrustedProxies: strings.Fields(config.GetString(envProxies)),
-		DataDir:        config.GetString(envData),
-		PackwizDir:     config.GetString(envPackwiz),
+		DataDir:        filepath.Clean(config.GetString(envData)),
+		PackwizDir:     filepath.Clean(config.GetString(envPackwiz)),
 		Database:       config.GetString(envDb),
+		SessionSecret:  []byte(config.GetString(envSessionSecret)),
 	}
 
 	createDirs := []string{

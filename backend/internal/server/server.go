@@ -1,6 +1,7 @@
 package server
 
 import (
+	"embed"
 	"fmt"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/logger"
@@ -8,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Start() {
+func Start(publicFiles *embed.FS) {
 	if config.C.Mode == "development" {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -18,7 +19,7 @@ func Start() {
 	gin.DefaultWriter = logger.Log.Writer()
 	gin.DefaultErrorWriter = logger.Log.Writer()
 
-	r := NewRouter()
+	r := NewRouter(publicFiles)
 
 	if len(config.C.TrustedProxies) > 0 {
 		r.SetTrustedProxies(config.C.TrustedProxies)

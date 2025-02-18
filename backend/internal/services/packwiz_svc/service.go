@@ -39,18 +39,21 @@ func (ps *PackwizService) hydrateModData(pack *tables.Pack) error {
 func (ps *PackwizService) GetPacks() ([]*tables.Pack, error) {
 	var packs []*tables.Pack
 	err := ps.db.Preload("Users").Find(&packs).Error
+	if err != nil {
+		return packs, err
+	}
 
 	for _, pack := range packs {
 		err = ps.hydratePackData(pack)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s", pack.Slug))
+			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
 			continue
 		}
 	}
 
 	logger.Info(fmt.Sprintf("Found %d packs", len(packs)))
 
-	return packs, err
+	return packs, nil
 }
 
 func (ps *PackwizService) PackExists(name string) bool {
@@ -70,12 +73,12 @@ func (ps *PackwizService) NewPack(request dto2.NewPackRequest, author tables.Use
 			Slug:      slug,
 			CreatedBy: author.ID,
 			Users:     []tables.User{author},
+			Status:    types.PackStatusDraft,
 		}).Error; err != nil {
 			return err
 		}
 		return packwiz_cli.NewModpack(
 			slug,
-			request.Name,
 			author.Username,
 			request.MinecraftDef.AsCliType(),
 			request.LoaderDef.AsCliType(),
@@ -83,20 +86,25 @@ func (ps *PackwizService) NewPack(request dto2.NewPackRequest, author tables.Use
 	})
 }
 
-func (ps *PackwizService) GetPack(slug string, hydrateMods bool) (tables.Pack, error) {
+func (ps *PackwizService) GetPack(slug string, hydrateData, hydrateMods bool) (tables.Pack, error) {
 	var pack tables.Pack
 	err := ps.db.Preload("Users").Where(&tables.Pack{Slug: slug}).First(&pack).Error
 	if err != nil {
 		return pack, err
 	}
-	err = ps.hydratePackData(&pack)
-	if err != nil {
-		return pack, err
+
+	if hydrateData {
+		err = ps.hydratePackData(&pack)
+		if err != nil {
+			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
+		}
 	}
 
-	err = ps.hydrateModData(&pack)
-	if err != nil {
-		return pack, err
+	if hydrateMods {
+		err = ps.hydrateModData(&pack)
+		if err != nil {
+			logger.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", pack.Slug, err))
+		}
 	}
 
 	return pack, nil
@@ -125,6 +133,12 @@ func (ps *PackwizService) RemovePack(slug string) error {
 		}
 		return packwiz_cli.DeleteModpack(slug)
 	})
+}
+
+// SetPackStatus
+// change the pack status
+func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) error {
+	return ps.db.Model(&tables.Pack{Slug: slug}).Update("status", status).Error
 }
 
 // SetAcceptableVersions
@@ -159,13 +173,13 @@ func (ps *PackwizService) UpdateMod(slug, mod string) error {
 
 // GetMod
 // get a single mods data
-func (ps *PackwizService) GetMod(slug, mod string) (types.ModData, error) {
+func (ps *PackwizService) GetMod(slug, mod string) (*types.ModData, error) {
 	data, err := findModData(slug, mod)
 	if err != nil {
-		return types.ModData{}, err
+		return nil, err
 	}
 
-	return data, nil
+	return &data, nil
 }
 
 func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) error {

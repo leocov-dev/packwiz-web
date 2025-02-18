@@ -95,7 +95,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPack(slug, true)
+	pack, err := pc.packwizSvc.GetPack(slug, true, true)
 	if pc.abortWithError(c, err) {
 		return
 	}

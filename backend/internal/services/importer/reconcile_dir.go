@@ -8,7 +8,9 @@ import (
 	"packwiz-web/internal/interfaces"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
+	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/tables"
+	"strings"
 )
 
 type DataReconciler struct {
@@ -40,10 +42,14 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 		if !entry.IsDir() {
 			continue
 		}
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 
 		slug := entry.Name()
 		_, err := packwiz_cli.GetPackFile(slug)
 		if err != nil {
+			dr.packwizSvc.SetPackStatus(slug, types.PackStatusHidden)
 			errorGroup.Add(fmt.Errorf("failed to find pack.toml for modpack '%s' or data corrupted. %w", slug, err))
 			continue
 		}
@@ -53,6 +59,7 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 			Description: "pack imported from packwiz dir",
 			Users:       []tables.User{admin},
 			IsPublic:    false,
+			Status:      types.PackStatusDraft,
 		}
 		if err = dr.db.Where("slug = ?", slug).Attrs(pack).FirstOrCreate(&pack).Error; err != nil {
 			errorGroup.Add(fmt.Errorf("failed to import pack '%s': %w", slug, err))

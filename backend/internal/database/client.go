@@ -74,7 +74,7 @@ func InitDb() {
 }
 
 func createDefaultAdminUser() {
-	adminPass, _ := HashPassword("123456")
+	adminPass, _ := HashPassword("p4ckw1Z-w3b")
 	defaultAdmin := tables.User{
 		Username: "admin",
 		Password: adminPass,

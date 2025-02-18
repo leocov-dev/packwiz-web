@@ -1,7 +1,6 @@
 package packwiz_cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"packwiz-web/internal/config"
@@ -9,10 +8,10 @@ import (
 	"path/filepath"
 )
 
-func NewModpack(slug, name, author string, minecraft MinecraftDef, loader LoaderDef) error {
+func NewModpack(slug, author string, minecraft MinecraftDef, loader LoaderDef) error {
 	args := []string{
 		"init",
-		"--name", name,
+		"--name", slug,
 		"--author", author,
 		"--version", "1.0.0",
 	}
@@ -22,7 +21,7 @@ func NewModpack(slug, name, author string, minecraft MinecraftDef, loader Loader
 
 	modpackDir := filepath.Join(config.C.PackwizDir, slug)
 	if utils.FileExists(filepath.Join(modpackDir, "pack.toml")) {
-		return errors.New(fmt.Sprintf("Modpack '%s' already exists", name))
+		return fmt.Errorf("modpack '%s' already exists", slug)
 	}
 
 	err := os.MkdirAll(modpackDir, 0755)
@@ -30,5 +29,5 @@ func NewModpack(slug, name, author string, minecraft MinecraftDef, loader Loader
 		return err
 	}
 
-	return runCommand(name, args...)
+	return runCommand(slug, args...)
 }

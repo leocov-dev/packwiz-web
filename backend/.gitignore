@@ -2,4 +2,4 @@ bin/
 
 .go-version
 
-/internal/server/public/
+/public/

@@ -6,13 +6,13 @@ import (
 )
 
 type User struct {
-	ID               uint `gorm:"primarykey"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Username         string `gorm:"unique"`
-	Password         string `json:"-"`
-	IsAdmin          bool
-	IdentityProvider string
+	ID               uint      `gorm:"primarykey" json:"id"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	Username         string    `gorm:"unique" json:"username"`
+	Password         string    `json:"-"`
+	IsAdmin          bool      `json:"isAdmin"`
+	IdentityProvider string    `json:"identityProvider"`
 }
 
 func (u User) CheckPassword(password string) bool {

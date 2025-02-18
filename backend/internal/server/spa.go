@@ -7,18 +7,31 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
-//go:embed public/*
-var publicFiles embed.FS
+type EmbeddedPublicController struct {
+	publicFiles *embed.FS
+}
 
-// embeddedPublicHandler
+func NewEmbeddedSPAController(publicFiles *embed.FS) *EmbeddedPublicController {
+	return &EmbeddedPublicController{
+		publicFiles: publicFiles,
+	}
+}
+
+// Handler
 // for all non-api routes or routes not captured by the packwiz_cli static files,
 // we will try to load something from the pre-built single-page-application
 // frontend that is bundled into the build by `embed`. the frontend build
 // process must have run to generate these files.
-func embeddedPublicHandler(c *gin.Context) {
+func (epc *EmbeddedPublicController) Handler(c *gin.Context) {
 	requestedPath := c.Request.URL.Path
+
+	if strings.HasPrefix(requestedPath, "/api") {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
 
 	if requestedPath == "/" {
 		requestedPath = "/index.html"
@@ -26,13 +39,13 @@ func embeddedPublicHandler(c *gin.Context) {
 
 	requestedPath = filepath.Join("public", requestedPath)
 
-	info, err := fs.Stat(publicFiles, requestedPath)
+	info, err := fs.Stat(epc.publicFiles, requestedPath)
 	if err != nil || info.IsDir() {
 		c.Redirect(http.StatusMovedPermanently, "/")
 		return
 	}
 
-	file, err := publicFiles.Open(requestedPath)
+	file, err := epc.publicFiles.Open(requestedPath)
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return

@@ -79,7 +79,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/internal/server/public',
+    outDir: '../backend/public',
     emptyOutDir: true,
   },
 })

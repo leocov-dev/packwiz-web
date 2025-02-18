@@ -2,9 +2,19 @@
 
 # modpack/ ---
 ### GET static modpack files
-GET {{host}}/packwiz/modA/mods/balm.pw.toml
+GET {{host}}/packwiz/packA/mods/balm.pw.toml
 
 # v1/ --------------------------------------------------------------------------
+### POST login user
+POST {{apiRoot}}/v1/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin &
+password=123456
+
+### POST logout user
+POST {{apiRoot}}/v1/logout
+
 ### GET Health check status
 GET {{apiRoot}}/v1/health
 Accept: application/json
@@ -24,7 +34,7 @@ POST {{apiRoot}}/v1/packwiz/pack
 Content-Type: application/json
 
 {
-  "name": "packA",
+  "name": "My Cool\nZne",
   "minecraft": {
     "latest": true
   },

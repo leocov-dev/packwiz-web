@@ -6,8 +6,8 @@ import (
 )
 
 type PackUsers struct {
-	PackSlug   string
-	UserID     uint
-	CreatedAt  time.Time
-	Permission types.PackPermission
+	PackSlug   string               `json:"packSlug"`
+	UserID     uint                 `json:"userId"`
+	CreatedAt  time.Time            `json:"createdAt"`
+	Permission types.PackPermission `json:"permission"`
 }

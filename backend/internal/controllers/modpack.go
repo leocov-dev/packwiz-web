@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"packwiz-web/internal/config"
 	"path/filepath"
+	"strings"
 )
 
 type ModpackController struct{}
@@ -13,10 +15,26 @@ type ModpackController struct{}
 // the server process calling the cli. the root path should already exist on
 // the server at start-time and is defined by PACKWIZ_DIR.
 func (mc *ModpackController) ServeStatic(c *gin.Context) {
-	modpack := c.Param("modpack")
+	slug := c.Param("slug")
 	filePath := c.Param("filepath")
 
-	absPath := filepath.Join(config.C.PackwizDir, modpack, filePath)
+	modpackDir := filepath.Join(config.C.PackwizDir, slug)
+	absPath := filepath.Clean(filepath.Join(modpackDir, filePath))
+
+	// any served path must be relative to a known slug dir
+	if !strings.HasPrefix(absPath, modpackDir) {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	// any served path may never contain a directory starting with a `.`
+	dirs := strings.Split(absPath, string(filepath.Separator))
+	for _, dir := range dirs {
+		if strings.HasPrefix(dir, ".") {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+	}
 
 	c.File(absPath)
 }

@@ -40,40 +40,42 @@ func getModData(modpack string, modFilePath string) (types.ModData, error) {
 	}, nil
 }
 
-func loaderDataFromVersionsData(versions packwiz_cli.PackFileVersions) types.LoaderData {
-	var loader_type string
-	var loader_version string
+func loaderDataFromVersionsData(versions packwiz_cli.PackFileVersions) *types.LoaderData {
+	var loaderType string
+	var loaderVersion string
 
 	if versions.Forge != "" {
-		loader_type = "forge"
-		loader_version = versions.Forge
+		loaderType = "forge"
+		loaderVersion = versions.Forge
 	} else if versions.Fabric != "" {
-		loader_type = "fabric"
-		loader_version = versions.Fabric
+		loaderType = "fabric"
+		loaderVersion = versions.Fabric
 	} else if versions.LiteLoader != "" {
-		loader_type = "liteloader"
-		loader_version = versions.LiteLoader
+		loaderType = "liteloader"
+		loaderVersion = versions.LiteLoader
 	} else if versions.Quilt != "" {
-		loader_type = "quilt"
-		loader_version = versions.Quilt
+		loaderType = "quilt"
+		loaderVersion = versions.Quilt
 	} else if versions.NeoForge != "" {
-		loader_type = "neoforge"
-		loader_version = versions.NeoForge
+		loaderType = "neoforge"
+		loaderVersion = versions.NeoForge
+	} else {
+		return nil
 	}
 
-	return types.LoaderData{
-		Type:    loader_type,
-		Version: loader_version,
+	return &types.LoaderData{
+		Type:    loaderType,
+		Version: loaderVersion,
 	}
 }
 
-func getModpackData(modpack string) (packData types.PackData, err error) {
+func getModpackData(modpack string) (*types.PackData, error) {
 	packFile, err := packwiz_cli.GetPackFile(modpack)
 	if err != nil {
-		return packData, err
+		return nil, err
 	}
 
-	packData = types.PackData{
+	packData := &types.PackData{
 		Name:       packFile.Name,
 		Version:    packFile.Version,
 		PackFormat: packFile.PackFormat,

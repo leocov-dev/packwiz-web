@@ -1,14 +1,44 @@
+import type {User} from "@/interfaces/user";
+import {Type} from "class-transformer";
 
 
-export interface Pack {
-  id: number;
-  slug: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  is_public: boolean;
+export class Packs {
+  packs!: Pack[];
 }
 
-export interface Packs {
-  packs: Pack[];
+export class Pack {
+  slug!: string;
+  description!: string;
+
+  @Type(() => Date)
+  createdAt!: string;
+  createdBy!: string;
+
+  @Type(() => Date)
+  updatedAt!: string;
+  isPublic!: boolean;
+  users!: User[];
+  packData!: PackData | null;
+  modData!: ModData[] | null;
+}
+
+export class PackData {
+  name!: string;
+  packFormat!: string;
+  version!: string;
+  versions!: Versions;
+}
+
+export class Versions {
+  minecraft!: string;
+  loader!: Loader;
+}
+
+export class Loader {
+  type!: string;
+  version!: string;
+}
+
+export class ModData {
+  name!: string;
 }
