@@ -34,6 +34,7 @@ func (ps *PackwizService) GetPacks(
 
 	type Result struct {
 		tables.Pack
+		IsArchived bool
 		Permission types.PackPermission
 	}
 	var results []Result
@@ -42,23 +43,34 @@ func (ps *PackwizService) GetPacks(
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Select(
-		"packs.*, pack_users.permission AS permission",
+		"packs.*, pack_users.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
 	).Joins(
 		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
 		userId,
 	).Where(
-		"permission >= ?", types.PackPermissionView,
-	).Where(
-		"packs.status IN ?", statusFilter,
+		ps.db.Where(
+			"pack_users.permission >= ?", types.PackPermissionStatic,
+		).Or(
+			"packs.is_public",
+		),
 	).Order("packs.slug asc")
 
 	if search != "" {
 		query = query.Where("packs.slug LIKE ?", "%"+search+"%")
 	}
 
-	if !includeArchived {
-		query = query.Where("deleted_at IS NULL")
+	sub := ps.db
+	if len(statusFilter) > 0 {
+		sub = sub.Where("packs.status IN ?", statusFilter)
 	}
+
+	if includeArchived {
+		sub = sub.Or("deleted_at IS NOT NULL")
+	} else {
+		sub = sub.Where("deleted_at IS NULL")
+	}
+
+	query = query.Where(sub)
 
 	if err := query.Unscoped().Scan(&results).Error; err != nil {
 		return nil, err
@@ -69,6 +81,7 @@ func (ps *PackwizService) GetPacks(
 		if err := ps.hydratePackData(&pack); err != nil {
 			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
 		}
+		pack.IsArchived = result.IsArchived
 		pack.Permission = result.Permission
 		packs = append(packs, pack)
 	}
@@ -116,27 +129,46 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 }
 
 func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrateMods bool) (tables.Pack, error) {
-	var pack tables.Pack
-	err := ps.db.Unscoped().Where(&tables.Pack{Slug: slug}).First(&pack).Error
+	type Result struct {
+		tables.Pack
+		IsArchived bool
+		Permission types.PackPermission
+	}
+	var result Result
+
+	query := ps.db.Model(
+		&tables.Pack{},
+	).Select(
+		"packs.*, pack_users.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
+	).Joins(
+		"JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?", userId,
+	).Where(
+		"packs.slug = ?", slug,
+	).Order("packs.slug asc")
+
+	err := query.Unscoped().First(&result).Error
 	if err != nil {
-		return pack, err
+		return tables.Pack{}, err
 	}
 
+	result.Pack.IsArchived = result.IsArchived
+	result.Pack.Permission = result.Permission
+
 	if hydrateData {
-		err = ps.hydratePackData(&pack)
+		err = ps.hydratePackData(&result.Pack)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
+			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", slug, err))
 		}
 	}
 
 	if hydrateMods {
-		err = ps.hydrateModData(&pack)
+		err = ps.hydrateModData(&result.Pack)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", pack.Slug, err))
+			logger.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", slug, err))
 		}
 	}
 
-	return pack, nil
+	return result.Pack, nil
 }
 
 // AddMod
@@ -182,12 +214,13 @@ func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) er
 }
 
 func (ps *PackwizService) IsPackPublished(slug string) bool {
-	var pack tables.Pack
-	err := ps.db.Where(&tables.Pack{Slug: slug}).First(&pack).Error
-	if err != nil {
-		return false
-	}
-	return pack.Status == types.PackStatusPublished
+	err := ps.db.Where(&tables.Pack{Slug: slug, Status: types.PackStatusPublished}).First(&tables.Pack{}).Error
+	return err == nil
+}
+
+func (ps *PackwizService) IsPackPublic(slug string) bool {
+	err := ps.db.Where(&tables.Pack{Slug: slug, IsPublic: true}).First(&tables.Pack{}).Error
+	return err == nil
 }
 
 // SetAcceptableVersions

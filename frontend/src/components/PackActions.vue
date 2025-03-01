@@ -52,7 +52,7 @@ const actions: {
             v-bind="props"
             :icon="actionItem.icon"
             @click="actionItem.action"
-            :disabled="pack.archived || pack.status === PackStatus.DRAFT"
+            :disabled="pack.isArchived || pack.status === PackStatus.DRAFT"
           />
         </template>
       </v-tooltip>

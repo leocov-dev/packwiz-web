@@ -14,3 +14,11 @@ export function deepEqual(obj1: Record<string, any>, obj2: Record<string, any>):
 
   return true;
 }
+
+
+export function toTitleCase(str: string): string {
+  return str
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}

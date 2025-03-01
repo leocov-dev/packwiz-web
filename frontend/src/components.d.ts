@@ -11,6 +11,7 @@ declare module 'vue' {
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
     FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    ModsList: typeof import('./components/ModsList.vue')['default']
     Navigation: typeof import('./components/Navigation.vue')['default']
     PackActions: typeof import('./components/PackActions.vue')['default']
     PackCard: typeof import('./components/PackCard.vue')['default']

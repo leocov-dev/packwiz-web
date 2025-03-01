@@ -7,6 +7,7 @@ import (
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/middleware"
+	"packwiz-web/internal/types"
 )
 
 func NewRouter(publicFiles *embed.FS) *gin.Engine {
@@ -92,6 +93,7 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 
 						// ---------------------------------------------------------------------
 						slugGroup := packGroup.Group(":slug")
+						slugGroup.Use(middleware.PermissionGuard(types.PackPermissionView, db))
 						{
 							slugGroup.HEAD("", packwizController.PackHead)
 							slugGroup.GET("", packwizController.GetOnePack)
@@ -108,6 +110,7 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 
 							// ---------------------------------------------------------------------
 							modGroup := slugGroup.Group("mod/:mod")
+							modGroup.Use(middleware.PermissionGuard(types.PackPermissionEdit, db))
 							{
 								modGroup.DELETE("", packwizController.RemoveMod)
 								modGroup.PATCH("rename", packwizController.RenameMod)

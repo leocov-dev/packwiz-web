@@ -16,6 +16,7 @@ export class Pack {
   deletedAt?: string;
   isPublic!: boolean;
   status!: PackStatus;
+  isArchived!: boolean;
   permission!: PackPermission;
   @Type(() => PackData)
   packData!: PackData | null;
@@ -24,10 +25,6 @@ export class Pack {
 
   get title(): string {
     return this.packData?.name || this.slug;
-  }
-
-  get archived(): boolean {
-    return !!this.deletedAt;
   }
 }
 

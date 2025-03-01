@@ -15,7 +15,7 @@ const permissionMap = {
   <v-card min-height="120">
     <v-card-title class="d-flex justify-center">
       <h4 class="me-auto">{{ pack.title }}</h4>
-      <PackStatus :status="pack.archived ? 'archived' : pack.status"/>
+      <PackStatus :status="pack.isArchived ? 'archived' : pack.status"/>
       <div
         class="ms-2"
         v-if="pack.isPublic">
@@ -27,6 +27,7 @@ const permissionMap = {
     </v-card-text>
     <v-card-actions class="ms-2 me-2 d-flex justify-end">
       <v-btn
+        v-if="pack.permission >= PackPermission.VIEW"
         class="me-auto"
         :text="permissionMap[pack.permission]"
         :to="`/packs/${pack.slug}`"

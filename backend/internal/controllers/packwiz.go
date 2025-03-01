@@ -336,12 +336,7 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 
 	user := c.MustGet("user").(tables.User)
 
-	pack, err := pc.packwizSvc.GetPack(slug, user.Id, false, false)
-	if pc.abortWithError(c, err) {
-		return
-	}
-
-	if !pack.IsPublic {
+	if !pc.packwizSvc.IsPackPublic(slug) {
 		query := link.Query()
 		query.Add("token", user.LinkToken)
 		link.RawQuery = query.Encode()

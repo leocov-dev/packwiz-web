@@ -1,7 +1,6 @@
 import axios from "axios"
 import router from "@/router";
 import { useSnackbarStore } from "@/stores/snackbar";
-import {useAuthStore} from "@/stores/auth";
 
 export const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
@@ -25,11 +24,11 @@ apiClient.interceptors.response.use(
 
       if (router.currentRoute.value.path !== '/auth/login') {
         const snackbarStore = useSnackbarStore();
-        snackbarStore.showSnackbar('Authorization Error...', 'error');
+        snackbarStore.showSnackbar('Authorization Error...', 'error', 1500);
 
-        const authStore = useAuthStore();
-        await authStore.logout(true);
-
+        await router.push({path: "/"})
+        // const authStore = useAuthStore();
+        // await authStore.logout(false);
       }
 
       return Promise.reject(error);

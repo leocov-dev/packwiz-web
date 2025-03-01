@@ -15,6 +15,7 @@ type Pack struct {
 	CreatedBy   uint                 `json:"createdBy"`
 	IsPublic    bool                 `json:"isPublic"`
 	Status      types.PackStatus     `gorm:"default:draft" json:"status"`
+	IsArchived  bool                 `gorm:"-" json:"isArchived"`
 	Permission  types.PackPermission `gorm:"-" json:"permission"`
 	PackData    *types.PackData      `gorm:"-" json:"packData"`
 	ModData     []types.ModData      `gorm:"-" json:"modData"`
