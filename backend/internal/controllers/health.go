@@ -16,5 +16,5 @@ func NewHealthController() *HealthController {
 // @Produce json
 // @Router /health [get]
 func (hc *HealthController) Status(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
 }

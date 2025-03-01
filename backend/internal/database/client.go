@@ -8,7 +8,8 @@ import (
 	"packwiz-web/internal/logger"
 	"packwiz-web/internal/services/importer"
 	"packwiz-web/internal/services/packwiz_svc"
-	"packwiz-web/internal/types/tables"
+	tables2 "packwiz-web/internal/tables"
+	"packwiz-web/internal/utils"
 	"path/filepath"
 )
 
@@ -34,7 +35,7 @@ func init() {
 		db, err = gorm.Open(
 			sqlite.Open(filepath.Join(config.C.DataDir, "packwiz-web.db")),
 			&gorm.Config{
-				Logger: New(gormLogLevel, logger.Log),
+				Logger: newGormLogger(gormLogLevel, logger.Log),
 			},
 		)
 		if err != nil {
@@ -52,10 +53,10 @@ func init() {
 func InitDb() {
 	// Run migrations to create tables and relationships
 	err := db.AutoMigrate(
-		&tables.User{},
-		&tables.Pack{},
-		&tables.PackUsers{},
-		&tables.Audit{},
+		&tables2.User{},
+		&tables2.Pack{},
+		&tables2.PackUsers{},
+		&tables2.Audit{},
 	)
 	if err != nil {
 		panic("failed to migrate database")
@@ -74,13 +75,34 @@ func InitDb() {
 }
 
 func createDefaultAdminUser() {
-	adminPass, _ := HashPassword("p4ckw1Z-w3b")
-	defaultAdmin := tables.User{
-		Username: "admin",
-		Password: adminPass,
-		IsAdmin:  true,
-	}
-	db.Create(&defaultAdmin)
+	adminPass, _ := utils.HashPassword(config.C.AdminPassword)
+
+	var defaultAdmin tables2.User
+	db.Where("username = ?", "admin").Assign(
+		tables2.User{
+			Username:  "admin",
+			Password:  adminPass,
+			IsAdmin:   true,
+			LinkToken: utils.GenerateRandomString(32),
+		},
+	).FirstOrCreate(&defaultAdmin)
+}
+
+func SeedDebugData() {
+	createDummyPlayerUser()
+}
+
+func createDummyPlayerUser() {
+	pass, _ := utils.HashPassword("password123")
+
+	db.Create(
+		&tables2.User{
+			Username:  "player",
+			Password:  pass,
+			IsAdmin:   false,
+			LinkToken: utils.GenerateRandomString(32),
+		},
+	)
 }
 
 func reconcileFileData() {

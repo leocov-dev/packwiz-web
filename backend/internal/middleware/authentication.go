@@ -5,7 +5,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"packwiz-web/internal/types/tables"
+	"packwiz-web/internal/logger"
+	"packwiz-web/internal/services/user_svc"
+	tables "packwiz-web/internal/tables"
 )
 
 func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
@@ -14,15 +16,18 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 		userId := session.Get("userId")
 		if userId == nil {
 			ClearSession(c)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "unauthorized"})
+			logger.Warn("no user session")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "no user session"})
 			return
 		}
 
-		var user tables.User
-		err := db.Where("id = ?", userId).First(&user).Error
+		userService := user_svc.NewUserService(db)
+
+		user, err := userService.FindById(userId.(uint))
 		if err != nil {
 			ClearSession(c)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "unauthorized"})
+			logger.Warn("no user match")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "no user match"})
 			return
 		}
 
@@ -52,14 +57,20 @@ func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		token := c.Query("token")
+		if token == "" {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		var user tables.User
-		if err := db.Where("username = ?", "admin").First(&user).Error; err != nil {
+		if err := db.Where("link_token = ?", token).First(&user).Error; err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		var packUser tables.PackUsers
-		if err := db.Where("pack_slug = ? AND user_id = ?", slug, user.ID).First(&packUser).Error; err != nil {
+		if err := db.Where("pack_slug = ? AND user_id = ?", slug, user.Id).First(&packUser).Error; err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

@@ -5,10 +5,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
+	"net/url"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
-	dto2 "packwiz-web/internal/types/dto"
-	"packwiz-web/internal/types/tables"
+	"packwiz-web/internal/tables"
+	"packwiz-web/internal/types/dto"
 )
 
 type PackwizController struct {
@@ -41,17 +42,37 @@ func (pc *PackwizController) UploadPackwizArchive(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetAllPacks(c *gin.Context) {
-	packs, err := pc.packwizSvc.GetPacks()
+
+	user := c.MustGet("user").(tables.User)
+
+	var query dto.AllPacksQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		return
+	}
+
+	if err := query.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		return
+	}
+
+	packs, err := pc.packwizSvc.GetPacks(query.Status, query.Archived, query.Search, user.Id)
 	if pc.abortWithError(c, err) {
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"packs": packs})
 }
 
 func (pc *PackwizController) NewPack(c *gin.Context) {
 	author := c.MustGet("user").(tables.User)
 
-	var request dto2.NewPackRequest
+	if !author.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"msg": "not authorized"})
+		return
+	}
+
+	var request dto.NewPackRequest
 	c.BindJSON(&request)
 
 	if err := request.Validate(); err != nil {
@@ -59,7 +80,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	if pc.packwizSvc.PackExists(request.Name) {
+	if pc.packwizSvc.PackExists(request.Slug()) {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": "pack already exists"})
 		return
 	}
@@ -95,7 +116,9 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPack(slug, true, true)
+	user := c.MustGet("user").(tables.User)
+
+	pack, err := pc.packwizSvc.GetPack(slug, user.Id, true, true)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -109,7 +132,7 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 		return
 	}
 
-	var request dto2.AddModRequest
+	var request dto.AddModRequest
 	c.BindJSON(&request)
 
 	if err := request.Validate(); err != nil {
@@ -125,14 +148,14 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
 }
 
-func (pc *PackwizController) RemovePack(c *gin.Context) {
+func (pc *PackwizController) ArchivePack(c *gin.Context) {
 	slug := c.Param("slug")
 
 	if pc.abortIfPackNotExist(c, slug) {
 		return
 	}
 
-	err := pc.packwizSvc.RemovePack(slug)
+	err := pc.packwizSvc.ArchivePack(slug)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -147,7 +170,7 @@ func (pc *PackwizController) SetAcceptableVersions(c *gin.Context) {
 		return
 	}
 
-	var request dto2.SetAcceptableVersionsRequest
+	var request dto.SetAcceptableVersionsRequest
 	c.BindJSON(&request)
 
 	if err := request.Validate(); err != nil {
@@ -228,7 +251,7 @@ func (pc *PackwizController) ChangeModSide(c *gin.Context) {
 		return
 	}
 
-	var request dto2.ChangeModSideRequest
+	var request dto.ChangeModSideRequest
 	c.BindJSON(&request)
 
 	if err := request.Validate(); err != nil {
@@ -292,6 +315,56 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
+	slug := c.Param("slug")
+
+	if pc.abortIfPackNotExist(c, slug) {
+		return
+	}
+
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+
+	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/pack.toml", scheme, c.Request.Host, slug))
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	user := c.MustGet("user").(tables.User)
+
+	pack, err := pc.packwizSvc.GetPack(slug, user.Id, false, false)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if !pack.IsPublic {
+		query := link.Query()
+		query.Add("token", user.LinkToken)
+		link.RawQuery = query.Encode()
+
+	}
+
+	c.JSON(http.StatusOK, gin.H{"link": link.String()})
+}
+
+func (pc *PackwizController) GetPackUsers(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+}
+
+func (pc *PackwizController) AddPackUser(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+}
+
+func (pc *PackwizController) RemovePackUser(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+}
+
+func (pc *PackwizController) EditUserAccess(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }
 
 // -----------------------------------------------------------------------------

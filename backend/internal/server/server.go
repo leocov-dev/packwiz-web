@@ -2,7 +2,6 @@ package server
 
 import (
 	"embed"
-	"fmt"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/logger"
 
@@ -27,5 +26,5 @@ func Start(publicFiles *embed.FS) {
 		r.SetTrustedProxies(nil)
 	}
 
-	r.Run(fmt.Sprintf(":%s", config.C.Port))
+	r.Run(":8080")
 }

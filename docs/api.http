@@ -10,7 +10,7 @@ POST {{apiRoot}}/v1/login
 Content-Type: application/x-www-form-urlencoded
 
 username=admin &
-password=123456
+password=!admin1234567890
 
 ### POST logout user
 POST {{apiRoot}}/v1/logout
@@ -18,6 +18,11 @@ POST {{apiRoot}}/v1/logout
 ### GET Health check status
 GET {{apiRoot}}/v1/health
 Accept: application/json
+
+# v1/user/ ---------------------------------------------------------------------
+
+### GET current user
+GET {{apiRoot}}/v1/user/current
 
 # v1/packwiz/ ------------------------------------------------------------------
 
@@ -29,17 +34,21 @@ Accept: application/json
 GET {{apiRoot}}/v1/packwiz/pack
 Accept: application/json
 
+### GET all packwiz modpacks (filtered)
+GET {{apiRoot}}/v1/packwiz/pack?filters=published&filters=draft
+Accept: application/json
+
 ### POST create a new modpack
 POST {{apiRoot}}/v1/packwiz/pack
 Content-Type: application/json
 
 {
-  "name": "My Cool\nZne",
+  "name": "My Creative Pack",
   "minecraft": {
     "latest": true
   },
   "loader": {
-    "name": "forge",
+    "name": "fabric",
     "latest": true
   }
 }
@@ -52,6 +61,9 @@ GET {{apiRoot}}/v1/packwiz/pack/packA
 
 ### DELETE remove a modpack
 DELETE {{apiRoot}}/v1/packwiz/pack/packC
+
+### GET pack public link
+GET {{apiRoot}}/v1/packwiz/pack/packC/link
 
 ### POST add a mod
 POST {{apiRoot}}/v1/packwiz/pack/packA

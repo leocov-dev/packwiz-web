@@ -8,8 +8,8 @@ import (
 	"packwiz-web/internal/interfaces"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
+	tables2 "packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
-	"packwiz-web/internal/types/tables"
 	"strings"
 )
 
@@ -34,7 +34,7 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 		return errorGroup
 	}
 
-	var admin tables.User
+	var admin tables2.User
 	dr.db.Where("username = ?", "admin").First(&admin)
 
 	for _, entry := range entries {
@@ -49,20 +49,32 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 		slug := entry.Name()
 		_, err := packwiz_cli.GetPackFile(slug)
 		if err != nil {
-			dr.packwizSvc.SetPackStatus(slug, types.PackStatusHidden)
+			err := dr.packwizSvc.ArchivePack(slug)
+			if err != nil {
+				errorGroup.Add(fmt.Errorf("failed to archive pack '%s': %w", slug, err))
+			}
 			errorGroup.Add(fmt.Errorf("failed to find pack.toml for modpack '%s' or data corrupted. %w", slug, err))
 			continue
 		}
 
-		pack := tables.Pack{
+		pack := tables2.Pack{
 			Slug:        slug,
 			Description: "pack imported from packwiz dir",
-			Users:       []tables.User{admin},
 			IsPublic:    false,
 			Status:      types.PackStatusDraft,
 		}
 		if err = dr.db.Where("slug = ?", slug).Attrs(pack).FirstOrCreate(&pack).Error; err != nil {
 			errorGroup.Add(fmt.Errorf("failed to import pack '%s': %w", slug, err))
+			continue
+		}
+
+		packUser := tables2.PackUsers{
+			PackSlug:   slug,
+			UserId:     admin.Id,
+			Permission: types.PackPermissionEdit,
+		}
+		if err = dr.db.Where("pack_slug = ? AND user_id = ?", slug, admin.Id).Attrs(packUser).FirstOrCreate(&packUser).Error; err != nil {
+			errorGroup.Add(fmt.Errorf("failed to set admin user on pack '%s': %w", slug, err))
 			continue
 		}
 	}

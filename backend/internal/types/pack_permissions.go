@@ -1,9 +1,9 @@
 package types
 
-type PackPermission string
+type PackPermission int
 
 const (
-	PackPermissionStatic PackPermission = "static"
-	PackPermissionView   PackPermission = "view"
-	PackPermissionAdmin  PackPermission = "admin"
+	PackPermissionStatic PackPermission = 1
+	PackPermissionView   PackPermission = 10
+	PackPermissionEdit   PackPermission = 20
 )

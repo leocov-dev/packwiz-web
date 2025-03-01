@@ -6,10 +6,10 @@ import (
 	"gorm.io/gorm"
 	"packwiz-web/internal/logger"
 	"packwiz-web/internal/services/packwiz_cli"
+	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
-	dto2 "packwiz-web/internal/types/dto"
-	"packwiz-web/internal/types/tables"
-	"packwiz-web/internal/utils"
+	"packwiz-web/internal/types/dto"
+	"time"
 )
 
 type PackwizService struct {
@@ -22,33 +22,55 @@ func NewPackwizService(db *gorm.DB) *PackwizService {
 	}
 }
 
-func (ps *PackwizService) hydratePackData(pack *tables.Pack) error {
-	var err error
-	pack.PackData, err = getModpackData(pack.Slug)
-
-	return err
-}
-
-func (ps *PackwizService) hydrateModData(pack *tables.Pack) error {
-	var err error
-	pack.ModData, err = getModpackMods(pack.Slug)
-
-	return err
-}
-
-func (ps *PackwizService) GetPacks() ([]*tables.Pack, error) {
-	var packs []*tables.Pack
-	err := ps.db.Preload("Users").Find(&packs).Error
-	if err != nil {
-		return packs, err
+func (ps *PackwizService) GetPacks(
+	statusFilter []types.PackStatus,
+	includeArchived bool,
+	search string,
+	userId uint,
+) ([]tables.Pack, error) {
+	if len(statusFilter) == 0 && !includeArchived {
+		statusFilter = []types.PackStatus{types.PackStatusDraft, types.PackStatusPublished}
 	}
 
-	for _, pack := range packs {
-		err = ps.hydratePackData(pack)
-		if err != nil {
+	type Result struct {
+		tables.Pack
+		Permission types.PackPermission
+	}
+	var results []Result
+	packs := make([]tables.Pack, 0)
+
+	query := ps.db.Model(
+		&tables.Pack{},
+	).Select(
+		"packs.*, pack_users.permission AS permission",
+	).Joins(
+		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
+		userId,
+	).Where(
+		"permission >= ?", types.PackPermissionView,
+	).Where(
+		"packs.status IN ?", statusFilter,
+	).Order("packs.slug asc")
+
+	if search != "" {
+		query = query.Where("packs.slug LIKE ?", "%"+search+"%")
+	}
+
+	if !includeArchived {
+		query = query.Where("deleted_at IS NULL")
+	}
+
+	if err := query.Unscoped().Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	for _, result := range results {
+		pack := result.Pack
+		if err := ps.hydratePackData(&pack); err != nil {
 			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
-			continue
 		}
+		pack.Permission = result.Permission
+		packs = append(packs, pack)
 	}
 
 	logger.Info(fmt.Sprintf("Found %d packs", len(packs)))
@@ -56,24 +78,31 @@ func (ps *PackwizService) GetPacks() ([]*tables.Pack, error) {
 	return packs, nil
 }
 
-func (ps *PackwizService) PackExists(name string) bool {
-	slug := utils.ToCamelCase(name)
-	if slug == "" {
+func (ps *PackwizService) PackExists(slug string) bool {
+	if err := ps.db.Unscoped().Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
+		logger.Debug("pack not exists:", slug)
 		return false
 	}
 
-	return packwiz_cli.PackExists(slug)
+	return true
 }
 
-func (ps *PackwizService) NewPack(request dto2.NewPackRequest, author tables.User) error {
+func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) error {
 	slug := request.Slug()
 
 	return ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&tables.Pack{
 			Slug:      slug,
-			CreatedBy: author.ID,
-			Users:     []tables.User{author},
+			CreatedBy: author.Id,
 			Status:    types.PackStatusDraft,
+		}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Create(&tables.PackUsers{
+			PackSlug:   slug,
+			UserId:     author.Id,
+			Permission: types.PackPermissionEdit,
 		}).Error; err != nil {
 			return err
 		}
@@ -86,9 +115,9 @@ func (ps *PackwizService) NewPack(request dto2.NewPackRequest, author tables.Use
 	})
 }
 
-func (ps *PackwizService) GetPack(slug string, hydrateData, hydrateMods bool) (tables.Pack, error) {
+func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrateMods bool) (tables.Pack, error) {
 	var pack tables.Pack
-	err := ps.db.Preload("Users").Where(&tables.Pack{Slug: slug}).First(&pack).Error
+	err := ps.db.Unscoped().Where(&tables.Pack{Slug: slug}).First(&pack).Error
 	if err != nil {
 		return pack, err
 	}
@@ -112,7 +141,7 @@ func (ps *PackwizService) GetPack(slug string, hydrateData, hydrateMods bool) (t
 
 // AddMod
 // Add a new mod to an existing pack
-func (ps *PackwizService) AddMod(slug string, request dto2.AddModRequest) error {
+func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) error {
 	if request.Modrinth.IsSet() {
 		data := request.Modrinth
 		return packwiz_cli.AddModrinthMod(slug, data.Name, data.ProjectId, data.VersionFilename, data.VersionId)
@@ -124,11 +153,22 @@ func (ps *PackwizService) AddMod(slug string, request dto2.AddModRequest) error 
 	return errors.New("invalid add mod request")
 }
 
-// RemovePack
+// ArchivePack
 // remove a pack and all mods from disk and db
-func (ps *PackwizService) RemovePack(slug string) error {
+func (ps *PackwizService) ArchivePack(slug string) error {
 	return ps.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Delete(&tables.Pack{Slug: slug}).Error; err != nil {
+		if err := tx.Model(
+			&tables.Pack{Slug: slug},
+		).Updates(
+			&tables.Pack{
+				IsPublic: false,
+				Status:   types.PackStatusDraft,
+				DeletedAt: gorm.DeletedAt{
+					Time:  time.Now(),
+					Valid: true,
+				},
+			},
+		).Error; err != nil {
 			return err
 		}
 		return packwiz_cli.DeleteModpack(slug)
@@ -141,9 +181,18 @@ func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) er
 	return ps.db.Model(&tables.Pack{Slug: slug}).Update("status", status).Error
 }
 
+func (ps *PackwizService) IsPackPublished(slug string) bool {
+	var pack tables.Pack
+	err := ps.db.Where(&tables.Pack{Slug: slug}).First(&pack).Error
+	if err != nil {
+		return false
+	}
+	return pack.Status == types.PackStatusPublished
+}
+
 // SetAcceptableVersions
 // set a mod packs acceptable minecraft versions
-func (ps *PackwizService) SetAcceptableVersions(slug string, request dto2.SetAcceptableVersionsRequest) error {
+func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcceptableVersionsRequest) error {
 	return packwiz_cli.SetAcceptableVersions(slug, request.Versions...)
 }
 
@@ -196,4 +245,20 @@ func (ps *PackwizService) PinMod(slug, mod string) error {
 // unpin a mod to allow it to be updated
 func (ps *PackwizService) UnpinMod(slug, mod string) error {
 	return packwiz_cli.UnpinMod(slug, mod)
+}
+
+// ---
+
+func (ps *PackwizService) hydratePackData(pack *tables.Pack) error {
+	var err error
+	pack.PackData, err = getModpackData(pack.Slug)
+
+	return err
+}
+
+func (ps *PackwizService) hydrateModData(pack *tables.Pack) error {
+	var err error
+	pack.ModData, err = getModpackMods(pack.Slug)
+
+	return err
 }

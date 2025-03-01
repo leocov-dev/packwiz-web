@@ -1,18 +1,33 @@
-/**
- * router/index.ts
- *
- * Automatic routes for `./src/pages/*.vue`
- */
+import {createRouter, createWebHistory} from 'vue-router/auto'
+import {routes} from 'vue-router/auto-routes'
+// @ts-ignore [TS2307]
+import {setupLayouts} from 'virtual:vue-layouts'
+import {useAuthStore} from "@/stores/auth";
 
-// Composables
-import { createRouter, createWebHistory } from 'vue-router/auto'
-import { setupLayouts } from 'virtual:generated-layouts'
-import { routes } from 'vue-router/auto-routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: setupLayouts(routes),
 })
+
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+  await authStore.checkUser(false)
+
+  if (to.meta.noAuth || authStore.isAuthenticated) {
+    console.debug('route guard auth check passed')
+    next()
+  } else {
+    console.debug('route guard auth check failed')
+    next({
+        path: '/auth/login',
+        query: { redirect: to.fullPath },
+      }
+    )
+  }
+
+})
+
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
 router.onError((err, to) => {

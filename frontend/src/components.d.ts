@@ -8,8 +8,19 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppFooter: typeof import('./components/AppFooter.vue')['default']
+    CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
+    FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    Navigation: typeof import('./components/Navigation.vue')['default']
+    PackActions: typeof import('./components/PackActions.vue')['default']
+    PackCard: typeof import('./components/PackCard.vue')['default']
+    PackDetails: typeof import('./components/PackDetails.vue')['default']
+    PackList: typeof import('./components/PackList.vue')['default']
+    PackStatus: typeof import('./components/PackStatus.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SearchBar: typeof import('./components/SearchBar.vue')['default']
+    ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
+    UserMenu: typeof import('./components/UserMenu.vue')['default']
   }
 }

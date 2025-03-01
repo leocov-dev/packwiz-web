@@ -14,33 +14,37 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	if gin.Mode() == gin.DebugMode {
-		router.Use(cors.New(cors.Config{
-			AllowAllOrigins: true,
-		}))
-	}
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://localhost:8080",
+		},
+		AllowCredentials: true,
+	}))
 
 	db := database.GetClient()
 
 	// ---------------------------------------------------------------------
 	packwizFiles := router.Group("packwiz/:slug")
 	packwizFiles.Use(middleware.PackwizFileAuthentication(db))
+	packwizFiles.Use(middleware.PackwizAudit(db))
 	{
-		modpackController := &controllers.ModpackController{}
+		modpackController := controllers.NewModpackController(db)
 		packwizFiles.GET("*filepath", modpackController.ServeStatic)
 	}
 
 	// ---------------------------------------------------------------------
 	api := router.Group("api")
 	api.Use(middleware.SessionStore())
+	api.Use(middleware.ApiAudit(db))
 	{
 		// ---------------------------------------------------------------------
 		v1 := api.Group("v1")
 		{
-			userController := controllers.NewUserController(db)
+			authController := controllers.NewAuthController(db)
 
-			v1.POST("login", userController.Login)
-			v1.POST("logout", userController.Logout)
+			v1.POST("login", authController.Login)
+			v1.POST("logout", authController.Logout)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
@@ -56,8 +60,10 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 				// ---------------------------------------------------------------------
 				userGroup := protectedGroup.Group("user")
 				{
+					userController := controllers.NewUserController(db)
 					// TODO
 					userGroup.GET("", func(c *gin.Context) { c.JSON(200, gin.H{}) })
+					userGroup.GET("current", userController.CurrentUser)
 				}
 
 				// ---------------------------------------------------------------------
@@ -90,10 +96,15 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 							slugGroup.HEAD("", packwizController.PackHead)
 							slugGroup.GET("", packwizController.GetOnePack)
 							slugGroup.POST("", packwizController.AddMod)
-							slugGroup.DELETE("", packwizController.RemovePack)
+							slugGroup.DELETE("", packwizController.ArchivePack)
 							slugGroup.PATCH("acceptable-versions", packwizController.SetAcceptableVersions)
 							slugGroup.PATCH("update", packwizController.UpdateAll)
 							slugGroup.PATCH("rename", packwizController.RenamePack)
+							slugGroup.GET("link", packwizController.GetPersonalizedLink)
+							slugGroup.GET("users", packwizController.GetPackUsers)
+							slugGroup.POST("users", packwizController.AddPackUser)
+							slugGroup.DELETE("users/:userId", packwizController.RemovePackUser)
+							slugGroup.PATCH("users/:userId", packwizController.EditUserAccess)
 
 							// ---------------------------------------------------------------------
 							modGroup := slugGroup.Group("mod/:mod")

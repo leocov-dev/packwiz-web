@@ -5,6 +5,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/logger"
 )
@@ -14,13 +15,21 @@ func SessionStore() gin.HandlerFunc {
 
 	isDevelopment := config.C.Mode == "development"
 
+	var sameSite http.SameSite
+	if isDevelopment {
+		sameSite = http.SameSiteLaxMode
+	} else {
+		sameSite = http.SameSiteStrictMode
+	}
+
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 30,
 		HttpOnly: true,
 		Secure:   !isDevelopment,
+		SameSite: sameSite,
 	})
-	return sessions.Sessions("default", store)
+	return sessions.Sessions("session", store)
 }
 
 func ClearSession(c *gin.Context) {

@@ -16,7 +16,7 @@ type LogrusLogger struct {
 }
 
 // New creates a new instance of LogrusLogger
-func New(logLevel gormLogger.LogLevel, logrusLogger *logrus.Logger) *LogrusLogger {
+func newGormLogger(logLevel gormLogger.LogLevel, logrusLogger *logrus.Logger) *LogrusLogger {
 	return &LogrusLogger{
 		LogLevel: logLevel,
 		Logger:   logrusLogger.WithField("component", "gorm"),
