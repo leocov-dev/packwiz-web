@@ -20,6 +20,7 @@ interface AuthActions {
 
 interface AuthGetters {
   isAuthenticated(state: AuthState): boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 

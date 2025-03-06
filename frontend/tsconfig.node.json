@@ -20,8 +20,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": [
+      "vue",
       "node",
-      "unplugin-vue-layouts/client",
+      "unplugin-vue-layouts/client"
     ],
   }
 }

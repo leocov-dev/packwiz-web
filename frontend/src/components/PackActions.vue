@@ -41,9 +41,12 @@ const actions: {
 
 <template>
   <div>
-    <template v-for="actionItem in actions" :key="actionItem.icon">
+    <template
+      v-for="actionItem in actions"
+      :key="actionItem.icon"
+    >
       <v-tooltip :text="actionItem.tooltip">
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-btn
             link
             density="comfortable"
@@ -51,8 +54,8 @@ const actions: {
             variant="plain"
             v-bind="props"
             :icon="actionItem.icon"
-            @click="actionItem.action"
             :disabled="pack.isArchived || pack.status === PackStatus.DRAFT"
+            @click="actionItem.action"
           />
         </template>
       </v-tooltip>

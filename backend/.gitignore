@@ -2,4 +2,4 @@ bin/
 
 .go-version
 
-/public/
+/public/frontend/

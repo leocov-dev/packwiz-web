@@ -4,23 +4,20 @@ meta:
 </route>
 
 <script lang="ts" setup>
-
 import {useRoute} from "vue-router";
-import PackDetails from "@/components/PackDetails.vue";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {Pack} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
+import PackAddModForm from "@/components/PackAddModForm.vue";
 
-const route = useRoute<'/packs/[slug]'>()
+const route = useRoute<'/packs/[slug].add-mod'>()
 
 const {
   isLoading,
   data: pack,
-  reload,
 } = buildDataLoader<Pack>(async () => {
   return fetchOnePack(route.params.slug)
 })
-
 </script>
 
 <template>
@@ -35,9 +32,8 @@ const {
     />
   </div>
 
-  <PackDetails
+  <PackAddModForm
     v-else-if="pack"
     :pack="pack"
-    @reload="reload"
   />
 </template>

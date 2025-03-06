@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import type {ModData} from "@/interfaces/pack.ts";
-import SearchBar from "@/components/SearchBar.vue";
 
 const {mods, canEdit} = defineProps<{ mods: ModData[], canEdit: boolean }>()
 
-const emit = defineEmits(['add-mod'])
+defineEmits(['add-mod'])
 
 const search = ref<string>('')
 </script>
@@ -15,13 +14,13 @@ const search = ref<string>('')
     :search="search"
     items-per-page="0"
   >
-    <template v-slot:header>
-      <v-toolbar>
+    <template #header>
+      <v-toolbar class="d-flex flex-wrap">
         <v-toolbar-title>Mods</v-toolbar-title>
         <v-text-field
+          v-model="search"
           max-width="300"
           class="me-3"
-          v-model="search"
           density="compact"
           placeholder="Search"
           prepend-inner-icon="mdi-magnify"
@@ -41,10 +40,13 @@ const search = ref<string>('')
       </v-toolbar>
     </template>
 
-    <template v-slot:default="{items}">
+    <template #default="{items}">
       <v-list>
-        <v-list-item v-for="item in items" :key="item.raw.name">
-          {{item.raw.name}}
+        <v-list-item
+          v-for="item in items"
+          :key="item.raw.name"
+        >
+          {{ item.raw.name }}
         </v-list-item>
       </v-list>
     </template>

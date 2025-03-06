@@ -7,20 +7,26 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AcceptableVersions: typeof import('./components/forms/AcceptableVersions.vue')['default']
     AppFooter: typeof import('./components/AppFooter.vue')['default']
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
     FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
-    HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    Loader: typeof import('./components/forms/Loader.vue')['default']
+    MinecraftVersion: typeof import('./components/forms/MinecraftVersion.vue')['default']
     ModsList: typeof import('./components/ModsList.vue')['default']
     Navigation: typeof import('./components/Navigation.vue')['default']
     PackActions: typeof import('./components/PackActions.vue')['default']
+    PackAddModForm: typeof import('./components/PackAddModForm.vue')['default']
     PackCard: typeof import('./components/PackCard.vue')['default']
+    PackCreateForm: typeof import('./components/PackCreateForm.vue')['default']
     PackDetails: typeof import('./components/PackDetails.vue')['default']
+    PackEditForm: typeof import('./components/PackEditForm.vue')['default']
     PackList: typeof import('./components/PackList.vue')['default']
     PackStatus: typeof import('./components/PackStatus.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SearchBar: typeof import('./components/SearchBar.vue')['default']
+    SlugAndName: typeof import('./components/forms/SlugAndName.vue')['default']
     ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
     UserMenu: typeof import('./components/UserMenu.vue')['default']
   }

@@ -70,6 +70,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    cors: true,
   },
   css: {
     preprocessorOptions: {
@@ -79,7 +80,38 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/public',
+    outDir: '../backend/public/frontend',
     emptyOutDir: true,
+    rollupOptions: {
+      // TODO: having an issue with a generated chunk file "_plugin-vue:export-helper"
+      //       getting a leading underscore after being processed by the default
+      //       sanitizeFileName(...) function. This causes the browser to not request
+      //       the file from the backend and simply redirect to index.html. Consequently
+      //       the application fails to load the script and can't start up.
+      //       Maybe there is a way to prevent the need for this helper or a simpler
+      //       configuration change in the rollupOptions.
+      output: {
+        sanitizeFileName: (name) => {
+          const INVALID_CHAR_REGEX = /[\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g;
+          const DRIVE_LETTER_REGEX = /^[a-z]:/i;
+
+          const sanitizeFileName = (name: string) => {
+            const match = DRIVE_LETTER_REGEX.exec(name);
+            const driveLetter = match ? match[0] : '';
+
+            // A `:` is only allowed as part of a windows drive letter (ex: C:\foo)
+            // Otherwise, avoid them because they can refer to NTFS alternate data streams.
+            return driveLetter + name.substr(driveLetter.length).replace(INVALID_CHAR_REGEX, '_');
+          }
+
+          name = sanitizeFileName(name);
+
+          if (name.startsWith('_')) {
+            return 'ck-' + name.slice(1)
+          }
+          return name
+        },
+      }
+    }
   },
 })

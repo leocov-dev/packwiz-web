@@ -64,7 +64,7 @@ const showMenu = ref(false)
           <v-list-item-subtitle>User Profile</v-list-item-subtitle>
         </v-list-item>
 
-        <ThemeSwitch/>
+        <ThemeSwitch />
 
         <v-list-item
           prepend-icon="mdi-logout"

@@ -1,4 +1,3 @@
-import {User} from "@/interfaces/user";
 import {Type} from "class-transformer";
 
 
@@ -26,6 +25,10 @@ export class Pack {
   get title(): string {
     return this.packData?.name || this.slug;
   }
+
+  get dataMissing(): boolean {
+    return !this.packData
+  }
 }
 
 export enum PackStatus {
@@ -45,12 +48,17 @@ export class PackData {
   version!: string;
   @Type(() => Versions)
   versions!: Versions;
+  options!: Options;
 }
 
 export class Versions {
   minecraft!: string;
   @Type(() => Loader)
   loader!: Loader;
+}
+
+export class Options {
+  acceptableGameVersions?: string[];
 }
 
 export class Loader {

@@ -8,7 +8,7 @@ import (
 	"packwiz-web/internal/logger"
 	"packwiz-web/internal/services/importer"
 	"packwiz-web/internal/services/packwiz_svc"
-	tables2 "packwiz-web/internal/tables"
+	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
 	"path/filepath"
 )
@@ -53,10 +53,10 @@ func init() {
 func InitDb() {
 	// Run migrations to create tables and relationships
 	err := db.AutoMigrate(
-		&tables2.User{},
-		&tables2.Pack{},
-		&tables2.PackUsers{},
-		&tables2.Audit{},
+		&tables.User{},
+		&tables.Pack{},
+		&tables.PackUsers{},
+		&tables.Audit{},
 	)
 	if err != nil {
 		panic("failed to migrate database")
@@ -77,15 +77,21 @@ func InitDb() {
 func createDefaultAdminUser() {
 	adminPass, _ := utils.HashPassword(config.C.AdminPassword)
 
-	var defaultAdmin tables2.User
+	// overwrite record or create
 	db.Where("username = ?", "admin").Assign(
-		tables2.User{
-			Username:  "admin",
-			Password:  adminPass,
-			IsAdmin:   true,
+		tables.User{
+			Username: "admin",
+			Password: adminPass,
+			IsAdmin:  true,
+		},
+	).FirstOrCreate(&tables.User{})
+
+	// update if record not found
+	db.Where("username = ?", "admin").Attrs(
+		tables.User{
 			LinkToken: utils.GenerateRandomString(32),
 		},
-	).FirstOrCreate(&defaultAdmin)
+	).FirstOrCreate(&tables.User{})
 }
 
 func SeedDebugData() {
@@ -96,7 +102,7 @@ func createDummyPlayerUser() {
 	pass, _ := utils.HashPassword("password123")
 
 	db.Create(
-		&tables2.User{
+		&tables.User{
 			Username:  "player",
 			Password:  pass,
 			IsAdmin:   false,

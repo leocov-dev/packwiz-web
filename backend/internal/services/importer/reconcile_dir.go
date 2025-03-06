@@ -8,7 +8,7 @@ import (
 	"packwiz-web/internal/interfaces"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
-	tables2 "packwiz-web/internal/tables"
+	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"strings"
 )
@@ -34,7 +34,7 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 		return errorGroup
 	}
 
-	var admin tables2.User
+	var admin tables.User
 	dr.db.Where("username = ?", "admin").First(&admin)
 
 	for _, entry := range entries {
@@ -57,7 +57,7 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 			continue
 		}
 
-		pack := tables2.Pack{
+		pack := tables.Pack{
 			Slug:        slug,
 			Description: "pack imported from packwiz dir",
 			IsPublic:    false,
@@ -68,7 +68,7 @@ func (dr *DataReconciler) ReconcilePackwizDir() error {
 			continue
 		}
 
-		packUser := tables2.PackUsers{
+		packUser := tables.PackUsers{
 			PackSlug:   slug,
 			UserId:     admin.Id,
 			Permission: types.PackPermissionEdit,

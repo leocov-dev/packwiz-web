@@ -31,20 +31,21 @@ onUnmounted(() => {
       class="d-flex"
     >
       <v-app-bar-nav-icon
+        v-ripple="false"
         icon="mdi-layers"
         to="/"
-        v-ripple="false"
-      ></v-app-bar-nav-icon>
+      />
       <v-app-bar-title
-        link text="Packwiz Web"
+        link
+        text="Packwiz Web"
         class="ms-2"
-      ></v-app-bar-title>
+      />
 
       <v-container
         class="pa-0 mr-2"
         :max-width="userPillWidth"
       >
-        <UserMenu :width="userPillWidth"/>
+        <UserMenu :width="userPillWidth" />
       </v-container>
     </v-app-bar>
 
@@ -54,13 +55,13 @@ onUnmounted(() => {
       expand-on-hover
       :rail="rail"
     >
-      <Navigation/>
+      <Navigation />
     </v-navigation-drawer>
 
     <v-main class="overflow-y-scroll">
-      <router-view class="mb-10"/>
+      <router-view class="mb-10" />
     </v-main>
 
-    <CookiesWarn/>
+    <CookiesWarn />
   </v-app>
 </template>

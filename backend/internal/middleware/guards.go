@@ -8,7 +8,7 @@ import (
 	"packwiz-web/internal/types"
 )
 
-func PermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.HandlerFunc {
+func PackPermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param("slug")
 		if slug == "" {
@@ -21,7 +21,7 @@ func PermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.Handle
 			"pack_slug = ? AND user_id = ? AND permission >= ?",
 			slug, user.Id, minPermission,
 		).First(&tables.PackUsers{}).Error; err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 

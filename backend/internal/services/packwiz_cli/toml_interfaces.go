@@ -8,6 +8,7 @@ type PackFile struct {
 	PackFormat string            `toml:"pack-format"`
 	Index      PackFileIndexMeta `toml:"index"`
 	Versions   PackFileVersions  `toml:"versions"`
+	Options    PackFileOptions   `toml:"options"`
 }
 
 type IndexFile struct {
@@ -34,6 +35,10 @@ type PackFileVersions struct {
 	LiteLoader string `toml:"liteloader,omitempty"`
 	Quilt      string `toml:"quilt,omitempty"`
 	NeoForge   string `toml:"neoforge,omitempty"`
+}
+
+type PackFileOptions struct {
+	AcceptableGameVersions []string `toml:"acceptable-game-versions,omitempty"`
 }
 
 type IndexMeta struct {

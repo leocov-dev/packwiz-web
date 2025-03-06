@@ -29,7 +29,7 @@ const {config} = defineProps<{
     :close-on-content-click="false"
     location="bottom end"
   >
-    <template v-slot:activator="{ props }">
+    <template #activator="{ props }">
       <v-btn
         icon="mdi-filter-menu-outline"
         v-bind="props"
@@ -38,7 +38,10 @@ const {config} = defineProps<{
 
     <v-card min-width="200">
       <v-list v-if="model">
-        <v-list-item v-for="(val, key) in config" :key="key">
+        <v-list-item
+          v-for="(val, key) in config"
+          :key="key"
+        >
           <v-checkbox
             v-model="model[key]"
             :label="val.title"
@@ -49,5 +52,4 @@ const {config} = defineProps<{
       </v-list>
     </v-card>
   </v-menu>
-
 </template>

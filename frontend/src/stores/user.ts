@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import {useTheme} from "vuetify";
+
 
 export const usePrefStore = defineStore('userPreferences', {
   state: () => ({

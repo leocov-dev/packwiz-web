@@ -80,7 +80,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	if pc.packwizSvc.PackExists(request.Slug()) {
+	if pc.packwizSvc.PackExists(request.Slug) {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": "pack already exists"})
 		return
 	}

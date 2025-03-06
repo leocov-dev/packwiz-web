@@ -3,7 +3,7 @@ import {onMounted, ref} from "vue";
 export function buildDataLoader<R>(func: () => Promise<R>) {
   const isLoading = ref(true);
   const data = ref<R>();
-  const error = ref<any | null>(null);
+  const error = ref<unknown | null>(null);
 
   const reload = async () => {
     isLoading.value = true;

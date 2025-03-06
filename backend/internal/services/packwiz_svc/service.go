@@ -101,11 +101,15 @@ func (ps *PackwizService) PackExists(slug string) bool {
 }
 
 func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) error {
-	slug := request.Slug()
+
+	name := request.Name
+	if name == "" {
+		name = request.Slug
+	}
 
 	return ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&tables.Pack{
-			Slug:      slug,
+			Slug:      request.Slug,
 			CreatedBy: author.Id,
 			Status:    types.PackStatusDraft,
 		}).Error; err != nil {
@@ -113,14 +117,16 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 		}
 
 		if err := tx.Create(&tables.PackUsers{
-			PackSlug:   slug,
+			PackSlug:   request.Slug,
 			UserId:     author.Id,
 			Permission: types.PackPermissionEdit,
 		}).Error; err != nil {
 			return err
 		}
+
 		return packwiz_cli.NewModpack(
-			slug,
+			request.Slug,
+			name,
 			author.Username,
 			request.MinecraftDef.AsCliType(),
 			request.LoaderDef.AsCliType(),

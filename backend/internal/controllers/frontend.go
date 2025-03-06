@@ -1,4 +1,4 @@
-package server
+package controllers
 
 import (
 	"embed"
@@ -6,17 +6,18 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"packwiz-web/internal/logger"
 	"path/filepath"
 	"strings"
 )
 
-type EmbeddedPublicController struct {
-	publicFiles *embed.FS
+type FrontendController struct {
+	frontendFiles *embed.FS
 }
 
-func NewEmbeddedSPAController(publicFiles *embed.FS) *EmbeddedPublicController {
-	return &EmbeddedPublicController{
-		publicFiles: publicFiles,
+func NewFrontendController(publicFiles *embed.FS) *FrontendController {
+	return &FrontendController{
+		frontendFiles: publicFiles,
 	}
 }
 
@@ -25,10 +26,11 @@ func NewEmbeddedSPAController(publicFiles *embed.FS) *EmbeddedPublicController {
 // we will try to load something from the pre-built single-page-application
 // frontend that is bundled into the build by `embed`. the frontend build
 // process must have run to generate these files.
-func (epc *EmbeddedPublicController) Handler(c *gin.Context) {
+func (epc *FrontendController) Handler(c *gin.Context) {
 	requestedPath := c.Request.URL.Path
 
 	if strings.HasPrefix(requestedPath, "/api") {
+		logger.Warn("api route requested, aborting: ", requestedPath)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -37,16 +39,18 @@ func (epc *EmbeddedPublicController) Handler(c *gin.Context) {
 		requestedPath = "/index.html"
 	}
 
-	requestedPath = filepath.Join("public", requestedPath)
+	requestedPath = filepath.Join("frontend", requestedPath)
 
-	info, err := fs.Stat(epc.publicFiles, requestedPath)
+	info, err := fs.Stat(epc.frontendFiles, requestedPath)
 	if err != nil || info.IsDir() {
+		logger.Warn("file info error", requestedPath, err)
 		c.Redirect(http.StatusMovedPermanently, "/")
 		return
 	}
 
-	file, err := epc.publicFiles.Open(requestedPath)
+	file, err := epc.frontendFiles.Open(requestedPath)
 	if err != nil {
+		logger.Warn("file open error", requestedPath, err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -57,7 +61,11 @@ func (epc *EmbeddedPublicController) Handler(c *gin.Context) {
 
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
+		logger.Warn("no content type found for extension:", ext)
 		contentType = "application/octet-stream"
 	}
+
+	logger.Debug("serving file:", requestedPath, "with content type:", contentType)
+
 	c.DataFromReader(http.StatusOK, stat.Size(), contentType, file, nil)
 }

@@ -26,7 +26,10 @@ const updateFromUrl = () => {
   queryData.value.filters = (route.query.filters as string)?.split(',').reduce((map, key) => {
     map[key.trim()] = true
     return map
-  }, {} as Filters) || {}
+  }, {} as Filters) || {
+    'draft': true,
+    'published': true,
+  }
 }
 updateFromUrl()
 

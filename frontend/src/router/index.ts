@@ -1,8 +1,9 @@
-import {createRouter, createWebHistory} from 'vue-router/auto'
+import {createRouter, createWebHistory} from 'vue-router'
 import {routes} from 'vue-router/auto-routes'
-// @ts-ignore [TS2307]
+// @ts-expect-error [TS2307]
 import {setupLayouts} from 'virtual:vue-layouts'
 import {useAuthStore} from "@/stores/auth";
+import type {NavigationGuardNext, RouteLocationNormalizedGeneric, RouteLocationNormalizedLoaded} from "vue-router";
 
 
 const router = createRouter({
@@ -10,15 +11,15 @@ const router = createRouter({
   routes: setupLayouts(routes),
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to: RouteLocationNormalizedGeneric, from: RouteLocationNormalizedLoaded, next: NavigationGuardNext): Promise<void> => {
   const authStore = useAuthStore()
   await authStore.checkUser(false)
 
   if (to.meta.noAuth || authStore.isAuthenticated) {
-    console.debug('route guard auth check passed')
+    console.debug('route guard auth check passed -> ', to.fullPath)
     next()
   } else {
-    console.debug('route guard auth check failed')
+    console.debug('route guard auth check failed, redirecting to login')
     next({
         path: '/auth/login',
         query: { redirect: to.fullPath },
@@ -30,7 +31,8 @@ router.beforeEach(async (to, from, next) => {
 
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
-router.onError((err, to) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+router.onError((err: any, to: RouteLocationNormalizedGeneric) => {
   if (err?.message?.includes?.('Failed to fetch dynamically imported module')) {
     if (!localStorage.getItem('vuetify:dynamic-reload')) {
       console.log('Reloading page to fix dynamic import error')

@@ -71,7 +71,7 @@ func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
 
 		var packUser tables.PackUsers
 		if err := db.Where("pack_slug = ? AND user_id = ?", slug, user.Id).First(&packUser).Error; err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 

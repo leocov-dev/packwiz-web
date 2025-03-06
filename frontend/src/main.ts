@@ -14,11 +14,15 @@ import App from './App.vue'
 // Composables
 import { createApp } from 'vue'
 import router from '@/router'
+import {initializeCacheStore} from "@/stores/cache.ts";
 
 const app = createApp(App)
 
 registerPlugins(app)
 
-router.isReady().then(() => {
+Promise.all([
+  router.isReady(),
+  initializeCacheStore(),
+]).then(() => {
   app.mount('#app')
 })

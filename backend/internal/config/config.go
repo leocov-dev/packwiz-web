@@ -10,6 +10,8 @@ import (
 )
 
 type Config struct {
+	Name           string
+	Version        string
 	Mode           string
 	AdminPassword  string
 	TrustedProxies []string
@@ -19,7 +21,14 @@ type Config struct {
 	SessionSecret  []byte
 }
 
-var C Config
+var (
+	// VersionTag
+	// this must be exported to set it from build command
+	// but should not be accessed directly
+	VersionTag string
+
+	C Config
+)
 
 const (
 	envMode          = "MODE"
@@ -63,7 +72,16 @@ func init() {
 	config.BindEnv(envSessionSecret)
 	config.SetDefault(envSessionSecret, "insecure-session-secret")
 
+	var version string
+	if VersionTag == "" {
+		version = "0.0.0-def"
+	} else {
+		version = VersionTag
+	}
+
 	C = Config{
+		Name:           filepath.Base(exePath),
+		Version:        version,
 		Mode:           config.GetString(envMode),
 		AdminPassword:  config.GetString(envAdminPassword),
 		TrustedProxies: strings.Fields(config.GetString(envProxies)),

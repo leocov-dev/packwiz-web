@@ -10,9 +10,14 @@ type VersionsData struct {
 	Loader    *LoaderData `json:"loader"`
 }
 
+type OptionsData struct {
+	AcceptableGameVersions []string `json:"acceptableGameVersions"`
+}
+
 type PackData struct {
 	Name       string       `json:"name"`
 	Version    string       `json:"version"`
 	PackFormat string       `json:"packFormat"`
 	Versions   VersionsData `json:"versions"`
+	Options    OptionsData  `json:"options"`
 }

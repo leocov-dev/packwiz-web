@@ -14,13 +14,23 @@ const permissionMap = {
 <template>
   <v-card min-height="120">
     <v-card-title class="d-flex justify-center">
-      <h4 class="me-auto">{{ pack.title }}</h4>
+      <h4 class="me-auto">
+        {{ pack.title }}
+      </h4>
       <PackStatus :status="pack.isArchived ? 'archived' : pack.status"/>
-      <div
+
+      <PackStatus
+        v-if="pack.isPublic"
         class="ms-2"
-        v-if="pack.isPublic">
-        <PackStatus status="public"/>
-      </div>
+        status="public"
+      />
+
+      <PackStatus
+        v-if="pack.dataMissing"
+        class="ms-2"
+        status="warning"
+      />
+
     </v-card-title>
     <v-card-text>
       {{ pack.description }}

@@ -54,29 +54,26 @@ func (l LoaderDef) Validate() error {
 }
 
 type NewPackRequest struct {
-	Name         string       `json:"name" validate:"required"`
+	Slug         string       `json:"slug" validate:"required,slug"`
+	Name         string       `json:"name"`
 	MinecraftDef MinecraftDef `json:"minecraft" validate:"required"`
 	LoaderDef    LoaderDef    `json:"loader" validate:"required"`
 }
 
-var allowedSlugRegex = regexp.MustCompile(`[^a-zA-Z0-9\-._]+`)
-
-func (r NewPackRequest) Slug() string {
-	return allowedSlugRegex.ReplaceAllString(r.Name, "-")
-}
+var validSlugRegex = regexp.MustCompile(`^[a-zA-Z0-9\-._]+$`)
 
 func (r NewPackRequest) Validate() error {
 	errorGroup := interfaces.NewErrorGroup()
+	validate := validator.New()
 
-	if r.Slug() == "" {
-		errorGroup.Add(errors.New("invalid name resulted in empty slug"))
+	if err := validate.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
+		return validSlugRegex.MatchString(fl.Field().String())
+	}); err != nil {
+		errorGroup.Add(err)
 	}
 
 	errorGroup.Add(r.MinecraftDef.Validate())
-
 	errorGroup.Add(r.LoaderDef.Validate())
-
-	validate := validator.New()
 	errorGroup.Add(validate.Struct(r))
 
 	if errorGroup.IsEmpty() {

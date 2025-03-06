@@ -83,6 +83,9 @@ func getModpackData(modpack string) (*types.PackData, error) {
 			Minecraft: packFile.Versions.Minecraft,
 			Loader:    loaderDataFromVersionsData(packFile.Versions),
 		},
+		Options: types.OptionsData{
+			AcceptableGameVersions: packFile.Options.AcceptableGameVersions,
+		},
 	}
 
 	return packData, nil

@@ -6,14 +6,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"packwiz-web/internal/logger"
-	tables2 "packwiz-web/internal/tables"
+	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
 )
 
 func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		actionParams := make(map[string]interface{})
-		auditRecord := &tables2.Audit{
+		auditRecord := &tables.Audit{
 			IpAddress: c.ClientIP(),
 		}
 
@@ -53,8 +53,8 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		// api auth middleware is bound after this one so this needs to be after
 		// the call to c.Next()
 		if user, ok := c.Get("user"); ok {
-			auditRecord.UserId = user.(tables2.User).Id
-			actionParams["user"] = user.(tables2.User).Username
+			auditRecord.UserId = user.(tables.User).Id
+			actionParams["user"] = user.(tables.User).Username
 		}
 
 		// TODO: do we want to detect all requests? intrusion detection? or just

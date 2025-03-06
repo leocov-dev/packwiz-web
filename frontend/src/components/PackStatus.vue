@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-const { status } = defineProps<{ status: "draft" | "published" | "public" | "archived" }>()
+const { status } = defineProps<{ status: "draft" | "published" | "public" | "archived" | "warning" }>()
 
 const statusMap = {
   published: {
@@ -11,7 +11,7 @@ const statusMap = {
   draft: {
     icon: 'mdi-file-edit',
     tooltip: 'This pack is a draft',
-    color: 'warning',
+    color: 'secondary',
   },
   archived: {
     icon: 'mdi-archive-outline',
@@ -22,6 +22,11 @@ const statusMap = {
     icon: 'mdi-account-group',
     tooltip: 'This pack does not require authentication',
     color: 'red',
+  },
+  warning: {
+    icon: 'mdi-alert',
+    tooltip: 'This pack has invalid file data',
+    color: 'warning',
   }
 }
 
@@ -29,12 +34,12 @@ const statusMap = {
 
 <template>
   <v-tooltip :text="statusMap[status].tooltip">
-    <template v-slot:activator="{ props }">
+    <template #activator="{ props }">
       <v-icon
         v-bind="props"
         :icon="statusMap[status].icon"
         :color="statusMap[status].color"
-      ></v-icon>
+      />
     </template>
   </v-tooltip>
 </template>

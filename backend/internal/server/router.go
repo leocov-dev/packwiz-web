@@ -1,16 +1,16 @@
 package server
 
 import (
-	"embed"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/types"
+	"packwiz-web/public"
 )
 
-func NewRouter(publicFiles *embed.FS) *gin.Engine {
+func NewRouter() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
@@ -92,32 +92,39 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 						packGroup.POST("", packwizController.NewPack)
 
 						// ---------------------------------------------------------------------
+						canViewPackGuard := middleware.PackPermissionGuard(types.PackPermissionView, db)
+						canEditPackGuard := middleware.PackPermissionGuard(types.PackPermissionEdit, db)
+
 						slugGroup := packGroup.Group(":slug")
-						slugGroup.Use(middleware.PermissionGuard(types.PackPermissionView, db))
+						slugGroup.Use(canViewPackGuard)
 						{
 							slugGroup.HEAD("", packwizController.PackHead)
 							slugGroup.GET("", packwizController.GetOnePack)
-							slugGroup.POST("", packwizController.AddMod)
-							slugGroup.DELETE("", packwizController.ArchivePack)
-							slugGroup.PATCH("acceptable-versions", packwizController.SetAcceptableVersions)
-							slugGroup.PATCH("update", packwizController.UpdateAll)
-							slugGroup.PATCH("rename", packwizController.RenamePack)
 							slugGroup.GET("link", packwizController.GetPersonalizedLink)
-							slugGroup.GET("users", packwizController.GetPackUsers)
-							slugGroup.POST("users", packwizController.AddPackUser)
-							slugGroup.DELETE("users/:userId", packwizController.RemovePackUser)
-							slugGroup.PATCH("users/:userId", packwizController.EditUserAccess)
 
-							// ---------------------------------------------------------------------
-							modGroup := slugGroup.Group("mod/:mod")
-							modGroup.Use(middleware.PermissionGuard(types.PackPermissionEdit, db))
+							editPackGroup := slugGroup.Group("")
+							editPackGroup.Use(canEditPackGuard)
 							{
-								modGroup.DELETE("", packwizController.RemoveMod)
-								modGroup.PATCH("rename", packwizController.RenameMod)
-								modGroup.PATCH("update", packwizController.UpdateMod)
-								modGroup.PATCH("side", packwizController.ChangeModSide)
-								modGroup.PATCH("pin", packwizController.PinMod)
-								modGroup.PATCH("unpin", packwizController.UnPinMod)
+								editPackGroup.POST("", packwizController.AddMod)
+								editPackGroup.DELETE("", packwizController.ArchivePack)
+								editPackGroup.PATCH("acceptable-versions", packwizController.SetAcceptableVersions)
+								editPackGroup.PATCH("update", packwizController.UpdateAll)
+								editPackGroup.PATCH("rename", packwizController.RenamePack)
+								editPackGroup.GET("users", packwizController.GetPackUsers)
+								editPackGroup.POST("users", packwizController.AddPackUser)
+								editPackGroup.DELETE("users/:userId", packwizController.RemovePackUser)
+								editPackGroup.PATCH("users/:userId", packwizController.EditUserAccess)
+
+								// ---------------------------------------------------------------------
+								modGroup := editPackGroup.Group("mod/:mod")
+								{
+									modGroup.DELETE("", packwizController.RemoveMod)
+									modGroup.PATCH("rename", packwizController.RenameMod)
+									modGroup.PATCH("update", packwizController.UpdateMod)
+									modGroup.PATCH("side", packwizController.ChangeModSide)
+									modGroup.PATCH("pin", packwizController.PinMod)
+									modGroup.PATCH("unpin", packwizController.UnPinMod)
+								}
 							}
 						}
 					}
@@ -127,7 +134,7 @@ func NewRouter(publicFiles *embed.FS) *gin.Engine {
 	}
 
 	// ---------------------------------------------------------------------
-	embeddedSPAController := NewEmbeddedSPAController(publicFiles)
+	embeddedSPAController := controllers.NewFrontendController(public.GetFrontendFiles())
 	router.NoRoute(embeddedSPAController.Handler)
 
 	return router

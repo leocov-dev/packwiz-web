@@ -4,7 +4,7 @@ meta:
 </route>
 
 <template>
-
+  Users
 </template>
 
 <script lang="ts" setup>
