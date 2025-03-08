@@ -5,7 +5,7 @@ import (
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
 	"packwiz-web/internal/config"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/importer"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
@@ -35,7 +35,7 @@ func init() {
 		db, err = gorm.Open(
 			sqlite.Open(filepath.Join(config.C.DataDir, "packwiz-web.db")),
 			&gorm.Config{
-				Logger: newGormLogger(gormLogLevel, logger.Log),
+				Logger: newGormLogger(gormLogLevel, log.Log),
 			},
 		)
 		if err != nil {
@@ -62,11 +62,11 @@ func InitDb() {
 		panic("failed to migrate database")
 	}
 
-	logger.Info("Database migration completed!")
+	log.Info("Database migration completed!")
 
 	if config.C.Database == "sqlite" {
 		db.Exec("VACUUM;")
-		logger.Info("Database VACUUM completed!")
+		log.Info("Database VACUUM completed!")
 	}
 
 	createDefaultAdminUser()

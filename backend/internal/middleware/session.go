@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"packwiz-web/internal/config"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 )
 
 func SessionStore() gin.HandlerFunc {
@@ -36,6 +36,6 @@ func ClearSession(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
 	if err := session.Save(); err != nil {
-		logger.Warn(fmt.Sprintf("Failed to clear and save session: %s", err))
+		log.Warn(fmt.Sprintf("Failed to clear and save session: %s", err))
 	}
 }

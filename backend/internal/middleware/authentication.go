@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/user_svc"
 	tables "packwiz-web/internal/tables"
 )
@@ -16,7 +16,7 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 		userId := session.Get("userId")
 		if userId == nil {
 			ClearSession(c)
-			logger.Warn("no user session")
+			log.Warn("no user session")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "no user session"})
 			return
 		}
@@ -26,7 +26,7 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 		user, err := userService.FindById(userId.(uint))
 		if err != nil {
 			ClearSession(c)
-			logger.Warn("no user match")
+			log.Warn("no user match")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "no user match"})
 			return
 		}

@@ -2,7 +2,7 @@ package server
 
 import (
 	"packwiz-web/internal/config"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +14,8 @@ func Start() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	gin.DefaultWriter = logger.Log.Writer()
-	gin.DefaultErrorWriter = logger.Log.Writer()
+	gin.DefaultWriter = log.Log.Writer()
+	gin.DefaultErrorWriter = log.Log.Writer()
 
 	r := NewRouter()
 

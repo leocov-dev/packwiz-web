@@ -12,12 +12,16 @@ const permissionMap = {
 </script>
 
 <template>
-  <v-card min-height="120">
+  <v-card
+    min-height="160"
+    max-height="160"
+    class="d-flex flex-column"
+  >
     <v-card-title class="d-flex justify-center">
       <h4 class="me-auto">
         {{ pack.title }}
       </h4>
-      <PackStatus :status="pack.isArchived ? 'archived' : pack.status"/>
+      <PackStatus :status="pack.isArchived ? 'archived' : pack.status" />
 
       <PackStatus
         v-if="pack.isPublic"
@@ -30,11 +34,12 @@ const permissionMap = {
         class="ms-2"
         status="warning"
       />
-
     </v-card-title>
-    <v-card-text>
+
+    <v-card-text class="multiline-truncate flex-grow-1">
       {{ pack.description }}
     </v-card-text>
+
     <v-card-actions class="ms-2 me-2 d-flex justify-end">
       <v-btn
         v-if="pack.permission >= PackPermission.VIEW"
@@ -45,7 +50,18 @@ const permissionMap = {
         density="comfortable"
       />
 
-      <PackActions :pack="pack"/>
+      <PackActions :pack="pack" />
     </v-card-actions>
   </v-card>
 </template>
+
+<style scoped>
+.multiline-truncate {
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2; /* Number of lines to show */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap; /* This preserves new lines */
+}
+</style>

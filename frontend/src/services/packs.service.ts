@@ -1,6 +1,7 @@
 import {Packs, Pack} from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
+import type {NewPackRequest} from "@/interfaces/requests.ts";
 
 
 export async function fetchAllPacks(
@@ -49,6 +50,10 @@ export async function linkToClipboard(slug: string) {
 }
 
 export async function openPublicLink(slug: string) {
-  const link = await await getPackPublicLink(slug)
+  const link = await getPackPublicLink(slug)
   window.open(link, '_blank')
+}
+
+export async function newPack(request: NewPackRequest) {
+  return apiClient.post('v1/packwiz/pack', request)
 }

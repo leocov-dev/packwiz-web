@@ -29,17 +29,17 @@ const chipList: Chip[] = [
     condition: pack.slug != pack.packData?.name,
   },
   {
-    text: `Version: ${ pack.packData?.version }`,
+    text: `Version: ${pack.packData?.version}`,
     color: "teal",
     condition: !!pack.packData,
   },
   {
-    text: `Minecraft: ${ pack.packData?.versions.minecraft }`,
+    text: `Minecraft: ${pack.packData?.versions.minecraft}`,
     color: "cyan",
     condition: !!pack.packData,
   },
   {
-    text: `${toTitleCase(pack.packData?.versions.loader.type || "")}: ${ pack.packData?.versions.loader.version }`,
+    text: `${toTitleCase(pack.packData?.versions.loader.type || "")}: ${pack.packData?.versions.loader.version}`,
     color: "yellow",
     condition: !!pack.packData,
   },
@@ -71,62 +71,78 @@ const chipList: Chip[] = [
           <h1 class="me-5">
             {{ pack.title }}
           </h1>
-          <PackStatus :status="pack.isArchived ? 'archived' : pack.status" />
-          <div
-            v-if="pack.isPublic"
-            class="ms-2"
-          >
-            <PackStatus status="public" />
-          </div>
+          <PackStatus :status="pack.isArchived ? 'archived' : pack.status"/>
+          <PackStatus v-if="pack.isPublic" status="public"/>
+          <PackStatus v-if="pack.dataMissing" status="warning"/>
         </div>
-
-        <v-btn
-          v-if="pack.permission >= PackPermission.EDIT || authStore.user?.isAdmin"
-          prepend-icon="mdi-pencil"
-          text="Edit"
-          :to="`/packs/${pack.slug}/edit`"
-        />
-
-        <!--        <template v-if="!pack.isArchived" class="d-flex align-center">-->
-        <!--          <v-btn-->
-        <!--            v-if="pack.status === 'draft'"-->
-        <!--            text="Publish"-->
-        <!--          />-->
-        <!--          <v-btn-->
-        <!--            v-else-if="pack.status === 'published'"-->
-        <!--            text="Convert to Draft"-->
-        <!--            color="warning"-->
-        <!--          />-->
-        <!--        </template>-->
-
-        <!--        <v-btn-->
-        <!--          v-if="!pack.isArchived"-->
-        <!--          class="ms-3"-->
-        <!--          text="Archive"-->
-        <!--          color="error"-->
-        <!--        />-->
-        <!--        <v-btn-->
-        <!--          v-else-->
-        <!--          class="ms-3"-->
-        <!--          text="Unarchive"-->
-        <!--          color="error"-->
-        <!--        />-->
 
         <PackActions
           class="ms-3"
           :pack="pack"
         />
-        <v-btn
-          icon="mdi-refresh"
-          variant="text"
-          color="disabled"
-          @click="$emit('reload')"
-        />
+        <!--        <v-btn-->
+        <!--          icon="mdi-refresh"-->
+        <!--          variant="text"-->
+        <!--          color="disabled"-->
+        <!--          @click="$emit('reload')"-->
+        <!--        />-->
       </v-card-title>
 
-      <v-divider />
+      <v-divider/>
 
-      <v-card-text class="ma-2">
+      <div
+        v-if="!pack.dataMissing"
+        class="d-flex align-center justify-end mt-3 ms-3 me-3">
+        <v-btn
+          v-if="pack.permission >= PackPermission.EDIT || authStore.user?.isAdmin"
+          prepend-icon="mdi-pencil"
+          text="Edit"
+          :to="`/packs/${pack.slug}/edit`"
+          class="me-3"
+        />
+
+        <div
+          v-if="!pack.isArchived"
+          class="d-flex align-center me-3"
+        >
+          <v-btn
+            v-if="pack.status === 'draft'"
+            text="Publish"
+            prepend-icon="mdi-earth"
+          />
+          <v-btn
+            v-else-if="pack.status === 'published'"
+            text="Convert to Draft"
+            color="warning"
+            prepend-icon="mdi-file-edit"
+          />
+        </div>
+
+        <v-btn
+          v-if="!pack.isArchived"
+          text="Archive"
+          color="error"
+          prepend-icon="mdi-archive"
+        />
+        <v-btn
+          v-else
+          class="ms-3"
+          text="Unarchive"
+          color="error"
+          prepend-icon="mdi-archive-refresh"
+        />
+      </div>
+      <div v-else
+        class="ma-4"
+      >
+        <v-alert
+          icon="mdi-alert"
+          type="warning"
+          text="This pack has invalid or missing file data."
+        />
+      </div>
+
+      <v-card-text class="ms-2 me-2 mb-2">
         <div
           v-if="chipList.length > 0"
           class="d-flex flex-wrap align-center"
@@ -142,7 +158,7 @@ const chipList: Chip[] = [
         </div>
         <p
           v-if="pack.description"
-          class="mt-6"
+          class="mt-6 text-pre-line"
         >
           {{ pack.description }}
         </p>
@@ -152,6 +168,7 @@ const chipList: Chip[] = [
     <ModsList
       :mods="pack.modData || []"
       :can-edit="pack.permission >= PackPermission.EDIT"
+      :disabled="pack.dataMissing"
       @add-mod="onAddMod"
     />
   </div>

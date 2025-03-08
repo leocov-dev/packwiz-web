@@ -8,6 +8,7 @@ import (
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/types"
 	"packwiz-web/public"
+	"time"
 )
 
 func NewRouter() *gin.Engine {
@@ -21,6 +22,16 @@ func NewRouter() *gin.Engine {
 			"http://localhost:8080",
 		},
 		AllowCredentials: true,
+		AllowHeaders: []string{
+			"Content-Type",
+		},
+		AllowMethods: []string{
+			"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
+		},
+		ExposeHeaders: []string{
+			"Content-Length",
+		},
+		MaxAge: 12 * time.Hour,
 	}))
 
 	db := database.GetClient()

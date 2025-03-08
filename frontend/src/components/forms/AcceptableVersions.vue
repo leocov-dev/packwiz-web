@@ -17,6 +17,6 @@ const versions = ref(cacheStore.minecraftVersions)
     chips
     multiple
     persistent-hint
-  ></v-select>
+  />
 </template>
 

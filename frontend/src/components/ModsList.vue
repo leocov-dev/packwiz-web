@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type {ModData} from "@/interfaces/pack.ts";
 
-const {mods, canEdit} = defineProps<{ mods: ModData[], canEdit: boolean }>()
+const {mods, canEdit, disabled} = defineProps<{
+  mods: ModData[],
+  canEdit: boolean,
+  disabled: boolean,
+}>()
 
 defineEmits(['add-mod'])
 
@@ -29,7 +33,7 @@ const search = ref<string>('')
           hide-details
         />
         <v-btn
-          v-if="canEdit"
+          v-if="canEdit && !disabled"
           class="me-3"
           color="primary"
           variant="flat"

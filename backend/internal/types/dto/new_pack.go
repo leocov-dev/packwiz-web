@@ -54,10 +54,13 @@ func (l LoaderDef) Validate() error {
 }
 
 type NewPackRequest struct {
-	Slug         string       `json:"slug" validate:"required,slug"`
-	Name         string       `json:"name"`
-	MinecraftDef MinecraftDef `json:"minecraft" validate:"required"`
-	LoaderDef    LoaderDef    `json:"loader" validate:"required"`
+	Slug               string       `json:"slug" validate:"required,slug"`
+	Name               string       `json:"name"`
+	Version            string       `json:"version"`
+	Description        string       `json:"description"`
+	MinecraftDef       MinecraftDef `json:"minecraft" validate:"required"`
+	LoaderDef          LoaderDef    `json:"loader" validate:"required"`
+	AcceptableVersions []string     `json:"acceptableVersions"`
 }
 
 var validSlugRegex = regexp.MustCompile(`^[a-zA-Z0-9\-._]+$`)

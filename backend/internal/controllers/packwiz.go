@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/url"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
@@ -73,9 +74,13 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 	}
 
 	var request dto.NewPackRequest
-	c.BindJSON(&request)
+	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
+		log.Error("Failed to bind request json", err)
+		return
+	}
 
 	if err := request.Validate(); err != nil {
+		log.Error("request validation failed", err)
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
 		return
 	}
@@ -87,6 +92,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 
 	err := pc.packwizSvc.NewPack(request, author)
 	if pc.abortWithError(c, err) {
+		log.Error("error creating new pack", err)
 		return
 	}
 
@@ -133,7 +139,10 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 	}
 
 	var request dto.AddModRequest
-	c.BindJSON(&request)
+	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
+		log.Error("Failed to bind request json", err)
+		return
+	}
 
 	if err := request.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
@@ -171,7 +180,10 @@ func (pc *PackwizController) SetAcceptableVersions(c *gin.Context) {
 	}
 
 	var request dto.SetAcceptableVersionsRequest
-	c.BindJSON(&request)
+	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
+		log.Error("Failed to bind request json", err)
+		return
+	}
 
 	if err := request.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
@@ -252,7 +264,10 @@ func (pc *PackwizController) ChangeModSide(c *gin.Context) {
 	}
 
 	var request dto.ChangeModSideRequest
-	c.BindJSON(&request)
+	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
+		log.Error("Failed to bind request json", err)
+		return
+	}
 
 	if err := request.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})

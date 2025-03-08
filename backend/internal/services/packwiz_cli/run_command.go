@@ -3,7 +3,7 @@ package packwiz_cli
 import (
 	"os/exec"
 	"packwiz-web/internal/config"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 	"path/filepath"
 	"sync"
 )
@@ -23,15 +23,15 @@ func runCommand(modpack string, args ...string) error {
 
 	cmd := exec.Command("packwiz", args...)
 
-	logger.Debug("Execute:", cmd.Path, cmd.Args)
+	log.Debug("Execute:", cmd.Path, cmd.Args)
 
 	// setting Dir here changes the execution context to be the mod's pack folder
 	cmd.Dir = filepath.Join(config.C.PackwizDir, modpack)
 	output, err := cmd.CombinedOutput()
 
-	logger.Debug("Output: ", output)
+	log.Debug("Output: ", output)
 	if err != nil {
-		logger.Debug("Error: ", err)
+		log.Debug("Error: ", err)
 		return err
 	}
 

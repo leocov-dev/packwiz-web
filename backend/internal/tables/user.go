@@ -12,6 +12,8 @@ type User struct {
 	UpdatedAt        time.Time      `json:"updatedAt"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 	Username         string         `gorm:"unique" json:"username"`
+	FullName         string         `json:"fullName"`
+	Email            string         `gorm:"unique" json:"email"`
 	Password         string         `json:"-"`
 	IsAdmin          bool           `json:"isAdmin"`
 	IdentityProvider string         `json:"identityProvider"`

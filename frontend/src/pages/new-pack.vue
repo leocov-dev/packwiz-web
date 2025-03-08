@@ -8,5 +8,5 @@ meta:
 </script>
 
 <template>
-  <PackCreateForm/>
+  <PackCreateForm />
 </template>

@@ -2,7 +2,9 @@
 
 import {useAuthStore} from "@/stores/auth";
 
+const route = useRoute()
 const authStore = useAuthStore()
+const selected = ref<string[]>([])
 
 const items = [
   {
@@ -27,17 +29,28 @@ const userItems = computed(() => {
     return !(item.route.startsWith('/admin') && (!authStore.user || !authStore.user.isAdmin))
   })
 })
+
+watch(
+  () => route.path,
+  (newPath) => {
+    selected.value = [newPath]
+  },
+  { immediate: true }
+)
+
 </script>
 
 <template>
   <v-list
+    v-model:selected="selected"
+    select-strategy="single-leaf"
     nav
     class="d-flex flex-column fill-height"
   >
     <v-list-item
       v-for="(item, i) in userItems"
       :key="i"
-      :value="item"
+      :value="item.route"
       :to="item.route"
       :prepend-icon="item.icon"
       :title="item.text"

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -79,21 +79,21 @@ func (ps *PackwizService) GetPacks(
 	for _, result := range results {
 		pack := result.Pack
 		if err := ps.hydratePackData(&pack); err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
+			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
 		}
 		pack.IsArchived = result.IsArchived
 		pack.Permission = result.Permission
 		packs = append(packs, pack)
 	}
 
-	logger.Info(fmt.Sprintf("Found %d packs", len(packs)))
+	log.Info(fmt.Sprintf("Found %d packs", len(packs)))
 
 	return packs, nil
 }
 
 func (ps *PackwizService) PackExists(slug string) bool {
 	if err := ps.db.Unscoped().Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
-		logger.Debug("pack not exists:", slug)
+		log.Debug("pack not exists:", slug)
 		return false
 	}
 
@@ -109,9 +109,10 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 	return ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&tables.Pack{
-			Slug:      request.Slug,
-			CreatedBy: author.Id,
-			Status:    types.PackStatusDraft,
+			Slug:        request.Slug,
+			CreatedBy:   author.Id,
+			Status:      types.PackStatusDraft,
+			Description: request.Description,
 		}).Error; err != nil {
 			return err
 		}
@@ -124,13 +125,27 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			return err
 		}
 
-		return packwiz_cli.NewModpack(
+		if err := packwiz_cli.NewModpack(
 			request.Slug,
 			name,
 			author.Username,
+			request.Version,
 			request.MinecraftDef.AsCliType(),
 			request.LoaderDef.AsCliType(),
-		)
+		); err != nil {
+			return err
+		}
+
+		if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
+			if err := packwiz_cli.SetAcceptableVersions(
+				request.Slug,
+				request.AcceptableVersions...,
+			); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
 
@@ -163,14 +178,14 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 	if hydrateData {
 		err = ps.hydratePackData(&result.Pack)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", slug, err))
+			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", slug, err))
 		}
 	}
 
 	if hydrateMods {
 		err = ps.hydrateModData(&result.Pack)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", slug, err))
+			log.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", slug, err))
 		}
 	}
 

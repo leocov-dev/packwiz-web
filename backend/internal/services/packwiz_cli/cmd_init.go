@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 )
 
-func NewModpack(slug, name, author string, minecraft MinecraftDef, loader LoaderDef) error {
+func NewModpack(slug, name, author, version string, minecraft MinecraftDef, loader LoaderDef) error {
 	args := []string{
 		"init",
 		"--name", name,
 		"--author", author,
-		"--version", "1.0.0",
+		"--version", version,
 	}
 
 	args = append(args, minecraft.AsArgs()...)

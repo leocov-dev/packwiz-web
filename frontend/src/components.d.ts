@@ -20,7 +20,6 @@ declare module 'vue' {
     PackCard: typeof import('./components/PackCard.vue')['default']
     PackCreateForm: typeof import('./components/PackCreateForm.vue')['default']
     PackDetails: typeof import('./components/PackDetails.vue')['default']
-    PackEditForm: typeof import('./components/PackEditForm.vue')['default']
     PackList: typeof import('./components/PackList.vue')['default']
     PackStatus: typeof import('./components/PackStatus.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

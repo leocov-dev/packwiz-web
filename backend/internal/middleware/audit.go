@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"packwiz-web/internal/logger"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
 )
@@ -68,15 +68,15 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		if jsonData, err := json.Marshal(actionParams); err == nil {
 			auditRecord.ActionParams = string(jsonData)
 		} else {
-			logger.Error(fmt.Sprintf("Failed to marshal action params: %s", err))
+			log.Error(fmt.Sprintf("Failed to marshal action params: %s", err))
 		}
 
 		if recordAsJson, err := json.Marshal(auditRecord); err == nil {
-			logger.Debug("API Audit:", string(recordAsJson))
+			log.Debug("API Audit:", string(recordAsJson))
 		}
 
 		if err := db.Create(auditRecord).Error; err != nil {
-			logger.Error(fmt.Sprintf("Failed to create audit record: %s", err))
+			log.Error(fmt.Sprintf("Failed to create audit record: %s", err))
 		}
 	}
 }
