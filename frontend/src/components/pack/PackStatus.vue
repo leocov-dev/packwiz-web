@@ -1,6 +1,9 @@
 <script setup lang="ts">
 
-const { status } = defineProps<{ status: "draft" | "published" | "public" | "archived" | "warning" }>()
+const { status, class: classDef } = defineProps<{
+  status: "draft" | "published" | "public" | "archived" | "warning",
+  class?: string
+}>()
 
 const statusMap = {
   published: {
@@ -39,6 +42,7 @@ const statusMap = {
         v-bind="props"
         :icon="statusMap[status].icon"
         :color="statusMap[status].color"
+        :class="classDef"
       />
     </template>
   </v-tooltip>

@@ -1,6 +1,7 @@
+**/.idea
+**/.*-version
+
 /backend/bin
-/backend/internal/server/public
-/backend/.go-version
+/backend/public/frontend
 
 /frontend/node_modules
-/frontend/.node-version

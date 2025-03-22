@@ -71,7 +71,7 @@ watch(
 
         <v-btn
           text="New Pack"
-          to="/new-pack"
+          to="/packs/new"
           link
           color="primary"
           variant="flat"

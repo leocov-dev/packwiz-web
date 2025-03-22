@@ -8,13 +8,21 @@ const {includeLatest} = defineProps({includeLatest: Boolean})
 let versionsList = cacheStore.minecraftVersions
 if (includeLatest) {
   versionsList = [
-    "Latest",
-    "Latest Snapshot",
+    `Latest (${cacheStore.minecraftLatest})`,
+    `Latest Snapshot (${cacheStore.minecraftSnapshot})`,
     ...versionsList
   ]
 }
 
 const version = defineModel<string | undefined>('version', {required: true})
+
+if (!!version.value && !versionsList.includes(version.value)) {
+  versionsList = [
+    version.value,
+    ...versionsList,
+  ]
+}
+
 const versions = ref<string[]>(versionsList)
 
 const rules = {

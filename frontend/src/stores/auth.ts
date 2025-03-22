@@ -4,6 +4,7 @@ import {User} from "@/interfaces/user"
 import router from "@/router";
 import type {RouteLocationRaw} from "vue-router";
 import {usePrefStore} from "@/stores/user";
+import {initializeCacheStore} from "@/stores/cache.ts";
 
 
 interface AuthState {
@@ -43,6 +44,8 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
       try {
         console.debug('Checking user...')
         this.user = await getCurrentUser()
+
+        await initializeCacheStore()
 
         const userPrefs = usePrefStore()
         userPrefs.loadPreferences(this.user.id)

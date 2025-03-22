@@ -78,3 +78,14 @@ make start-dev
 See readme files for [frontend](frontend/README.md) and [backend](backend/README.md) for specific details about each.
 
 The [examples](examples) directory contains some examples for local deployments.
+
+### Container
+The frontend and backend can be built into a container image for deployment.
+
+```shell
+# build an image locally
+make build-image
+
+# basic run (env vars and volumes must be set)
+docker run --rm packwiz-web start
+```

@@ -6,7 +6,7 @@ meta:
 <script lang="ts" setup>
 
 import {useRoute} from "vue-router";
-import PackDetails from "@/components/PackDetails.vue";
+import PackDetails from "@/components/pack/PackDetails.vue";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {Pack} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";

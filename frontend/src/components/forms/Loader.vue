@@ -1,37 +1,72 @@
 <script setup lang="ts">
 
-import {apiClient} from "@/services/api.service.ts";
-import {toTitleCase} from "@/services/utils.ts";
+import {useCacheStore, type LoaderVersions} from "@/stores/cache.ts";
 
-const loader = defineModel<string | undefined>('loader', {required: true})
-const version = defineModel<string>('version', {required: true})
+const cacheStore = useCacheStore()
 
-const loaders = ref<string[]>([])
+const {minecraftVersion} = defineProps({minecraftVersion: {type: String, default: () => ""}})
+
+const loader = defineModel<keyof LoaderVersions | undefined>('loader', {required: true})
+const version = defineModel<string>('version', {default: ""})
+
+const loaderVersions = ref<string[]>([])
+const loaders = ref<string[]>(cacheStore.loaders)
 const useLatest = ref(false)
+const noDataText = ref("")
 
 const rules = {
   loaderRequired: (value: string) => !!value || "Loader is required",
   versionRequired: (value: string) => !!value || "Loader Version is required, or select 'Use Latest'",
 }
 
-interface LoadersResponse {
-  loaders: string[]
-}
+// ----
+const getLoaderVersions = (loader: keyof LoaderVersions | undefined, mcVersion: string) => {
+  if (!loader) {
+    noDataText.value = "Must Select Loader Type First!"
+    return []
+  }
 
-const getLoaderTypes = async () => {
-  const response = await apiClient.get<LoadersResponse>('/v1/packwiz/loaders')
-  loaders.value = response.data.loaders.map(loader => toTitleCase(loader))
-}
+  loader = loader.toLowerCase() as keyof LoaderVersions
 
+  const listOrMap = cacheStore.loaderVersions[loader]
+
+  if (Array.isArray(listOrMap)) {
+    return listOrMap
+  }
+
+  if (!mcVersion) {
+    noDataText.value = "Must Select Minecraft Version First!"
+    return []
+  }
+
+  if (mcVersion.toLowerCase().includes('snapshot')) {
+    mcVersion = cacheStore.minecraftSnapshot.split('-')[0]
+  } else if (mcVersion.toLowerCase().includes('latest')) {
+    mcVersion = cacheStore.minecraftLatest
+  }
+
+  noDataText.value = "No Versions Available!"
+  return listOrMap[mcVersion.split('-')[0]]
+}
 
 watch(useLatest, (checked) => {
   version.value = checked ? "Latest" : ""
 })
 
-
-onMounted(async () => {
-  await getLoaderTypes()
+watch(() => minecraftVersion, (newVersion) => {
+  version.value = ""
+  loaderVersions.value = getLoaderVersions(loader.value, newVersion)
 })
+
+watch(loader, (newLoader) => {
+  version.value = ""
+  loaderVersions.value = getLoaderVersions(newLoader, minecraftVersion)
+})
+
+onMounted(() => {
+  loaderVersions.value = getLoaderVersions(loader.value, minecraftVersion)
+})
+
 </script>
 
 <template>
@@ -43,9 +78,11 @@ onMounted(async () => {
       label="Loader"
       class="me-6"
     />
-    <v-text-field
+    <v-select
       v-model="version"
+      :items="loaderVersions"
       :rules="[rules.versionRequired]"
+      :no-data-text="noDataText"
       label="Version"
       class="me-4"
       :disabled="useLatest"

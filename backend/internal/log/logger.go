@@ -35,3 +35,6 @@ func Warn(args ...interface{}) {
 func Error(args ...interface{}) {
 	Log.Errorln(args...)
 }
+func Panic(args ...interface{}) {
+	Log.Panicln(args...)
+}

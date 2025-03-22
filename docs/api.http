@@ -26,10 +26,12 @@ GET {{apiRoot}}/v1/user/current
 
 # v1/packwiz/ ------------------------------------------------------------------
 
+# v1/packwiz/loaders ------------------------------------------------------------------
 ### GET all possible packwiz loaders
 GET {{apiRoot}}/v1/packwiz/loaders
 Accept: application/json
 
+# v1/packwiz/pack ------------------------------------------------------------------
 ### GET all packwiz modpacks
 GET {{apiRoot}}/v1/packwiz/pack
 Accept: application/json

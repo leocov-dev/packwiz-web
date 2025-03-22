@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"packwiz-web/internal/log"
-	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
+	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
 )
 
@@ -22,25 +22,6 @@ func NewPackwizController(db *gorm.DB) *PackwizController {
 }
 
 // -----------------------------------------------------------------------------
-
-// ListLoaders
-// list the possible loader options
-func (pc *PackwizController) ListLoaders(c *gin.Context) {
-	loaders := []string{
-		string(packwiz_cli.FabricLoader),
-		string(packwiz_cli.ForgeLoader),
-		string(packwiz_cli.LiteLoader),
-		string(packwiz_cli.QuiltLoader),
-		string(packwiz_cli.NeoForgeLoader),
-	}
-
-	c.JSON(http.StatusOK, gin.H{"loaders": loaders})
-}
-
-func (pc *PackwizController) UploadPackwizArchive(c *gin.Context) {
-	// TODO
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
-}
 
 func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 
@@ -85,7 +66,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	if pc.packwizSvc.PackExists(request.Slug) {
+	if pc.packwizSvc.PackExists(request.Slug, true) {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": "pack already exists"})
 		return
 	}
@@ -104,21 +85,17 @@ func (pc *PackwizController) PackHead(c *gin.Context) {
 
 	c.Header("Content-Type", "application/json")
 
-	if pc.packwizSvc.PackExists(slug) {
+	if pc.packwizSvc.PackExists(slug, true) {
 		c.Status(http.StatusOK)
 	} else {
 		c.Status(http.StatusNotFound)
 	}
 }
 
-func (pc *PackwizController) RenamePack(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
-}
-
 func (pc *PackwizController) GetOnePack(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
@@ -134,7 +111,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 func (pc *PackwizController) AddMod(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
@@ -160,26 +137,111 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 func (pc *PackwizController) ArchivePack(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
-	err := pc.packwizSvc.ArchivePack(slug)
-	if pc.abortWithError(c, err) {
+	if err := pc.packwizSvc.ArchivePack(slug); pc.abortWithError(c, err) {
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
 }
 
-func (pc *PackwizController) SetAcceptableVersions(c *gin.Context) {
+func (pc *PackwizController) UnArchivePack(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
-	var request dto.SetAcceptableVersionsRequest
+	if err := pc.packwizSvc.UnArchivePack(slug); pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) PublishPack(c *gin.Context) {
+	slug := c.Param("slug")
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	if pc.packwizSvc.IsPackPublished(slug) {
+		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already published"})
+		return
+	}
+
+	if err := pc.packwizSvc.SetPackStatus(slug, types.PackStatusPublished); pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
+	slug := c.Param("slug")
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	if !pc.packwizSvc.IsPackPublished(slug) {
+		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already a draft"})
+		return
+	}
+
+	if err := pc.packwizSvc.SetPackStatus(slug, types.PackStatusDraft); pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) MakePublic(c *gin.Context) {
+	slug := c.Param("slug")
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	if pc.packwizSvc.IsPackPublic(slug) {
+		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already public"})
+		return
+	}
+
+	if err := pc.packwizSvc.MakePackPublic(slug); pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) MakePrivate(c *gin.Context) {
+	slug := c.Param("slug")
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	if !pc.packwizSvc.IsPackPublic(slug) {
+		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already private"})
+		return
+	}
+
+	if err := pc.packwizSvc.MakePackPrivate(slug); pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func (pc *PackwizController) EditPackInfo(c *gin.Context) {
+	slug := c.Param("slug")
+
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	var request dto.EditPackRequest
 	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
 		log.Error("Failed to bind request json", err)
 		return
@@ -190,17 +252,15 @@ func (pc *PackwizController) SetAcceptableVersions(c *gin.Context) {
 		return
 	}
 
-	err := pc.packwizSvc.SetAcceptableVersions(slug, request)
-	if pc.abortWithError(c, err) {
-		return
-	}
+	// TODO
 
 	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
 }
+
 func (pc *PackwizController) UpdateAll(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
@@ -335,7 +395,7 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 	slug := c.Param("slug")
 
-	if pc.abortIfPackNotExist(c, slug) {
+	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
@@ -389,8 +449,8 @@ func (pc *PackwizController) abortWithError(c *gin.Context, err error) bool {
 	return false
 }
 
-func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, slug string) bool {
-	if !pc.packwizSvc.PackExists(slug) {
+func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, slug string, includeDeleted bool) bool {
+	if !pc.packwizSvc.PackExists(slug, includeDeleted) {
 		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s not found", slug)})
 		return true
 	}
@@ -398,6 +458,11 @@ func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, slug string) bo
 }
 
 func (pc *PackwizController) abortIfModNotExist(c *gin.Context, slug string, mod string) bool {
+	if !pc.packwizSvc.PackExists(slug, false) {
+		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s not found", slug)})
+		return true
+	}
+
 	if !pc.packwizSvc.ModExists(slug, mod) {
 		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s with mod %s not found", slug, mod)})
 		return true

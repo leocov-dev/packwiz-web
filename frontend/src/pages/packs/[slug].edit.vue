@@ -3,12 +3,12 @@ meta:
   layout: app
 </route>
 
-<script lang="ts" setup>
+<script setup lang="ts">
+import PackEditForm from "@/components/pack/PackEditForm.vue";
 import {useRoute} from "vue-router";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {Pack} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
-import AddModForm from "@/components/mods/AddModForm.vue";
 
 const route = useRoute<'/packs/[slug].add-mod'>()
 
@@ -21,6 +21,7 @@ const {
 </script>
 
 <template>
+
   <div
     v-if="isLoading"
     class="ma-6"
@@ -32,8 +33,8 @@ const {
     />
   </div>
 
-  <AddModForm
+  <PackEditForm
     v-else-if="pack"
     :pack="pack"
-  />
+    />
 </template>

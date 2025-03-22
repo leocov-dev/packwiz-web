@@ -91,8 +91,14 @@ func (ps *PackwizService) GetPacks(
 	return packs, nil
 }
 
-func (ps *PackwizService) PackExists(slug string) bool {
-	if err := ps.db.Unscoped().Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
+func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
+	query := ps.db
+
+	if includeDeleted {
+		query = query.Unscoped()
+	}
+
+	if err := query.Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
 		log.Debug("pack not exists:", slug)
 		return false
 	}
@@ -207,7 +213,7 @@ func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) error {
 }
 
 // ArchivePack
-// remove a pack and all mods from disk and db
+// soft delete a pack
 func (ps *PackwizService) ArchivePack(slug string) error {
 	return ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(
@@ -224,7 +230,19 @@ func (ps *PackwizService) ArchivePack(slug string) error {
 		).Error; err != nil {
 			return err
 		}
-		return packwiz_cli.DeleteModpack(slug)
+		return nil
+	})
+}
+
+// UnArchivePack
+// remove soft delete from a pack
+func (ps *PackwizService) UnArchivePack(slug string) error {
+	return ps.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Unscoped().Model(
+			&tables.Pack{Slug: slug},
+		).Update(
+			"deleted_at", nil,
+		).Error
 	})
 }
 
@@ -242,6 +260,14 @@ func (ps *PackwizService) IsPackPublished(slug string) bool {
 func (ps *PackwizService) IsPackPublic(slug string) bool {
 	err := ps.db.Where(&tables.Pack{Slug: slug, IsPublic: true}).First(&tables.Pack{}).Error
 	return err == nil
+}
+
+func (ps *PackwizService) MakePackPublic(slug string) error {
+	return ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", true).Error
+}
+
+func (ps *PackwizService) MakePackPrivate(slug string) error {
+	return ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", false).Error
 }
 
 // SetAcceptableVersions

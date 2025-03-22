@@ -24,10 +24,11 @@ declare module 'vue-router/auto-routes' {
     '/admin/users': RouteRecordInfo<'/admin/users', '/admin/users', Record<never, never>, Record<never, never>>,
     '/auth/login': RouteRecordInfo<'/auth/login', '/auth/login', Record<never, never>, Record<never, never>>,
     '/auth/logout': RouteRecordInfo<'/auth/logout', '/auth/logout', Record<never, never>, Record<never, never>>,
-    '/new-pack': RouteRecordInfo<'/new-pack', '/new-pack', Record<never, never>, Record<never, never>>,
     '/packs/': RouteRecordInfo<'/packs/', '/packs', Record<never, never>, Record<never, never>>,
     '/packs/[slug]': RouteRecordInfo<'/packs/[slug]', '/packs/:slug', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
     '/packs/[slug].add-mod': RouteRecordInfo<'/packs/[slug].add-mod', '/packs/:slug/add-mod', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
+    '/packs/[slug].edit': RouteRecordInfo<'/packs/[slug].edit', '/packs/:slug/edit', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
+    '/packs/new': RouteRecordInfo<'/packs/new', '/packs/new', Record<never, never>, Record<never, never>>,
     '/user/profile': RouteRecordInfo<'/user/profile', '/user/profile', Record<never, never>, Record<never, never>>,
   }
 }

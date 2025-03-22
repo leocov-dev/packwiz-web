@@ -11,6 +11,10 @@ build-be:
 # build the frontend and the backend
 build-all: build-fe build-be
 
+# build the docker image
+build-image:
+	docker build -t packwiz-web .
+
 # run both the frontend and backend in development mode
 start-dev:
 	cd backend && make start-dev&

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import {ref} from 'vue'
-import UserMenu from "@/components/UserMenu.vue";
+import UserMenu from "@/components/user/UserMenu.vue";
 
 const rail = ref(false)
 

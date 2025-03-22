@@ -57,3 +57,31 @@ export async function openPublicLink(slug: string) {
 export async function newPack(request: NewPackRequest) {
   return apiClient.post('v1/packwiz/pack', request)
 }
+
+export async function editPack(slug: string, request: NewPackRequest) {
+  return apiClient.put(`v1/packwiz/pack/${slug}/edit`, request)
+}
+
+export async function archivePack(slug: string) {
+  return apiClient.delete(`v1/packwiz/pack/${slug}`)
+}
+
+export async function unArchivePack(slug: string) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/unarchive`)
+}
+
+export async function publishPack(slug: string) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/publish`)
+}
+
+export async function convertPackToDraft(slug: string) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/draft`)
+}
+
+export async function makePackPublic(slug: string) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/public`)
+}
+
+export async function makePackPrivate(slug: string) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/private`)
+}

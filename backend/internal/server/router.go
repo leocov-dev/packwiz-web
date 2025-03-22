@@ -13,6 +13,7 @@ import (
 
 func NewRouter() *gin.Engine {
 	router := gin.New()
+
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
@@ -36,7 +37,7 @@ func NewRouter() *gin.Engine {
 
 	db := database.GetClient()
 
-	// ---------------------------------------------------------------------
+	// -------------------------------------------------------------------------
 	packwizFiles := router.Group("packwiz/:slug")
 	packwizFiles.Use(middleware.PackwizFileAuthentication(db))
 	packwizFiles.Use(middleware.PackwizAudit(db))
@@ -45,7 +46,7 @@ func NewRouter() *gin.Engine {
 		packwizFiles.GET("*filepath", modpackController.ServeStatic)
 	}
 
-	// ---------------------------------------------------------------------
+	// -------------------------------------------------------------------------
 	api := router.Group("api")
 	api.Use(middleware.SessionStore())
 	api.Use(middleware.ApiAudit(db))
@@ -55,21 +56,21 @@ func NewRouter() *gin.Engine {
 		{
 			authController := controllers.NewAuthController(db)
 
-			v1.POST("login", authController.Login)
+			v1.POST("login", middleware.RateLimiter(), authController.Login)
 			v1.POST("logout", authController.Logout)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
 			{
 
-				// ---------------------------------------------------------------------
+				// -------------------------------------------------------------
 				healthGroup := protectedGroup.Group("health")
 				{
 					healthController := controllers.NewHealthController()
 					healthGroup.GET("", healthController.Status)
 				}
 
-				// ---------------------------------------------------------------------
+				// -------------------------------------------------------------
 				userGroup := protectedGroup.Group("user")
 				{
 					userController := controllers.NewUserController(db)
@@ -78,31 +79,36 @@ func NewRouter() *gin.Engine {
 					userGroup.GET("current", userController.CurrentUser)
 				}
 
-				// ---------------------------------------------------------------------
+				// -------------------------------------------------------------
 				adminGroup := protectedGroup.Group("admin")
 				{
 					// TODO
 					adminGroup.GET("", func(c *gin.Context) { c.JSON(200, gin.H{}) })
 				}
 
-				// ---------------------------------------------------------------------
+				// -------------------------------------------------------------
 				packwizGroup := protectedGroup.Group("packwiz")
 				{
+					// ---------------------------------------------------------
+					loadersController := controllers.NewLoadersController()
+
+					packwizGroup.GET("loaders", loadersController.GetLoaderVersions)
+					//packwizGroup.GET("loaders/versions", loadersController.GetLoaderVersions)
+
+					// ---------------------------------------------------------
+					importController := controllers.NewImportController(db)
+
+					packwizGroup.GET("upload", importController.UploadPackwizArchive)
+
+					// ---------------------------------------------------------
 					packwizController := controllers.NewPackwizController(db)
 
-					// ---------------------------------------------------------------------
-					packwizGroup.GET("loaders", packwizController.ListLoaders)
-
-					// ---------------------------------------------------------------------
-					packwizGroup.GET("upload", packwizController.UploadPackwizArchive)
-
-					// ---------------------------------------------------------------------
 					packGroup := packwizGroup.Group("pack")
 					{
 						packGroup.GET("", packwizController.GetAllPacks)
 						packGroup.POST("", packwizController.NewPack)
 
-						// ---------------------------------------------------------------------
+						// -----------------------------------------------------
 						canViewPackGuard := middleware.PackPermissionGuard(types.PackPermissionView, db)
 						canEditPackGuard := middleware.PackPermissionGuard(types.PackPermissionEdit, db)
 
@@ -118,15 +124,19 @@ func NewRouter() *gin.Engine {
 							{
 								editPackGroup.POST("", packwizController.AddMod)
 								editPackGroup.DELETE("", packwizController.ArchivePack)
-								editPackGroup.PATCH("acceptable-versions", packwizController.SetAcceptableVersions)
-								editPackGroup.PATCH("update", packwizController.UpdateAll)
-								editPackGroup.PATCH("rename", packwizController.RenamePack)
+								editPackGroup.PATCH("unarchive", packwizController.UnArchivePack)
+								editPackGroup.PATCH("publish", packwizController.PublishPack)
+								editPackGroup.PATCH("draft", packwizController.ConvertToDraft)
+								editPackGroup.PATCH("public", packwizController.MakePublic)
+								editPackGroup.PATCH("private", packwizController.MakePrivate)
+								editPackGroup.PATCH("edit", packwizController.EditPackInfo)
+								editPackGroup.PATCH("update-all", packwizController.UpdateAll)
 								editPackGroup.GET("users", packwizController.GetPackUsers)
 								editPackGroup.POST("users", packwizController.AddPackUser)
 								editPackGroup.DELETE("users/:userId", packwizController.RemovePackUser)
 								editPackGroup.PATCH("users/:userId", packwizController.EditUserAccess)
 
-								// ---------------------------------------------------------------------
+								// ---------------------------------------------
 								modGroup := editPackGroup.Group("mod/:mod")
 								{
 									modGroup.DELETE("", packwizController.RemoveMod)
@@ -138,6 +148,7 @@ func NewRouter() *gin.Engine {
 								}
 							}
 						}
+
 					}
 				}
 			}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {Pack, PackPermission} from "@/interfaces/pack.ts";
-import PackActions from "@/components/PackActions.vue";
+import PackActions from "@/components/pack/PackActions.vue";
 
 const {pack} = defineProps<{ pack: Pack }>()
 

@@ -55,8 +55,8 @@ func (l LoaderDef) Validate() error {
 
 type NewPackRequest struct {
 	Slug               string       `json:"slug" validate:"required,slug"`
-	Name               string       `json:"name"`
-	Version            string       `json:"version"`
+	Name               string       `json:"name" validate:"required"`
+	Version            string       `json:"version" validate:"required"`
 	Description        string       `json:"description"`
 	MinecraftDef       MinecraftDef `json:"minecraft" validate:"required"`
 	LoaderDef          LoaderDef    `json:"loader" validate:"required"`

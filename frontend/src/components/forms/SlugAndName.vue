@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 const slug = defineModel<string>('slug', {required: true})
-const name = defineModel<string>('name', {required: true})
+const name = defineModel<string>('name', {default: ""})
 
 const {slugLocked} = defineProps<{ slugLocked?: boolean }>()
 

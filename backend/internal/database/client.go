@@ -118,6 +118,6 @@ func reconcileFileData() {
 	)
 	err := reconciler.ReconcilePackwizDir()
 	if err != nil {
-		panic(err)
+		log.Error(err)
 	}
 }
