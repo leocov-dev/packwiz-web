@@ -4,7 +4,7 @@
 
 > [!WARNING]
 >
-> This is still work-in-progress and is not producing usable builds
+> **This is still work-in-progress**
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 
@@ -64,8 +64,8 @@ All API actions are logged in an audit log table.
 ## Develop
 
 ### Requirements
-Go (version specified in backend/go.mod)
-Node (version specified in frontend/package.json)
+ - Go (version specified in backend/go.mod)
+ - Node (version specified in frontend/package.json)
 
 ```shell
 # Build the frontend and backend with:
