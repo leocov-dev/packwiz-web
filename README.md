@@ -15,13 +15,13 @@ Any changes are immediately available to users.
 2. [x] Admin and User accounts for secure collaboration
 3. [x] Serve static Modpack files to users
 4. [ ] Duplicate existing packs to test out changes
-5. [ ] Modpack changes are tracked via Git, roll back changes to a previous state
+5. [ ] Modpack changes are tracked via Git. Roll back changes to a previous state
 6. [ ] Upload existing Packwiz mod configurations
 
 ## Deploy
 This is a web service intended to be deployed as a docker container.
 You need to mount a directory into the container to persist your packwiz files.
-You can connect the service to an external Postgres database or a local sqlite database.
+You can connect the service to an external Postgres database or a sqlite database in a mounted directory.
 
 [Latest Container Image]()
 

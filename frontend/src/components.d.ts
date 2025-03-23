@@ -33,6 +33,7 @@ declare module 'vue' {
     SearchBar: typeof import('./components/SearchBar.vue')['default']
     SlugAndName: typeof import('./components/forms/SlugAndName.vue')['default']
     ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
+    UnderConstruction: typeof import('./components/UnderConstruction.vue')['default']
     UserMenu: typeof import('./components/user/UserMenu.vue')['default']
   }
 }

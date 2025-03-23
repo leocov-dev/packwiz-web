@@ -1,10 +1,4 @@
-<route lang="yaml">
-meta:
-  noAuth: true
-</route>
-
 <script setup lang="ts">
-
 const router = useRouter()
 
 const goHome = () => {
@@ -14,12 +8,11 @@ const goHome = () => {
 
 <template>
   <v-empty-state
-    headline="Uh Oh!"
-    title="404 Page not found"
-    text="The page you are looking for does not seem to exist."
-    icon="mdi-magnify"
-    color="primary"
+    headline="Developer at Work!"
+    title="This area is under construction, your patience is appreciated."
+    icon="mdi-account-hard-hat"
     action-text="Return Home"
+    color="warning"
     @click:action="goHome"
   ></v-empty-state>
 </template>

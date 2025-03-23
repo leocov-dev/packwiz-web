@@ -4,9 +4,5 @@ meta:
 </route>
 
 <template>
-  Users
+  <UnderConstruction />
 </template>
-
-<script lang="ts" setup>
-  //
-</script>

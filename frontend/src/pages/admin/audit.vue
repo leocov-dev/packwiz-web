@@ -4,9 +4,5 @@ meta:
 </route>
 
 <template>
-  Audit
+  <UnderConstruction />
 </template>
-
-<script lang="ts" setup>
-  //
-</script>
