@@ -20,8 +20,11 @@ declare module 'vue-router/auto-routes' {
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
     '/[...path]': RouteRecordInfo<'/[...path]', '/:path(.*)', { path: ParamValue<true> }, { path: ParamValue<false> }>,
-    '/admin/audit': RouteRecordInfo<'/admin/audit', '/admin/audit', Record<never, never>, Record<never, never>>,
-    '/admin/users': RouteRecordInfo<'/admin/users', '/admin/users', Record<never, never>, Record<never, never>>,
+    '/admin/audit/': RouteRecordInfo<'/admin/audit/', '/admin/audit', Record<never, never>, Record<never, never>>,
+    '/admin/users/': RouteRecordInfo<'/admin/users/', '/admin/users', Record<never, never>, Record<never, never>>,
+    '/admin/users/[id]': RouteRecordInfo<'/admin/users/[id]', '/admin/users/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
+    '/admin/users/[id].edit': RouteRecordInfo<'/admin/users/[id].edit', '/admin/users/:id/edit', { id: ParamValue<true> }, { id: ParamValue<false> }>,
+    '/admin/users/new': RouteRecordInfo<'/admin/users/new', '/admin/users/new', Record<never, never>, Record<never, never>>,
     '/auth/login': RouteRecordInfo<'/auth/login', '/auth/login', Record<never, never>, Record<never, never>>,
     '/auth/logout': RouteRecordInfo<'/auth/logout', '/auth/logout', Record<never, never>, Record<never, never>>,
     '/packs/': RouteRecordInfo<'/packs/', '/packs', Record<never, never>, Record<never, never>>,

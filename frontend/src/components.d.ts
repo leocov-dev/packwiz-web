@@ -12,6 +12,7 @@ declare module 'vue' {
     AddModForm: typeof import('./components/mods/AddModForm.vue')['default']
     AddModrinth: typeof import('./components/mods/AddModrinth.vue')['default']
     AppFooter: typeof import('./components/AppFooter.vue')['default']
+    ChangePasswordForm: typeof import('./components/user/ChangePasswordForm.vue')['default']
     ConfirmationDialog: typeof import('./components/ConfirmationDialog.vue')['default']
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
     FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
@@ -20,7 +21,6 @@ declare module 'vue' {
     ModsList: typeof import('./components/mods/ModsList.vue')['default']
     Navigation: typeof import('./components/Navigation.vue')['default']
     PackActions: typeof import('./components/pack/PackActions.vue')['default']
-    PackAddModForm: typeof import('./components/pack/PackAddModForm.vue')['default']
     PackCard: typeof import('./components/pack/PackCard.vue')['default']
     PackCreateForm: typeof import('./components/pack/PackCreateForm.vue')['default']
     PackDetails: typeof import('./components/pack/PackDetails.vue')['default']
@@ -35,5 +35,6 @@ declare module 'vue' {
     ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
     UnderConstruction: typeof import('./components/UnderConstruction.vue')['default']
     UserMenu: typeof import('./components/user/UserMenu.vue')['default']
+    UserProfile: typeof import('./components/user/UserProfile.vue')['default']
   }
 }

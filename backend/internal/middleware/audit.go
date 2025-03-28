@@ -58,7 +58,7 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// TODO: do we want to detect all requests? intrusion detection? or just
-		// valid requests that might actually do something?
+		//  valid requests that might actually do something?
 		if auditRecord.UserId == 0 {
 			return
 		}

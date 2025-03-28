@@ -2,7 +2,8 @@
 export class User {
   id!: number;
   username!: string;
-  // email!: string;
+  fullName!: string;
+  email!: string;
   identityProvider!: string;
   isAdmin!: boolean;
   createdAt!: string;

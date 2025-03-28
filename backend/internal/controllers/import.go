@@ -18,5 +18,5 @@ func NewImportController(db *gorm.DB) *ImportController {
 
 func (ic *ImportController) UploadPackwizArchive(c *gin.Context) {
 	// TODO
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }

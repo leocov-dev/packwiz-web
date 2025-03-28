@@ -1,26 +1,26 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
-	"packwiz-web/internal/tables"
-
 	"github.com/gin-contrib/sessions"
-
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
+	"packwiz-web/internal/services/user_svc"
 )
 
 type AuthController struct {
-	db *gorm.DB
+	db  *gorm.DB
+	svc *user_svc.UserService
 }
 
 func NewAuthController(db *gorm.DB) *AuthController {
 	return &AuthController{
-		db: db,
+		db:  db,
+		svc: user_svc.NewUserService(db),
 	}
 }
 
-func (uc *AuthController) Login(c *gin.Context) {
+func (ac *AuthController) Login(c *gin.Context) {
 	type LoginForm struct {
 		Username string `form:"username" binding:"required"`
 		Password string `form:"password" binding:"required"`
@@ -32,8 +32,8 @@ func (uc *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	var user tables.User
-	if err := uc.db.Where("username = ?", form.Username).First(&user).Error; err != nil {
+	user, err := ac.svc.FindByUsername(form.Username)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": "Invalid username or password"})
 		return
 	}
@@ -45,6 +45,7 @@ func (uc *AuthController) Login(c *gin.Context) {
 
 	session := sessions.Default(c)
 	session.Set("userId", user.Id)
+	session.Set("sessionKey", ac.svc.GetOrMakeSessionKey(&user))
 	if err := session.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": "Failed to save session"})
 		return
@@ -53,7 +54,7 @@ func (uc *AuthController) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
 }
 
-func (uc *AuthController) Logout(c *gin.Context) {
+func (ac *AuthController) Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
 	if err := session.Save(); err != nil {

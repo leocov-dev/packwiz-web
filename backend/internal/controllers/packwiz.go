@@ -434,7 +434,7 @@ func (pc *PackwizController) RemovePackUser(c *gin.Context) {
 }
 
 func (pc *PackwizController) EditUserAccess(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }
 
 // -----------------------------------------------------------------------------
@@ -443,7 +443,7 @@ func (pc *PackwizController) EditUserAccess(c *gin.Context) {
 // exit the request if the given error is not nil
 func (pc *PackwizController) abortWithError(c *gin.Context, err error) bool {
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
 		return true
 	}
 	return false

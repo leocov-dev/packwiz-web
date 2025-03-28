@@ -87,7 +87,7 @@ onMounted(async () => {
         @submit.prevent="submitForm"
       >
         <v-text-field
-          v-model="username"
+          v-model.trim="username"
           label="Username"
           :rules="[rules.required]"
           autofocus
@@ -95,7 +95,7 @@ onMounted(async () => {
         />
 
         <v-text-field
-          v-model="password"
+          v-model.trim="password"
           :type="showPassword ? 'text' : 'password'"
           label="Password"
           :rules="[rules.required]"

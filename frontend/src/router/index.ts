@@ -13,7 +13,7 @@ const router = createRouter({
 
 router.beforeEach(async (to: RouteLocationNormalizedGeneric, from: RouteLocationNormalizedLoaded, next: NavigationGuardNext): Promise<void> => {
   const authStore = useAuthStore()
-  await authStore.checkUser(false)
+  await authStore.checkAuth(false)
 
   if (to.meta.noAuth || authStore.isAuthenticated) {
     console.debug('route guard auth check passed -> ', to.fullPath)

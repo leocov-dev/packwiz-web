@@ -104,6 +104,8 @@ func createDummyPlayerUser() {
 	db.Create(
 		&tables.User{
 			Username:  "player",
+			FullName:  "Leroy Jenkins",
+			Email:     "l.jenkins@example.com",
 			Password:  pass,
 			IsAdmin:   false,
 			LinkToken: utils.GenerateRandomString(32),

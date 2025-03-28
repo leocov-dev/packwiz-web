@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/user_svc"
-	tables "packwiz-web/internal/tables"
+	"packwiz-web/internal/tables"
 )
 
 func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
@@ -29,6 +29,13 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 			log.Warn("no user match")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "no user match"})
 			return
+		}
+
+		sessionKey := session.Get("sessionKey")
+		if sessionKey == nil || sessionKey != user.SessionKey {
+			ClearSession(c)
+			log.Warn("session key mismatch")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "session is invalid, log in again"})
 		}
 
 		c.Set("user", user)

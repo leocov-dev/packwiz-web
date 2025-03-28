@@ -71,12 +71,14 @@ func NewRouter() *gin.Engine {
 				}
 
 				// -------------------------------------------------------------
+				// current user
 				userGroup := protectedGroup.Group("user")
 				{
 					userController := controllers.NewUserController(db)
-					// TODO
-					userGroup.GET("", func(c *gin.Context) { c.JSON(200, gin.H{}) })
-					userGroup.GET("current", userController.CurrentUser)
+					userGroup.GET("", userController.CurrentUser)
+					userGroup.POST("password", userController.ChangePassword)
+					userGroup.POST("update", userController.UpdateUser)
+					userGroup.POST("invalidate-sessions", userController.InvalidateCurrentUserSessions)
 				}
 
 				// -------------------------------------------------------------

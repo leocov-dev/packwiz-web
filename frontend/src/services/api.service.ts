@@ -18,14 +18,13 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // FORBIDDEN
+    // FORBIDDEN ---------------------------------------------------------------
     if (error.response?.status === 403) {
       await router.push({path: "/"})
     }
 
-    // UNAUTHORIZED
-    if (error.response?.status === 401 && error.config?.url !== 'v1/user/current') {
-
+    // UNAUTHORIZED ------------------------------------------------------------
+    if (error.response?.status === 401 && error.config?.url !== 'v1/user') {
       if (router.currentRoute.value.path !== '/auth/login') {
         const snackbarStore = useSnackbarStore();
         snackbarStore.showSnackbar('Authorization Error...', 'error', 1500);
@@ -35,6 +34,6 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // return Promise.reject(error);
+    return Promise.reject(error);
   }
 );

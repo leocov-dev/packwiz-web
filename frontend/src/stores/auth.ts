@@ -1,10 +1,17 @@
 import {defineStore} from 'pinia'
-import {getCurrentUser, userLogin, userLogout} from "@/services/user.service"
+import {
+  changePassword,
+  getCurrentUser,
+  userLogin,
+  userLogout,
+  invalidateCurrentUserSessions
+} from "@/services/user.service"
 import {User} from "@/interfaces/user"
 import router from "@/router";
 import type {RouteLocationRaw} from "vue-router";
 import {usePrefStore} from "@/stores/user";
 import {initializeCacheStore} from "@/stores/cache.ts";
+import {AxiosError} from "axios";
 
 
 interface AuthState {
@@ -12,15 +19,22 @@ interface AuthState {
 }
 
 interface AuthActions {
-  checkUser(force: boolean): Promise<void>;
+  checkAuth(force: boolean): Promise<void>;
+
+  refreshUser(): Promise<void>;
 
   login(username: string, password: string): Promise<void>;
 
   logout(redirect: boolean): Promise<void>;
+
+  changePassword(oldPassword: string, newPassword: string): Promise<string>;
+
+  invalidateSessions(): Promise<void>;
 }
 
 interface AuthGetters {
   isAuthenticated(state: AuthState): boolean;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
@@ -35,7 +49,7 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
     },
   },
   actions: {
-    async checkUser(force = false) {
+    async checkAuth(force = false) {
       if (!force && this.isAuthenticated) {
         console.debug('User is cached')
         return
@@ -52,11 +66,17 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
       } catch {
         this.user = null
       }
-      console.debug('User is ', this.isAuthenticated ? 'authenticated' : 'not authenticated')
+    },
+    async refreshUser() {
+      if (!this.isAuthenticated) return
+
+      this.user = await getCurrentUser()
+      const userPrefs = usePrefStore()
+      userPrefs.loadPreferences(this.user.id)
     },
     async login(username: string, password: string) {
       await userLogin(username, password)
-      await this.checkUser(true)
+      await this.checkAuth(true)
     },
     async logout(redirect = true) {
       await userLogout()
@@ -68,6 +88,21 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
       }
 
       await router.push(params)
+    },
+    async changePassword(oldPassword: string, newPassword: string) {
+      try {
+        await changePassword(oldPassword, newPassword)
+        await this.logout(true)
+        return ""
+      } catch (e) {
+        if (e instanceof AxiosError) {
+          return e.response?.data?.msg || "Unknown error..."
+        }
+        return "Unknown error..."
+      }
+    },
+    async invalidateSessions() {
+      await invalidateCurrentUserSessions()
     },
   },
 })

@@ -23,13 +23,13 @@ type VersionData struct {
 func (lc *LoadersController) GetLoaderVersions(c *gin.Context) {
 	loaderData, err := loaders.GetLoadersAndVersions()
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
 		return
 	}
 
 	minecraftVersions, err := loaders.GetMinecraftVersions()
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
 	}
 
 	versionData := VersionData{

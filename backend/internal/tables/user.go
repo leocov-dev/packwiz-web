@@ -18,6 +18,7 @@ type User struct {
 	IsAdmin          bool           `json:"isAdmin"`
 	IdentityProvider string         `json:"identityProvider"`
 	LinkToken        string         `json:"-"`
+	SessionKey       string         `json:"-"`
 }
 
 func (u User) CheckPassword(password string) bool {
