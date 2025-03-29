@@ -29,12 +29,12 @@ func (mc *ModpackController) ServeStatic(c *gin.Context) {
 	filePath := c.Param("filepath")
 
 	if slug == "" || filePath == "" {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
 	if !mc.ps.IsPackPublished(slug) {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
@@ -43,7 +43,7 @@ func (mc *ModpackController) ServeStatic(c *gin.Context) {
 
 	// any served path must be relative to a known slug dir
 	if !strings.HasPrefix(absPath, modpackDir) {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
@@ -51,7 +51,7 @@ func (mc *ModpackController) ServeStatic(c *gin.Context) {
 	dirs := strings.Split(absPath, string(filepath.Separator))
 	for _, dir := range dirs {
 		if strings.HasPrefix(dir, ".") {
-			c.AbortWithStatus(http.StatusNotFound)
+			c.Status(http.StatusNotFound)
 			return
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"packwiz-web/internal/types/response"
 	"packwiz-web/internal/utils"
 	"strings"
 )
@@ -27,35 +28,35 @@ type mavenXmlMetadata struct {
 	} `xml:"versioning"`
 }
 
-func GetLoadersAndVersions() (Loaders, error) {
+func GetLoadersAndVersions() (Loaders, response.ServerError) {
 	var LoaderVersions Loaders
 
 	if fabricVersions, err := fetchFabricVersions(); err != nil {
-		return LoaderVersions, err
+		return LoaderVersions, response.Wrap(err)
 	} else {
 		LoaderVersions.Fabric = fabricVersions
 	}
 
 	if forgeVersions, err := fetchForgeVersions(); err != nil {
-		return LoaderVersions, err
+		return LoaderVersions, response.Wrap(err)
 	} else {
 		LoaderVersions.Forge = forgeVersions
 	}
 
 	if liteloaderVersions, err := fetchLiteloaderVersions(); err != nil {
-		return LoaderVersions, err
+		return LoaderVersions, response.Wrap(err)
 	} else {
 		LoaderVersions.Liteloader = liteloaderVersions
 	}
 
 	if quiltVersions, err := fetchQuiltVersions(); err != nil {
-		return LoaderVersions, err
+		return LoaderVersions, response.Wrap(err)
 	} else {
 		LoaderVersions.Quilt = quiltVersions
 	}
 
 	if neoforgeVersions, err := fetchNeoforgeVersions(); err != nil {
-		return LoaderVersions, err
+		return LoaderVersions, response.Wrap(err)
 	} else {
 		LoaderVersions.Neoforge = neoforgeVersions
 	}

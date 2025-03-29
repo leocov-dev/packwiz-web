@@ -45,7 +45,7 @@ const {config} = defineProps<{
           <v-checkbox
             v-model="model[key]"
             :label="val.title"
-            hide-details
+            :hide-details="true"
             density="comfortable"
           />
         </v-list-item>

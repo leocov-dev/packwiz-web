@@ -1,12 +1,16 @@
 package user_svc
 
 import (
+	"fmt"
 	"gorm.io/gorm"
+	"net/http"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 	"packwiz-web/internal/utils"
 	"regexp"
+	"strings"
 )
 
 type UserService struct {
@@ -34,16 +38,57 @@ func (s *UserService) FindByUsername(username string) (tables.User, error) {
 	return user, nil
 }
 
-func (s *UserService) ChangePassword(user tables.User, newPassword string) error {
-	hashed, err := utils.HashPassword(newPassword)
-	if err != nil {
-		return err
+func (s *UserService) ChangePassword(user tables.User, form dto.ChangePasswordForm) response.ServerError {
+	if user.Username == "admin" {
+		return response.New(
+			http.StatusBadRequest,
+			"admin password can only be set via PWW_ADMIN_PASSWORD env var",
+		)
 	}
 
-	return s.db.
+	oldPassword := strings.TrimSpace(form.OldPassword)
+	newPassword := strings.TrimSpace(form.NewPassword)
+
+	if !user.CheckPassword(oldPassword) {
+		return response.New(
+			http.StatusBadRequest,
+			"Invalid current password",
+		)
+	}
+
+	if !s.CheckPasswordLength(newPassword, 10, 64) {
+		return response.New(
+			http.StatusBadRequest,
+			"Password must be from 10 t0 64 characters long",
+		)
+	}
+
+	if !s.CheckPasswordComplexity(newPassword) {
+		return response.New(
+			http.StatusBadRequest,
+			"Password must contain at least one letter and one number",
+		)
+	}
+
+	hashed, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return response.New(
+			http.StatusInternalServerError,
+			"Failed to hash password",
+		)
+	}
+
+	if err := s.db.
 		Model(&tables.User{}).
 		Where("id == ?", user.Id).
-		Update("password", hashed).Error
+		Update("password", hashed).Error; err != nil {
+		return response.New(
+			http.StatusInternalServerError,
+			"Failed to update db password",
+		)
+	}
+
+	return nil
 }
 
 func (s *UserService) CheckPasswordLength(password string, minLen, maxLen uint) bool {
@@ -64,29 +109,49 @@ func (s *UserService) CheckPasswordComplexity(password string) bool {
 
 func (s *UserService) GetOrMakeSessionKey(user *tables.User) string {
 	if user.SessionKey == "" {
-		user.SessionKey = utils.GenerateRandomString(32)
-
-		// ignore the error, prioritize letting the user log in, this session
-		// will be invalidated on a fresh login
-		if err := s.db.Model(&tables.User{}).
-			Where("id == ?", user.Id).
-			Update("session_key", user.SessionKey).Error; err != nil {
-			log.Error("Failed to update session key, ", err)
-		}
+		user.SessionKey = s.NewSessionKey(user.Id)
 	}
 	return user.SessionKey
 }
 
-func (s *UserService) InvalidateUserSessions(userId uint) error {
-	return s.db.Model(&tables.User{}).
+func (s *UserService) NewSessionKey(userId uint) string {
+	newKey := utils.GenerateRandomString(32)
+
+	// ignore the error, prioritize letting the user log in, this session
+	// will be invalidated on a fresh login
+	if err := s.db.Model(&tables.User{}).
 		Where("id == ?", userId).
-		Update("session_key", "").Error
+		Update("session_key", newKey).Error; err != nil {
+		log.Error("Failed to update session key, ", err)
+	}
+
+	return newKey
 }
 
-func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) (tables.User, error) {
+func (s *UserService) InvalidateUserSessions(userId uint) response.ServerError {
+	if err := s.db.Model(&tables.User{}).
+		Where("id == ?", userId).
+		Update("session_key", "").Error; err != nil {
+		return response.New(
+			http.StatusInternalServerError,
+			"Failed to invalidate db sessions")
+	}
+	return nil
+}
+
+func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) response.ServerError {
 	user, err := s.FindById(userId)
 	if err != nil {
-		return tables.User{}, err
+		return response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", userId))
+	}
+
+	if user.Username == "admin" {
+		request.Username = "admin"
+	}
+
+	// there can be only one admin
+	if strings.ToLower(request.Username) == "admin" && user.Username != "admin" {
+		return response.New(http.StatusBadRequest, "all forms of 'admin' username are reserved")
 	}
 
 	user.Username = request.Username
@@ -94,8 +159,8 @@ func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) (tabl
 	user.Email = request.Email
 
 	if err := s.db.Save(&user).Error; err != nil {
-		return tables.User{}, err
+		return response.New(http.StatusInternalServerError, "failed to update db user")
 	}
 
-	return user, nil
+	return nil
 }

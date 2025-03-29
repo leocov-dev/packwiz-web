@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"packwiz-web/internal/types/response"
 )
 
 type VersionInfo struct {
@@ -28,23 +29,23 @@ type McVersionInfo struct {
 	Versions       []string `json:"versions"`
 }
 
-func GetMinecraftVersions() (McVersionInfo, error) {
+func GetMinecraftVersions() (McVersionInfo, response.ServerError) {
 	var versionInfo McVersionInfo
 
 	resp, err := http.Get("https://launchermeta.mojang.com/mc/game/version_manifest.json")
 	if err != nil {
-		return versionInfo, err
+		return versionInfo, response.Wrap(err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return versionInfo, err
+		return versionInfo, response.Wrap(err)
 	}
 
 	var info VersionInfo
 	if err := json.Unmarshal(body, &info); err != nil {
-		return versionInfo, err
+		return versionInfo, response.Wrap(err)
 	}
 
 	versions := make([]string, 0)

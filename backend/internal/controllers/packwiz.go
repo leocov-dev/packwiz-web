@@ -5,12 +5,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"net/url"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 )
 
 type PackwizController struct {
@@ -26,28 +26,25 @@ func NewPackwizController(db *gorm.DB) *PackwizController {
 func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 
 	user := c.MustGet("user").(tables.User)
-
 	var query dto.AllPacksQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
-		return
-	}
-
-	if err := query.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
-		return
-	}
-
-	packs, err := pc.packwizSvc.GetPacks(query.Status, query.Archived, query.Search, user.Id)
+	err := mustBindData(c, &query)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"packs": packs})
+	packs, err := pc.packwizSvc.GetPacks(query, user.Id)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, gin.H{"packs": packs})
 }
 
 func (pc *PackwizController) NewPack(c *gin.Context) {
-	author := c.MustGet("user").(tables.User)
+	author, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if !author.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"msg": "not authorized"})
@@ -55,33 +52,24 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 	}
 
 	var request dto.NewPackRequest
-	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
-		log.Error("Failed to bind request json", err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		log.Error("request validation failed", err)
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
-		return
-	}
-
-	if pc.packwizSvc.PackExists(request.Slug, true) {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "pack already exists"})
-		return
-	}
-
-	err := pc.packwizSvc.NewPack(request, author)
+	err = mustBindData(c, &request)
 	if pc.abortWithError(c, err) {
-		log.Error("error creating new pack", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	err = pc.packwizSvc.NewPack(request, author)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) PackHead(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	c.Header("Content-Type", "application/json")
 
@@ -93,77 +81,94 @@ func (pc *PackwizController) PackHead(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetOnePack(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
-	user := c.MustGet("user").(tables.User)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	pack, err := pc.packwizSvc.GetPack(slug, user.Id, true, true)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, pack)
+	dataOK(c, pack)
 }
+
 func (pc *PackwizController) AddMod(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
 	var request dto.AddModRequest
-	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
-		log.Error("Failed to bind request json", err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
-		return
-	}
-
-	err := pc.packwizSvc.AddMod(slug, request)
+	err = mustBindData(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	err = pc.packwizSvc.AddMod(slug, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) ArchivePack(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
-	if err := pc.packwizSvc.ArchivePack(slug); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.ArchivePack(slug)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) UnArchivePack(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, true) {
 		return
 	}
 
-	if err := pc.packwizSvc.UnArchivePack(slug); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.UnArchivePack(slug)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) PublishPack(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
@@ -173,15 +178,20 @@ func (pc *PackwizController) PublishPack(c *gin.Context) {
 		return
 	}
 
-	if err := pc.packwizSvc.SetPackStatus(slug, types.PackStatusPublished); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.SetPackStatus(slug, types.PackStatusPublished)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
@@ -191,15 +201,20 @@ func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
 		return
 	}
 
-	if err := pc.packwizSvc.SetPackStatus(slug, types.PackStatusDraft); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.SetPackStatus(slug, types.PackStatusDraft)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) MakePublic(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
@@ -209,15 +224,20 @@ func (pc *PackwizController) MakePublic(c *gin.Context) {
 		return
 	}
 
-	if err := pc.packwizSvc.MakePackPublic(slug); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.MakePackPublic(slug)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) MakePrivate(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
@@ -227,84 +247,89 @@ func (pc *PackwizController) MakePrivate(c *gin.Context) {
 		return
 	}
 
-	if err := pc.packwizSvc.MakePackPrivate(slug); pc.abortWithError(c, err) {
+	err = pc.packwizSvc.MakePackPrivate(slug)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) EditPackInfo(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
 	var request dto.EditPackRequest
-	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
-		log.Error("Failed to bind request json", err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+	err = mustBindData(c, &request)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
 	// TODO
+	log.Warn("EditPackInfo not implemented")
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) UpdateAll(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
 	}
 
-	err := pc.packwizSvc.UpdateAll(slug)
+	err = pc.packwizSvc.UpdateAll(slug)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) RemoveMod(c *gin.Context) {
-	slug := c.Param("slug")
-	mod := c.Param("mod")
-	if pc.abortIfModNotExist(c, slug, mod) {
-		return
-	}
-
-	err := pc.packwizSvc.RemoveMod(slug, mod)
+	slug, err := mustBindParam(c, "slug")
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
-}
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
 
-func (pc *PackwizController) RenameMod(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	if pc.abortIfModNotExist(c, slug, mod) {
+		return
+	}
+
+	err = pc.packwizSvc.RemoveMod(slug, mod)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) UpdateMod(c *gin.Context) {
-	slug := c.Param("slug")
-	mod := c.Param("mod")
-	if pc.abortIfModNotExist(c, slug, mod) {
-		return
-	}
-
-	data, err := pc.packwizSvc.GetMod(slug, mod)
+	slug, err := mustBindParam(c, "slug")
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if data.Pinned {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "mod is pinned"})
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfModNotExist(c, slug, mod) {
 		return
 	}
 
@@ -313,38 +338,49 @@ func (pc *PackwizController) UpdateMod(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) ChangeModSide(c *gin.Context) {
-	slug := c.Param("slug")
-	mod := c.Param("mod")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfModNotExist(c, slug, mod) {
 		return
 	}
 
 	var request dto.ChangeModSideRequest
-	if err := c.ShouldBindBodyWithJSON(&request); err != nil {
-		log.Error("Failed to bind request json", err)
-		return
-	}
-
-	if err := request.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
-		return
-	}
-
-	err := pc.packwizSvc.ChangeModSide(slug, mod, request.Side)
+	err = mustBindData(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	err = pc.packwizSvc.ChangeModSide(slug, mod, request.Side)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) PinMod(c *gin.Context) {
-	slug := c.Param("slug")
-	mod := c.Param("mod")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfModNotExist(c, slug, mod) {
 		return
 	}
@@ -355,7 +391,7 @@ func (pc *PackwizController) PinMod(c *gin.Context) {
 	}
 
 	if data.Pinned {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "mod is already pinned"})
+		c.JSON(http.StatusAccepted, gin.H{"msg": "mod is already pinned"})
 		return
 	}
 
@@ -364,12 +400,20 @@ func (pc *PackwizController) PinMod(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) UnPinMod(c *gin.Context) {
-	slug := c.Param("slug")
-	mod := c.Param("mod")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	if pc.abortIfModNotExist(c, slug, mod) {
 		return
 	}
@@ -380,7 +424,7 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 	}
 
 	if !data.Pinned {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "mod is already unpinned"})
+		c.JSON(http.StatusAccepted, gin.H{"msg": "mod is already unpinned"})
 		return
 	}
 
@@ -389,11 +433,19 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "ok"})
+	isOK(c)
 }
 
 func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
-	slug := c.Param("slug")
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	if pc.abortIfPackNotExist(c, slug, false) {
 		return
@@ -404,33 +456,24 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 		scheme = "https"
 	}
 
-	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/pack.toml", scheme, c.Request.Host, slug))
+	link, err := pc.packwizSvc.GetPersonalLink(user, slug, scheme, c.Request.Host)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	user := c.MustGet("user").(tables.User)
-
-	if !pc.packwizSvc.IsPackPublic(slug) {
-		query := link.Query()
-		query.Add("token", user.LinkToken)
-		link.RawQuery = query.Encode()
-
-	}
-
-	c.JSON(http.StatusOK, gin.H{"link": link.String()})
+	dataOK(c, gin.H{"link": link.String()})
 }
 
 func (pc *PackwizController) GetPackUsers(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }
 
 func (pc *PackwizController) AddPackUser(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }
 
 func (pc *PackwizController) RemovePackUser(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
 }
 
 func (pc *PackwizController) EditUserAccess(c *gin.Context) {
@@ -441,9 +484,9 @@ func (pc *PackwizController) EditUserAccess(c *gin.Context) {
 
 // abortWithError
 // exit the request if the given error is not nil
-func (pc *PackwizController) abortWithError(c *gin.Context, err error) bool {
+func (pc *PackwizController) abortWithError(c *gin.Context, err response.ServerError) bool {
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		err.JSON(c)
 		return true
 	}
 	return false

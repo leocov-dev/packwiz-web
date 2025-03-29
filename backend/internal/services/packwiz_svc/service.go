@@ -1,14 +1,16 @@
 package packwiz_svc
 
 import (
-	"errors"
 	"fmt"
 	"gorm.io/gorm"
+	"net/http"
+	"net/url"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 	"time"
 )
 
@@ -23,13 +25,11 @@ func NewPackwizService(db *gorm.DB) *PackwizService {
 }
 
 func (ps *PackwizService) GetPacks(
-	statusFilter []types.PackStatus,
-	includeArchived bool,
-	search string,
+	request dto.AllPacksQuery,
 	userId uint,
-) ([]tables.Pack, error) {
-	if len(statusFilter) == 0 && !includeArchived {
-		statusFilter = []types.PackStatus{types.PackStatusDraft, types.PackStatusPublished}
+) ([]tables.Pack, response.ServerError) {
+	if len(request.Status) == 0 && !request.Archived {
+		request.Status = []types.PackStatus{types.PackStatusDraft, types.PackStatusPublished}
 	}
 
 	type Result struct {
@@ -55,16 +55,16 @@ func (ps *PackwizService) GetPacks(
 		),
 	).Order("packs.slug asc")
 
-	if search != "" {
-		query = query.Where("packs.slug LIKE ?", "%"+search+"%")
+	if request.Search != "" {
+		query = query.Where("packs.slug LIKE ?", "%"+request.Search+"%")
 	}
 
 	sub := ps.db
-	if len(statusFilter) > 0 {
-		sub = sub.Where("packs.status IN ?", statusFilter)
+	if len(request.Status) > 0 {
+		sub = sub.Where("packs.status IN ?", request.Status)
 	}
 
-	if includeArchived {
+	if request.Archived {
 		sub = sub.Or("deleted_at IS NOT NULL")
 	} else {
 		sub = sub.Where("deleted_at IS NULL")
@@ -73,7 +73,7 @@ func (ps *PackwizService) GetPacks(
 	query = query.Where(sub)
 
 	if err := query.Unscoped().Scan(&results).Error; err != nil {
-		return nil, err
+		return nil, response.New(http.StatusInternalServerError, "failed to query db for packs")
 	}
 
 	for _, result := range results {
@@ -106,14 +106,18 @@ func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
 	return true
 }
 
-func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) error {
+func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) response.ServerError {
+
+	if ps.PackExists(request.Slug, true) {
+		return response.New(http.StatusBadRequest, "pack already exists")
+	}
 
 	name := request.Name
 	if name == "" {
 		name = request.Slug
 	}
 
-	return ps.db.Transaction(func(tx *gorm.DB) error {
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&tables.Pack{
 			Slug:        request.Slug,
 			CreatedBy:   author.Id,
@@ -152,10 +156,14 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return response.New(http.StatusInternalServerError, "failed to create db pack")
+	}
+
+	return nil
 }
 
-func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrateMods bool) (tables.Pack, error) {
+func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrateMods bool) (tables.Pack, response.ServerError) {
 	type Result struct {
 		tables.Pack
 		IsArchived bool
@@ -175,7 +183,7 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 
 	err := query.Unscoped().First(&result).Error
 	if err != nil {
-		return tables.Pack{}, err
+		return tables.Pack{}, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
 
 	result.Pack.IsArchived = result.IsArchived
@@ -184,14 +192,14 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 	if hydrateData {
 		err = ps.hydratePackData(&result.Pack)
 		if err != nil {
-			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", slug, err))
+			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %s", slug, err))
 		}
 	}
 
 	if hydrateMods {
 		err = ps.hydrateModData(&result.Pack)
 		if err != nil {
-			log.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %w", slug, err))
+			log.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %s", slug, err))
 		}
 	}
 
@@ -200,22 +208,22 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 
 // AddMod
 // Add a new mod to an existing pack
-func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) error {
+func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) response.ServerError {
 	if request.Modrinth.IsSet() {
 		data := request.Modrinth
-		return packwiz_cli.AddModrinthMod(slug, data.Name, data.ProjectId, data.VersionFilename, data.VersionId)
+		return response.Wrap(packwiz_cli.AddModrinthMod(slug, data.Name, data.ProjectId, data.VersionFilename, data.VersionId))
 	} else if request.Curseforge.IsSet() {
 		data := request.Curseforge
-		return packwiz_cli.AddCurseforgeMod(slug, data.Name, data.AddonId, data.Category, data.FileId, data.Game)
+		return response.Wrap(packwiz_cli.AddCurseforgeMod(slug, data.Name, data.AddonId, data.Category, data.FileId, data.Game))
 	}
 
-	return errors.New("invalid add mod request")
+	return response.New(http.StatusBadRequest, "invalid add mod request")
 }
 
 // ArchivePack
 // soft delete a pack
-func (ps *PackwizService) ArchivePack(slug string) error {
-	return ps.db.Transaction(func(tx *gorm.DB) error {
+func (ps *PackwizService) ArchivePack(slug string) response.ServerError {
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(
 			&tables.Pack{Slug: slug},
 		).Updates(
@@ -231,25 +239,37 @@ func (ps *PackwizService) ArchivePack(slug string) error {
 			return err
 		}
 		return nil
-	})
+	}); err != nil {
+		return response.New(http.StatusInternalServerError, "failed to archive pack")
+	}
+
+	return nil
 }
 
 // UnArchivePack
 // remove soft delete from a pack
-func (ps *PackwizService) UnArchivePack(slug string) error {
-	return ps.db.Transaction(func(tx *gorm.DB) error {
+func (ps *PackwizService) UnArchivePack(slug string) response.ServerError {
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		return tx.Unscoped().Model(
 			&tables.Pack{Slug: slug},
 		).Update(
 			"deleted_at", nil,
 		).Error
-	})
+	}); err != nil {
+		return response.New(http.StatusInternalServerError, "failed to unarchive pack")
+	}
+
+	return nil
 }
 
 // SetPackStatus
 // change the pack status
-func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) error {
-	return ps.db.Model(&tables.Pack{Slug: slug}).Update("status", status).Error
+func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("status", status).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to set pack status")
+	}
+
+	return nil
 }
 
 func (ps *PackwizService) IsPackPublished(slug string) bool {
@@ -262,24 +282,40 @@ func (ps *PackwizService) IsPackPublic(slug string) bool {
 	return err == nil
 }
 
-func (ps *PackwizService) MakePackPublic(slug string) error {
-	return ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", true).Error
+func (ps *PackwizService) MakePackPublic(slug string) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", true).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to make pack public")
+	}
+
+	return nil
 }
 
-func (ps *PackwizService) MakePackPrivate(slug string) error {
-	return ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", false).Error
+func (ps *PackwizService) MakePackPrivate(slug string) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", false).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to make pack private")
+	}
+
+	return nil
 }
 
 // SetAcceptableVersions
 // set a mod packs acceptable minecraft versions
-func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcceptableVersionsRequest) error {
-	return packwiz_cli.SetAcceptableVersions(slug, request.Versions...)
+func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcceptableVersionsRequest) response.ServerError {
+	if err := packwiz_cli.SetAcceptableVersions(slug, request.Versions...); err != nil {
+		return response.New(http.StatusInternalServerError, "failed to set acceptable versions")
+	}
+
+	return nil
 }
 
 // UpdateAll
 // update all the mods in a pack, skipping pinned mods
-func (ps *PackwizService) UpdateAll(slug string) error {
-	return packwiz_cli.UpdateAll(slug)
+func (ps *PackwizService) UpdateAll(slug string) response.ServerError {
+	if packwiz_cli.UpdateAll(slug) != nil {
+		return response.New(http.StatusInternalServerError, "failed to update all mods")
+	}
+
+	return nil
 }
 
 // ModExists
@@ -290,55 +326,113 @@ func (ps *PackwizService) ModExists(slug, mod string) bool {
 
 // RemoveMod
 // remove a given mod from a given pack
-func (ps *PackwizService) RemoveMod(slug, mod string) error {
-	return packwiz_cli.RemoveMod(slug, mod)
+func (ps *PackwizService) RemoveMod(slug, mod string) response.ServerError {
+	if packwiz_cli.RemoveMod(slug, mod) != nil {
+		return response.New(http.StatusInternalServerError, "failed to remove mod")
+	}
+
+	return nil
 }
 
 // UpdateMod
 // update a given mod from a given pack
-func (ps *PackwizService) UpdateMod(slug, mod string) error {
-	return packwiz_cli.UpdateOne(slug, mod)
+func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
+	modInfo, err := ps.GetMod(slug, mod)
+	if err != nil {
+		return err
+	}
+
+	if modInfo.Pinned {
+		return response.New(http.StatusBadRequest, "cannot update pinned mod")
+	}
+
+	if packwiz_cli.UpdateOne(slug, mod) != nil {
+		return response.New(http.StatusInternalServerError, "failed to update mod")
+	}
+
+	return nil
 }
 
 // GetMod
 // get a single mods data
-func (ps *PackwizService) GetMod(slug, mod string) (*types.ModData, error) {
+func (ps *PackwizService) GetMod(slug, mod string) (*types.ModData, response.ServerError) {
 	data, err := findModData(slug, mod)
 	if err != nil {
-		return nil, err
+		return nil, response.New(http.StatusInternalServerError, "failed to get mod file data")
 	}
 
 	return &data, nil
 }
 
-func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) error {
-	return packwiz_cli.ChangeModSide(slug, mod, side)
+func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) response.ServerError {
+	if packwiz_cli.ChangeModSide(slug, mod, side) != nil {
+		return response.New(http.StatusInternalServerError, "failed to change mod side")
+	}
+
+	return nil
 }
 
 // PinMod
 // pin a mod to prevent it from being updated
-func (ps *PackwizService) PinMod(slug, mod string) error {
-	return packwiz_cli.PinMod(slug, mod)
+func (ps *PackwizService) PinMod(slug, mod string) response.ServerError {
+	if packwiz_cli.PinMod(slug, mod) != nil {
+		return response.New(http.StatusInternalServerError, "failed to pin mod")
+	}
+
+	return nil
 }
 
 // UnpinMod
 // unpin a mod to allow it to be updated
-func (ps *PackwizService) UnpinMod(slug, mod string) error {
-	return packwiz_cli.UnpinMod(slug, mod)
+func (ps *PackwizService) UnpinMod(slug, mod string) response.ServerError {
+	if packwiz_cli.UnpinMod(slug, mod) != nil {
+		return response.New(http.StatusInternalServerError, "failed to unpin mod")
+	}
+
+	return nil
 }
 
-// ---
+func (ps *PackwizService) GetPersonalLink(
+	user tables.User,
+	slug string,
+	scheme string,
+	host string,
+) (url.URL, response.ServerError) {
+	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/pack.toml", scheme, host, slug))
+	if err != nil {
+		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
+	}
 
-func (ps *PackwizService) hydratePackData(pack *tables.Pack) error {
+	if !ps.IsPackPublic(slug) {
+		query := link.Query()
+		query.Add("token", user.LinkToken)
+		link.RawQuery = query.Encode()
+
+	}
+
+	return *link, nil
+}
+
+// -----------------------------------------------------------------------------
+
+func (ps *PackwizService) hydratePackData(pack *tables.Pack) response.ServerError {
 	var err error
 	pack.PackData, err = getModpackData(pack.Slug)
 
-	return err
+	if err != nil {
+		return response.New(http.StatusInternalServerError, "failed to get pack file data")
+	}
+
+	return nil
 }
 
-func (ps *PackwizService) hydrateModData(pack *tables.Pack) error {
+func (ps *PackwizService) hydrateModData(pack *tables.Pack) response.ServerError {
 	var err error
 	pack.ModData, err = getModpackMods(pack.Slug)
 
-	return err
+	if err != nil {
+		return response.New(http.StatusInternalServerError, "failed to get pack mods file data")
+	}
+
+	return nil
 }

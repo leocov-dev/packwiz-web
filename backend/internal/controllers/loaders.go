@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"net/http"
 	"packwiz-web/internal/services/loaders"
 )
 
@@ -23,19 +22,21 @@ type VersionData struct {
 func (lc *LoadersController) GetLoaderVersions(c *gin.Context) {
 	loaderData, err := loaders.GetLoadersAndVersions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		err.JSON(c)
 		return
 	}
 
 	minecraftVersions, err := loaders.GetMinecraftVersions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		err.JSON(c)
+		return
 	}
 
-	versionData := VersionData{
-		Minecraft: minecraftVersions,
-		Loaders:   loaderData,
-	}
-
-	c.JSON(http.StatusOK, versionData)
+	dataOK(
+		c,
+		VersionData{
+			Minecraft: minecraftVersions,
+			Loaders:   loaderData,
+		},
+	)
 }

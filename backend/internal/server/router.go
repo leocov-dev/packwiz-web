@@ -6,6 +6,7 @@ import (
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/middleware"
+	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/types"
 	"packwiz-web/public"
 	"time"
@@ -43,7 +44,7 @@ func NewRouter() *gin.Engine {
 	packwizFiles.Use(middleware.PackwizAudit(db))
 	{
 		modpackController := controllers.NewModpackController(db)
-		packwizFiles.GET("*filepath", modpackController.ServeStatic)
+		packwizFiles.GET("*filepath", meta.Tag(meta.CategoryLogin), modpackController.ServeStatic)
 	}
 
 	// -------------------------------------------------------------------------
@@ -56,7 +57,7 @@ func NewRouter() *gin.Engine {
 		{
 			authController := controllers.NewAuthController(db)
 
-			v1.POST("login", middleware.RateLimiter(), authController.Login)
+			v1.POST("login", middleware.RateLimiter(), meta.Tag(meta.CategoryLogin), authController.Login)
 			v1.POST("logout", authController.Logout)
 
 			protectedGroup := v1.Group("")
@@ -75,8 +76,14 @@ func NewRouter() *gin.Engine {
 				userGroup := protectedGroup.Group("user")
 				{
 					userController := controllers.NewUserController(db)
-					userGroup.GET("", userController.CurrentUser)
-					userGroup.POST("password", userController.ChangePassword)
+					userGroup.GET("", userController.GetCurrentUser)
+					userGroup.POST("password",
+						func(c *gin.Context) {
+							if err := userController.ChangePassword; err != nil {
+
+								return
+							}
+						})
 					userGroup.POST("update", userController.UpdateUser)
 					userGroup.POST("invalidate-sessions", userController.InvalidateCurrentUserSessions)
 				}
@@ -142,7 +149,6 @@ func NewRouter() *gin.Engine {
 								modGroup := editPackGroup.Group("mod/:mod")
 								{
 									modGroup.DELETE("", packwizController.RemoveMod)
-									modGroup.PATCH("rename", packwizController.RenameMod)
 									modGroup.PATCH("update", packwizController.UpdateMod)
 									modGroup.PATCH("side", packwizController.ChangeModSide)
 									modGroup.PATCH("pin", packwizController.PinMod)
