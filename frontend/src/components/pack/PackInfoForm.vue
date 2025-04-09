@@ -24,7 +24,10 @@ const data = defineModel<PackInfoFormData>('data', {required: true})
 const loading = defineModel<boolean>('loading', {required: true})
 const emit = defineEmits(["submit-data", "cancel-op"])
 
-const {title} = defineProps({title: {type: String, required: true}})
+const {title, acceptText} = defineProps({
+  title: {type: String, required: true},
+  acceptText: {type: String, required: true},
+})
 
 const isValid = ref(false)
 </script>
@@ -60,7 +63,7 @@ const isValid = ref(false)
 
       <v-row>
         <v-col>
-          <v-divider/>
+          <v-divider />
         </v-col>
       </v-row>
 
@@ -80,7 +83,7 @@ const isValid = ref(false)
 
       <v-row>
         <v-col>
-          <v-divider/>
+          <v-divider />
         </v-col>
       </v-row>
 
@@ -96,7 +99,7 @@ const isValid = ref(false)
 
       <v-row>
         <v-col>
-          <v-divider/>
+          <v-divider />
         </v-col>
       </v-row>
 
@@ -118,7 +121,7 @@ const isValid = ref(false)
         />
         <v-btn
           :disabled="loading || !isValid"
-          text="Create"
+          :text="acceptText"
           type="submit"
           color="primary"
         />

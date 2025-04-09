@@ -29,7 +29,7 @@ const buildRequest: () => NewPackRequest = () => {
 
   return {
     slug: form.slug,
-    fullName: form.name,
+    name: form.name,
     version: form.packVersion,
     description: form.description,
     minecraft: {
@@ -38,7 +38,7 @@ const buildRequest: () => NewPackRequest = () => {
       snapshot: form.minecraftVersion === "Latest Snapshot",
     },
     loader: {
-      fullName: (form.loader.name || "").toLowerCase(),
+      name: (form.loader.name || "").toLowerCase(),
       version: form.loader.version === "Latest" ? "" : form.loader.version,
       latest: form.loader.version === "Latest",
     },
@@ -88,6 +88,7 @@ const cancelForm = async () => {
       v-model:data="data"
       v-model:loading="creating"
       title="New Pack"
+      accept-text="Create"
       @submit-data="submitForm"
       @cancel-op="cancelForm"
     />

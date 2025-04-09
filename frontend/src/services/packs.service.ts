@@ -1,7 +1,7 @@
 import {Packs, Pack} from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
-import type {NewPackRequest} from "@/interfaces/requests.ts";
+import type {EditPackRequest, NewPackRequest} from "@/interfaces/requests.ts";
 
 
 export async function fetchAllPacks(
@@ -58,8 +58,8 @@ export async function newPack(request: NewPackRequest) {
   return apiClient.post('v1/packwiz/pack', request)
 }
 
-export async function editPack(slug: string, request: NewPackRequest) {
-  return apiClient.put(`v1/packwiz/pack/${slug}/edit`, request)
+export async function editPack(slug: string, request: EditPackRequest) {
+  return apiClient.patch(`v1/packwiz/pack/${slug}/edit`, request)
 }
 
 export async function archivePack(slug: string) {

@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"errors"
 	"github.com/go-playground/validator/v10"
 	"packwiz-web/internal/interfaces"
 	"packwiz-web/internal/services/packwiz_cli"
@@ -9,8 +8,8 @@ import (
 )
 
 type MinecraftDef struct {
-	Version  string `json:"version"`
-	Latest   bool   `json:"latest"`
+	Version  string `json:"version" validate:"required_without=latest snapshot"`
+	Latest   bool   `json:"latest" validate:"required_with=snapshot"`
 	Snapshot bool   `json:"snapshot"`
 }
 
@@ -23,18 +22,12 @@ func (m MinecraftDef) AsCliType() packwiz_cli.MinecraftDef {
 }
 
 func (m MinecraftDef) Validate() error {
-	if m.Version == "" && !m.Latest {
-		return errors.New("version or latest must be set")
-	}
-	if m.Snapshot && !m.Latest {
-		return errors.New("snapshot must be set with latest")
-	}
-	return nil
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(m)
 }
 
 type LoaderDef struct {
-	Name    packwiz_cli.LoaderType `json:"name" validate:"required"`
-	Version string                 `json:"version"`
+	Name    packwiz_cli.LoaderType `json:"name" validate:"required,oneof=fabric forge liteloader quilt neoforge"`
+	Version string                 `json:"version" validate:"required_without=latest"`
 	Latest  bool                   `json:"latest"`
 }
 
@@ -47,10 +40,7 @@ func (l LoaderDef) AsCliType() packwiz_cli.LoaderDef {
 }
 
 func (l LoaderDef) Validate() error {
-	if l.Version == "" && !l.Latest {
-		return errors.New("version or latest must be set")
-	}
-	return nil
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(l)
 }
 
 type NewPackRequest struct {
@@ -67,7 +57,7 @@ var validSlugRegex = regexp.MustCompile(`^[a-zA-Z0-9\-._]+$`)
 
 func (r NewPackRequest) Validate() error {
 	errorGroup := interfaces.NewErrorGroup()
-	validate := validator.New()
+	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	if err := validate.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
 		return validSlugRegex.MatchString(fl.Field().String())

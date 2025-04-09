@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"packwiz-web/internal/database"
+	"packwiz-web/seed"
 	"strings"
 )
 
@@ -32,10 +33,12 @@ var (
 			choice := args[0]
 
 			database.InitDb()
+			db := database.GetClient()
 
 			switch choice {
-			case "debug":
-				database.SeedDebugData()
+			case "users":
+
+				seed.CreateRandomUsers(db, 50)
 			}
 		},
 	}

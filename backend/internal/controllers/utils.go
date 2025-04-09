@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"net/http"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
@@ -27,6 +28,21 @@ func mustBindIdParam(c *gin.Context, name string) (uint, response.ServerError) {
 	return uint(raw), nil
 }
 
+func mustBindQuery(c *gin.Context, request dto.Request) response.ServerError {
+	if err := c.ShouldBindQuery(request); err != nil {
+		return response.Wrap(err)
+	}
+
+	if err := request.Validate(); err != nil {
+		return response.New(
+			http.StatusBadRequest,
+			fmt.Sprintf("invalid request: %s", err.Error()),
+		)
+	}
+
+	return nil
+}
+
 func mustBindCurrentUser(c *gin.Context) (tables.User, response.ServerError) {
 	user, ok := c.Get("user")
 	if !ok {
@@ -36,8 +52,23 @@ func mustBindCurrentUser(c *gin.Context) (tables.User, response.ServerError) {
 	return user.(tables.User), nil
 }
 
-func mustBindData(c *gin.Context, request dto.Request) response.ServerError {
-	if err := c.ShouldBind(&request); err != nil {
+func mustBindJson(c *gin.Context, request dto.Request) response.ServerError {
+	if err := c.ShouldBindBodyWithJSON(request); err != nil {
+		return response.Wrap(err)
+	}
+
+	if err := request.Validate(); err != nil {
+		return response.New(
+			http.StatusBadRequest,
+			fmt.Sprintf("invalid request: %s", err.Error()),
+		)
+	}
+
+	return nil
+}
+
+func mustBindForm(c *gin.Context, request dto.Request) response.ServerError {
+	if err := c.ShouldBindWith(request, binding.Form); err != nil {
 		return response.Wrap(err)
 	}
 

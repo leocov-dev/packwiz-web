@@ -10,6 +10,6 @@ type SimpleRequest struct {
 }
 
 func (r SimpleRequest) Validate() error {
-	validate := validator.New()
+	validate := validator.New(validator.WithRequiredStructEnabled())
 	return validate.Struct(r)
 }

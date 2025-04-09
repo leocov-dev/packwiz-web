@@ -12,6 +12,8 @@ var (
 		Short: "Start the server",
 		Run: func(cmd *cobra.Command, args []string) {
 			database.InitDb()
+			database.CreateDefaultAdminUser()
+			database.ReconcileFileData()
 
 			server.Start()
 		},

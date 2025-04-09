@@ -71,11 +71,12 @@ func NewRouter() *gin.Engine {
 					healthGroup.GET("", healthController.Status)
 				}
 
+				userController := controllers.NewUserController(db)
+
 				// -------------------------------------------------------------
 				// current user
 				userGroup := protectedGroup.Group("user")
 				{
-					userController := controllers.NewUserController(db)
 					userGroup.GET("", userController.GetCurrentUser)
 					userGroup.POST("password",
 						func(c *gin.Context) {
@@ -91,8 +92,7 @@ func NewRouter() *gin.Engine {
 				// -------------------------------------------------------------
 				adminGroup := protectedGroup.Group("admin")
 				{
-					// TODO
-					adminGroup.GET("", func(c *gin.Context) { c.JSON(200, gin.H{}) })
+					adminGroup.GET("users", userController.GetUsersPaginated)
 				}
 
 				// -------------------------------------------------------------

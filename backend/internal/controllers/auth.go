@@ -27,7 +27,7 @@ func NewAuthController(db *gorm.DB) *AuthController {
 func (ac *AuthController) Login(c *gin.Context) {
 
 	var form dto.LoginForm
-	if err := mustBindData(c, &form); err != nil {
+	if err := mustBindForm(c, &form); err != nil {
 		err.JSON(c)
 		return
 	}

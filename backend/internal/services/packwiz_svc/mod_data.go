@@ -1,6 +1,7 @@
 package packwiz_svc
 
 import (
+	"fmt"
 	"packwiz-web/internal/services/packwiz_cli"
 	"packwiz-web/internal/types"
 	"path/filepath"
@@ -8,11 +9,11 @@ import (
 )
 
 func getModSource(modFile packwiz_cli.ModFile) types.ModSource {
-	if modFile.Update.Modrinth.ModrinthId != "" {
+	if modFile.Update.Modrinth.ModId != "" {
 		return types.ModSource{
-			Type:       "modrinth",
-			ModrinthId: modFile.Update.Modrinth.ModrinthId,
-			Version:    modFile.Update.Modrinth.Version,
+			Type:    "modrinth",
+			ModId:   modFile.Update.Modrinth.ModId,
+			Version: modFile.Update.Modrinth.Version,
 		}
 	} else {
 		return types.ModSource{
@@ -20,6 +21,17 @@ func getModSource(modFile packwiz_cli.ModFile) types.ModSource {
 			FileId:    modFile.Update.Curseforge.FileId,
 			ProjectId: modFile.Update.Curseforge.ProjectId,
 		}
+	}
+}
+
+func getModSourceLink(source types.ModSource) string {
+	switch source.Type {
+	case "modrinth":
+		return fmt.Sprintf("https://modrinth.com/mod/%s/version/%s", source.ModId, source.Version)
+	case "curseforge":
+		return fmt.Sprintf("https://www.curseforge.com/minecraft/mc-mods/%d/files/%d", source.ProjectId, source.FileId)
+	default:
+		return ""
 	}
 }
 

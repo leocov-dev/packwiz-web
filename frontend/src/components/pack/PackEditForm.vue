@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import PackInfoForm from "@/components/pack/PackInfoForm.vue";
-import type {NewPackRequest} from "@/interfaces/requests.ts";
+import type {EditPackRequest} from "@/interfaces/requests.ts";
 import {sleep} from "@/services/utils.ts";
 import {type Pack} from "@/interfaces/pack.ts";
 import type {LoaderVersions} from "@/stores/cache.ts";
+import {editPack} from "@/services/packs.service.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -25,14 +26,14 @@ const data = ref({
 
 const router = useRouter()
 
-const buildRequest: () => NewPackRequest = () => {
+const buildRequest: () => EditPackRequest = () => {
   const form = data.value
 
   const nonVersion = ["Latest", "LatestSnapshot"]
 
   return {
     slug: form.slug,
-    fullName: form.name,
+    name: form.name,
     version: form.packVersion,
     description: form.description,
     minecraft: {
@@ -41,7 +42,7 @@ const buildRequest: () => NewPackRequest = () => {
       snapshot: form.minecraftVersion === "Latest Snapshot",
     },
     loader: {
-      fullName: (form.loader.name || "").toLowerCase(),
+      name: (form.loader.name || "").toLowerCase(),
       version: form.loader.version === "Latest" ? "" : form.loader.version,
       latest: form.loader.version === "Latest",
     },
@@ -52,10 +53,10 @@ const buildRequest: () => NewPackRequest = () => {
 const submitForm = async () => {
   error.value = false
   editing.value = true
-  // const request = buildRequest()
+  const request = buildRequest()
 
   try {
-    // await newPack(request)
+    await editPack(pack.slug, request)
 
     await sleep(1500)
     await router.push({path: `/packs/${pack.slug}`})
@@ -91,6 +92,7 @@ const cancelForm = async () => {
       v-model:data="data"
       v-model:loading="editing"
       title="Edit Pack"
+      accept-text="Save"
       @submit-data="submitForm"
       @cancel-op="cancelForm"
     />

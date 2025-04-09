@@ -14,8 +14,8 @@ type ModSource struct {
 	// modrinth or curseforge
 	Type string `json:"type"`
 	// modrinth info
-	ModrinthId string `json:"modrinthId,omitempty"`
-	Version    string `json:"version,omitempty"`
+	ModId   string `json:"modId,omitempty"`
+	Version string `json:"version,omitempty"`
 	// curseforge info
 	FileId    int `json:"fileId,omitempty"`
 	ProjectId int `json:"projectId,omitempty"`
@@ -37,4 +37,5 @@ type ModData struct {
 	Side        ModSide   `json:"side"`
 	Pinned      bool      `json:"pinned"`
 	Source      ModSource `json:"source"`
+	SourceLink  string    `json:"sourceLink"`
 }

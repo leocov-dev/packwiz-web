@@ -146,18 +146,18 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			return err
 		}
 
-		if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
-			if err := packwiz_cli.SetAcceptableVersions(
-				request.Slug,
-				request.AcceptableVersions...,
-			); err != nil {
-				return err
-			}
-		}
-
 		return nil
 	}); err != nil {
 		return response.New(http.StatusInternalServerError, "failed to create db pack")
+	}
+
+	if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
+		if err := packwiz_cli.SetAcceptableVersions(
+			request.Slug,
+			request.AcceptableVersions...,
+		); err != nil {
+			return response.Wrap(err)
+		}
 	}
 
 	return nil
@@ -211,10 +211,10 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) response.ServerError {
 	if request.Modrinth.IsSet() {
 		data := request.Modrinth
-		return response.Wrap(packwiz_cli.AddModrinthMod(slug, data.Name, data.ProjectId, data.VersionFilename, data.VersionId))
+		return response.Wrap(packwiz_cli.AddModrinthMod(slug, data.Url, "", "", ""))
 	} else if request.Curseforge.IsSet() {
 		data := request.Curseforge
-		return response.Wrap(packwiz_cli.AddCurseforgeMod(slug, data.Name, data.AddonId, data.Category, data.FileId, data.Game))
+		return response.Wrap(packwiz_cli.AddCurseforgeMod(slug, data.Url, "", "", "", ""))
 	}
 
 	return response.New(http.StatusBadRequest, "invalid add mod request")
@@ -411,6 +411,20 @@ func (ps *PackwizService) GetPersonalLink(
 	}
 
 	return *link, nil
+}
+
+func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) response.ServerError {
+
+	if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
+		if err := packwiz_cli.SetAcceptableVersions(
+			slug,
+			request.AcceptableVersions...,
+		); err != nil {
+			return response.Wrap(err)
+		}
+	}
+
+	return nil
 }
 
 // -----------------------------------------------------------------------------

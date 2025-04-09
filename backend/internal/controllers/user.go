@@ -6,6 +6,7 @@ import (
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 )
 
 type UserController struct {
@@ -36,7 +37,7 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 	user := c.MustGet("user").(tables.User)
 
 	var form dto.ChangePasswordForm
-	if err := mustBindData(c, &form); err != nil {
+	if err := mustBindForm(c, &form); err != nil {
 		err.JSON(c)
 		return
 	}
@@ -60,7 +61,7 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 	}
 
 	var request dto.EditUserRequest
-	if err := mustBindData(c, &request); err != nil {
+	if err := mustBindJson(c, &request); err != nil {
 		err.JSON(c)
 		return
 	}
@@ -98,4 +99,25 @@ func (uc *UserController) InvalidateCurrentUserSessions(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+func (uc *UserController) GetUsersPaginated(c *gin.Context) {
+	var query dto.ListUsersQuery
+	if err := mustBindQuery(c, &query); err != nil {
+		err.JSON(c)
+		return
+	}
+
+	users, total, err := uc.svc.ListUsers(query)
+	if err != nil {
+		err.JSON(c)
+		return
+	}
+
+	dataOK(c, response.NewPaginated(
+		users,
+		query.Page,
+		query.PageSize,
+		total,
+	))
 }

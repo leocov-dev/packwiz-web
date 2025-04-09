@@ -68,13 +68,9 @@ func InitDb() {
 		db.Exec("VACUUM;")
 		log.Info("Database VACUUM completed!")
 	}
-
-	createDefaultAdminUser()
-
-	reconcileFileData()
 }
 
-func createDefaultAdminUser() {
+func CreateDefaultAdminUser() {
 	adminPass, _ := utils.HashPassword(config.C.AdminPassword)
 
 	// overwrite record or create
@@ -94,26 +90,7 @@ func createDefaultAdminUser() {
 	).FirstOrCreate(&tables.User{})
 }
 
-func SeedDebugData() {
-	createDummyPlayerUser()
-}
-
-func createDummyPlayerUser() {
-	pass, _ := utils.HashPassword("password123")
-
-	db.Create(
-		&tables.User{
-			Username:  "player",
-			FullName:  "Leroy Jenkins",
-			Email:     "l.jenkins@example.com",
-			Password:  pass,
-			IsAdmin:   false,
-			LinkToken: utils.GenerateRandomString(32),
-		},
-	)
-}
-
-func reconcileFileData() {
+func ReconcileFileData() {
 	reconciler := importer.NewDataReconciler(
 		db,
 		packwiz_svc.NewPackwizService(db),

@@ -2,7 +2,6 @@ package dto
 
 import (
 	"github.com/go-playground/validator/v10"
-	"packwiz-web/internal/interfaces"
 )
 
 type EditPackRequest struct {
@@ -15,15 +14,5 @@ type EditPackRequest struct {
 }
 
 func (r EditPackRequest) Validate() error {
-	errorGroup := interfaces.NewErrorGroup()
-	validate := validator.New()
-
-	errorGroup.Add(r.MinecraftDef.Validate())
-	errorGroup.Add(r.LoaderDef.Validate())
-	errorGroup.Add(validate.Struct(r))
-
-	if errorGroup.IsEmpty() {
-		return nil
-	}
-	return errorGroup
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(r)
 }

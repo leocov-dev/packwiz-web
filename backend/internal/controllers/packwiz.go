@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -27,7 +26,7 @@ func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 
 	user := c.MustGet("user").(tables.User)
 	var query dto.AllPacksQuery
-	err := mustBindData(c, &query)
+	err := mustBindQuery(c, &query)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -52,7 +51,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 	}
 
 	var request dto.NewPackRequest
-	err = mustBindData(c, &request)
+	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -114,7 +113,7 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 	}
 
 	var request dto.AddModRequest
-	err = mustBindData(c, &request)
+	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -266,13 +265,15 @@ func (pc *PackwizController) EditPackInfo(c *gin.Context) {
 	}
 
 	var request dto.EditPackRequest
-	err = mustBindData(c, &request)
+	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	// TODO
-	log.Warn("EditPackInfo not implemented")
+	err = pc.packwizSvc.EditPack(slug, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
 
 	isOK(c)
 }
@@ -357,7 +358,7 @@ func (pc *PackwizController) ChangeModSide(c *gin.Context) {
 	}
 
 	var request dto.ChangeModSideRequest
-	err = mustBindData(c, &request)
+	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}

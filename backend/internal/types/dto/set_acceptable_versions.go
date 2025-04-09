@@ -1,16 +1,15 @@
 package dto
 
-import "errors"
+import (
+	"github.com/go-playground/validator/v10"
+)
 
 type SetAcceptableVersionsRequest struct {
-	Versions []string `json:"versions"`
+	Versions []string `json:"versions" validate:"required,min=1"`
 }
 
 // Validate
 // set the acceptable minecraft versions for a modpack
 func (r SetAcceptableVersionsRequest) Validate() error {
-	if len(r.Versions) > 0 {
-		return errors.New("must specify at least one version")
-	}
-	return nil
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(r)
 }

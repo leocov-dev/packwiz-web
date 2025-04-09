@@ -56,13 +56,6 @@ func (s *UserService) ChangePassword(user tables.User, form dto.ChangePasswordFo
 		)
 	}
 
-	if !s.CheckPasswordLength(newPassword, 10, 64) {
-		return response.New(
-			http.StatusBadRequest,
-			"Password must be from 10 t0 64 characters long",
-		)
-	}
-
 	if !s.CheckPasswordComplexity(newPassword) {
 		return response.New(
 			http.StatusBadRequest,
@@ -163,4 +156,41 @@ func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) respo
 	}
 
 	return nil
+}
+
+func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int64, response.ServerError) {
+	var users []tables.User
+	var total int64
+
+	offset := (request.Page - 1) * request.PageSize
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+
+		query := tx.Model(&tables.User{})
+
+		switch strings.ToLower(request.UserType) {
+		case "admin":
+			query.Where("is_admin = ?", true)
+		case "user":
+			query.Where("is_admin = ?", false)
+		}
+
+		if err := query.Count(&total).Error; err != nil {
+			return err
+		}
+
+		if err := query.Offset(offset).Limit(request.PageSize).Scan(&users).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, 0, response.New(http.StatusInternalServerError, "failed to list users")
+	}
+
+	if users == nil {
+		users = []tables.User{}
+	}
+
+	return users, total, nil
 }

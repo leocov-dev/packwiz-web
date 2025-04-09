@@ -47,8 +47,8 @@ type IndexMeta struct {
 }
 
 type ModrinthMeta struct {
-	ModrinthId string `toml:"mod-id"`
-	Version    string `toml:"version"`
+	ModId   string `toml:"mod-id"`
+	Version string `toml:"version"`
 }
 
 type CurseforgeMeta struct {
