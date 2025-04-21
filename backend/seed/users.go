@@ -26,7 +26,7 @@ func CreateRandomUsers(db *gorm.DB, count int) {
 				Email:     gofakeit.Email(),
 				Password:  pass,
 				IsAdmin:   false,
-				LinkToken: utils.GenerateRandomString(32),
+				LinkToken: utils.GenerateLinkToken(16),
 			},
 		)
 	}

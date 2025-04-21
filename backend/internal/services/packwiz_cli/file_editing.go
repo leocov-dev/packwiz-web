@@ -11,10 +11,10 @@ import (
 	"strings"
 )
 
-func writeFile(modpack string, paths []string, data []byte) error {
+func writeFile(slug string, paths []string, data []byte) error {
 	pathParts := []string{
 		config.C.PackwizDir,
-		modpack,
+		slug,
 	}
 	pathParts = append(pathParts, paths...)
 
@@ -23,8 +23,35 @@ func writeFile(modpack string, paths []string, data []byte) error {
 	return os.WriteFile(expectedFile, data, 0755)
 }
 
-func ChangeModSide(modpack, modName string, side types.ModSide) error {
-	index, err := GetIndexFile(modpack)
+func RenamePack(slug, newName string) error {
+	rawToml, err := readFile(slug, "pack.toml")
+	if err != nil {
+		return err
+	}
+
+	var tomlData map[string]interface{}
+
+	// Parse the TOML file into a map for manipulation
+	err = toml.Unmarshal(rawToml, &tomlData)
+	if err != nil {
+		return fmt.Errorf("failed to parse TOML file: %w", err)
+	}
+	if tomlData["name"].(string) == newName {
+		return nil
+	}
+
+	tomlData["name"] = newName
+
+	updatedContent, err := toml.Marshal(tomlData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal TOML data: %w", err)
+	}
+
+	return writeFile(slug, []string{"pack.toml"}, updatedContent)
+}
+
+func ChangeModSide(slug, modName string, side types.ModSide) error {
+	index, err := GetIndexFile(slug)
 	if err != nil {
 		return err
 	}
@@ -40,10 +67,10 @@ func ChangeModSide(modpack, modName string, side types.ModSide) error {
 	}
 
 	if relativePath == "" {
-		return errors.New(fmt.Sprintf("pack: %s mod: %s not found", modpack, modName))
+		return errors.New(fmt.Sprintf("pack: %s mod: %s not found", slug, modName))
 	}
 
-	rawToml, err := readFile(modpack, relativePath)
+	rawToml, err := readFile(slug, relativePath)
 	if err != nil {
 		return err
 	}
@@ -62,5 +89,5 @@ func ChangeModSide(modpack, modName string, side types.ModSide) error {
 		return fmt.Errorf("failed to marshal TOML data: %w", err)
 	}
 
-	return writeFile(modpack, []string{relativePath}, updatedContent)
+	return writeFile(slug, []string{relativePath}, updatedContent)
 }

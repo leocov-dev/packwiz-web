@@ -31,7 +31,7 @@ func TestToCamelCase(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		output, _ := ToCamelCase(test.input)
+		output := ToCamelCase(test.input)
 		if output != test.expected {
 			t.Errorf("For input '%s', expected '%s' but got '%s'", test.input, test.expected, output)
 		}

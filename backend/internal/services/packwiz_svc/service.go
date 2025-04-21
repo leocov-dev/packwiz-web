@@ -398,22 +398,44 @@ func (ps *PackwizService) GetPersonalLink(
 	scheme string,
 	host string,
 ) (url.URL, response.ServerError) {
-	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/pack.toml", scheme, host, slug))
-	if err != nil {
-		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
+
+	var key string
+	if ps.IsPackPublic(slug) {
+		key = "public"
+	} else {
+		key = user.LinkToken
 	}
 
-	if !ps.IsPackPublic(slug) {
-		query := link.Query()
-		query.Add("token", user.LinkToken)
-		link.RawQuery = query.Encode()
-
+	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/%s/pack.toml", scheme, host, key, slug))
+	if err != nil {
+		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
 	}
 
 	return *link, nil
 }
 
 func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) response.ServerError {
+
+	if request.Name != "" {
+		if err := packwiz_cli.RenamePack(
+			slug,
+			request.Name,
+		); err != nil {
+			return response.Wrap(err)
+		}
+	}
+
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Model(
+			&tables.Pack{Slug: slug},
+		).Updates(
+			&tables.Pack{
+				Description: request.Description,
+			},
+		).Error
+	}); err != nil {
+		return response.Wrap(err)
+	}
 
 	if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
 		if err := packwiz_cli.SetAcceptableVersions(

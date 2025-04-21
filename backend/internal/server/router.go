@@ -39,7 +39,7 @@ func NewRouter() *gin.Engine {
 	db := database.GetClient()
 
 	// -------------------------------------------------------------------------
-	packwizFiles := router.Group("packwiz/:slug")
+	packwizFiles := router.Group("packwiz/:token/:slug")
 	packwizFiles.Use(middleware.PackwizFileAuthentication(db))
 	packwizFiles.Use(middleware.PackwizAudit(db))
 	{

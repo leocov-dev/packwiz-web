@@ -64,7 +64,7 @@ func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		token := c.Query("token")
+		token := c.Param("token")
 		if token == "" {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -83,6 +83,5 @@ func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.Next()
-
 	}
 }

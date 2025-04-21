@@ -72,20 +72,19 @@ func InitDb() {
 
 func CreateDefaultAdminUser() {
 	adminPass, _ := utils.HashPassword(config.C.AdminPassword)
+	// update if record not found
+	db.Where("username = ?", "admin").Attrs(
+		tables.User{
+			Username:  "admin",
+			LinkToken: utils.GenerateLinkToken(16),
+		},
+	).FirstOrCreate(&tables.User{})
 
 	// overwrite record or create
 	db.Where("username = ?", "admin").Assign(
 		tables.User{
-			Username: "admin",
 			Password: adminPass,
 			IsAdmin:  true,
-		},
-	).FirstOrCreate(&tables.User{})
-
-	// update if record not found
-	db.Where("username = ?", "admin").Attrs(
-		tables.User{
-			LinkToken: utils.GenerateRandomString(32),
 		},
 	).FirstOrCreate(&tables.User{})
 }

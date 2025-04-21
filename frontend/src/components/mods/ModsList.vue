@@ -50,7 +50,9 @@ const search = ref<string>('')
           v-for="item in items"
           :key="item.raw.name"
         >
-          {{ item.raw.name }}
+          <ModCard
+            :mod="item.raw"
+          />
         </v-list-item>
       </v-list>
     </template>

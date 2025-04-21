@@ -17,7 +17,7 @@ type User struct {
 	Password         string         `json:"-"`
 	IsAdmin          bool           `json:"isAdmin"`
 	IdentityProvider string         `json:"identityProvider"`
-	LinkToken        string         `json:"-"`
+	LinkToken        string         `gorm:"unique" json:"-"`
 	SessionKey       string         `json:"-"`
 }
 

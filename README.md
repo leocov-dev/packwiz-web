@@ -4,7 +4,7 @@
 
 > [!WARNING]
 >
-> **This is still work-in-progress**
+> **This is still work-in-progress, but will run locally**
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 

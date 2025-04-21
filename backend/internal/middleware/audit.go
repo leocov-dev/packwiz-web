@@ -91,6 +91,7 @@ func paramsToMap(params gin.Params) map[string]string {
 
 func PackwizAudit(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// TODO: log access for graphs
 		c.Next()
 	}
 }

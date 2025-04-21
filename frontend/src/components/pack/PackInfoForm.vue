@@ -122,7 +122,6 @@ const isValid = ref(false)
         <v-btn
           :disabled="loading || !isValid"
           :text="acceptText"
-          type="submit"
           color="primary"
         />
       </div>

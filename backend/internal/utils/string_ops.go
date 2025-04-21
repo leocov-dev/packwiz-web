@@ -8,6 +8,10 @@ import (
 )
 
 func GenerateRandomString(length int) string {
+	if length < 4 {
+		length = 4
+	}
+
 	bytes := make([]byte, length)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -15,6 +19,25 @@ func GenerateRandomString(length int) string {
 	}
 
 	return base64.URLEncoding.EncodeToString(bytes)[:length]
+}
+
+func GenerateLinkToken(length int) string {
+	if length < 4 {
+		length = 4
+	}
+
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate random string: %s", err))
+	}
+
+	for i := range bytes {
+		bytes[i] = charset[bytes[i]%byte(len(charset))]
+	}
+
+	return string(bytes)
 }
 
 // HashPassword hashes a plain-text password using bcrypt

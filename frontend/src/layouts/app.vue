@@ -29,6 +29,7 @@ onUnmounted(() => {
     <v-app-bar
       app
       class="d-flex"
+      color="primary"
     >
       <v-app-bar-nav-icon
         v-ripple="false"

@@ -38,7 +38,7 @@ const showMenu = ref(false)
     </template>
 
     <v-card width="300">
-      <v-list bg-color="black">
+      <v-list bg-color="primary-darken-2">
         <v-list-item>
           <template #prepend>
             <v-avatar

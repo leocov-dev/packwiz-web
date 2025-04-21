@@ -66,6 +66,22 @@ export class Loader {
   version!: string;
 }
 
+class ModSource {
+  type!: string;
+  modId: string;
+  version: string;
+  fileId: string;
+  projectId: string;
+}
+
 export class ModData {
   name!: string;
+  displayName!: string;
+  type!: string;
+  filename!: string;
+  side!: "client" | "server" | "both";
+  pinned!: boolean;
+  @Type(() => ModSource)
+  source!: ModSource;
+  sourceLink!: string;
 }
