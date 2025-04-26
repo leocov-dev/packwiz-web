@@ -120,6 +120,7 @@ const isValid = ref(false)
           @click="emit('cancel-op')"
         />
         <v-btn
+          type="submit"
           :disabled="loading || !isValid"
           :text="acceptText"
           color="primary"

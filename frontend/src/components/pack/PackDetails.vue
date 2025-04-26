@@ -35,41 +35,34 @@ const onAddMod = () => {
 interface Chip {
   text: string,
   color: string,
-  condition: boolean,
 }
 
 const chipList: Chip[] = [
   {
     text: pack.slug,
     color: "orange",
-    condition: pack.slug != pack.packData?.name,
   },
   {
-    text: `Version: ${pack.packData?.version}`,
+    text: `Version: ${pack.version}`,
     color: "teal",
-    condition: !!pack.packData,
   },
   {
-    text: `Minecraft: ${pack.packData?.versions.minecraft}`,
+    text: `Minecraft: ${pack.mcVersion}`,
     color: "cyan",
-    condition: !!pack.packData,
   },
   {
-    text: `${toTitleCase(pack.packData?.versions.loader.type || "")}: ${pack.packData?.versions.loader.version}`,
+    text: `${toTitleCase(pack.loader)}: ${pack.loaderVersion}`,
     color: "yellow",
-    condition: !!pack.packData,
   },
   {
-    text: pack.packData?.packFormat || "",
+    text: pack.packFormat,
     color: "purple",
-    condition: !!pack.packData,
   },
   {
-    text: `Game Versions: ${pack.packData?.options?.acceptableGameVersions?.join(", ") || ""}`,
+    text: `Game Versions: ${(pack.acceptableGameVersions || [pack.mcVersion]).join(', ')}`,
     color: "magenta",
-    condition: !!pack.packData?.options?.acceptableGameVersions?.length,
   },
-].filter(chip => chip.condition)
+]
 
 
 const convertToDraft = async () => {
@@ -158,7 +151,7 @@ const makePrivate = async () => {
           class="d-flex align-center me-auto"
         >
           <h1 class="me-5">
-            {{ pack.title }}
+            {{ pack.name }}
           </h1>
           <PackStatus
             :status="pack.isArchived ? 'archived' : pack.status"
@@ -167,11 +160,6 @@ const makePrivate = async () => {
           <PackStatus
             v-if="pack.isPublic"
             status="public"
-            class="me-2"
-          />
-          <PackStatus
-            v-if="pack.dataMissing"
-            status="warning"
             class="me-2"
           />
         </div>
@@ -188,10 +176,9 @@ const makePrivate = async () => {
         <!--        />-->
       </v-card-title>
 
-      <v-divider/>
+      <v-divider />
 
       <div
-        v-if="!pack.dataMissing"
         class="d-flex flex-wrap ga-3 align-center justify-end mt-3 ms-3 me-3"
       >
         <v-btn
@@ -237,7 +224,10 @@ const makePrivate = async () => {
           />
         </div>
 
-        <div v-if="!pack.isArchived" class="d-flex align-center">
+        <div
+          v-if="!pack.isArchived"
+          class="d-flex align-center"
+        >
           <v-btn
             v-if="!pack.isPublic"
             text="Make Public"
@@ -253,15 +243,6 @@ const makePrivate = async () => {
             @click="showPrivateDialog = true"
           />
         </div>
-      </div>
-      <div v-else
-           class="ma-4"
-      >
-        <v-alert
-          icon="mdi-alert"
-          type="warning"
-          text="This pack has invalid or missing file data."
-        />
       </div>
 
       <v-card-text class="ms-2 me-2 mb-2">
@@ -288,9 +269,9 @@ const makePrivate = async () => {
     </v-card>
 
     <ModsList
-      :mods="pack.modData || []"
+      :slug="pack.slug"
+      :mods="pack.mods || []"
       :can-edit="pack.permission >= PackPermission.EDIT && !pack.isArchived"
-      :disabled="pack.dataMissing"
       @add-mod="onAddMod"
     />
   </div>

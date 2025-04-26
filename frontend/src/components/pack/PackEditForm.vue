@@ -13,15 +13,15 @@ const error = ref(false)
 
 const data = ref({
   slug: pack.slug,
-  name: pack.packData?.name || "",
-  packVersion: pack.packData?.version || "0.1.0",
+  name: pack.name,
+  packVersion: pack.version,
   description: pack.description,
-  minecraftVersion: pack.packData?.versions.minecraft || "",
+  minecraftVersion: pack.mcVersion,
   loader: {
-    name: pack.packData?.versions.loader.type as (keyof LoaderVersions | undefined),
-    version: pack.packData?.versions.loader.version || "",
+    name: pack.loader,
+    version: pack.loaderVersion,
   },
-  acceptableVersions: pack.packData?.options.acceptableGameVersions || [],
+  acceptableVersions: pack.acceptableGameVersions || [],
 })
 
 const router = useRouter()

@@ -15,6 +15,7 @@ declare module 'vue' {
     ChangePasswordForm: typeof import('./components/user/ChangePasswordForm.vue')['default']
     ConfirmationDialog: typeof import('./components/ConfirmationDialog.vue')['default']
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
+    EditModForm: typeof import('./components/mods/EditModForm.vue')['default']
     FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
     Loader: typeof import('./components/forms/Loader.vue')['default']
     MinecraftVersion: typeof import('./components/forms/MinecraftVersion.vue')['default']

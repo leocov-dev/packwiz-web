@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {type Pack} from "@/interfaces/pack.ts";
-import {sleep} from "@/services/utils.ts";
+import {addMod} from "@/services/mods.service.ts";
+import type {AddModRequest} from "@/interfaces/requests.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -20,14 +21,44 @@ const rules = {
   urlRequired: (value: string) => !!value || "Mod Url is required",
 }
 
+const parseUrl = (url: string) => {
+  if (url.includes("curseforge.com")) {
+    data.value.modSource = "Curseforge"
+  } else if (url.includes("modrinth.com")) {
+    data.value.modSource = "Modrinth"
+  } else {
+    data.value.modSource = ""
+  }
+}
+
 const submitForm = async () => {
   error.value = false
   loading.value = true
 
-  try {
-    console.log(data.value)
+  let request: AddModRequest
 
-    await sleep(1500)
+  if (data.value.modSource === "Curseforge") {
+    request = {
+      curseforge: {
+        url: data.value.modUrl,
+      }
+    }
+  } else if (data.value.modSource === "Modrinth") {
+    request = {
+      modrinth: {
+        url: data.value.modUrl,
+      }
+    }
+  } else {
+    error.value = true
+    loading.value = false
+    console.error(`Invalid mod source: ${data.value.modSource}`)
+    return
+  }
+
+  try {
+    await addMod(pack.slug, request)
+
     await router.push({path: `/packs/${pack.slug}`})
   } catch (e) {
     error.value = true
@@ -41,6 +72,14 @@ const submitForm = async () => {
 const cancelForm = async () => {
   await router.push({path: `/packs/${pack.slug}`})
 }
+
+
+watch(
+  () => data.value.modUrl,
+  (newUrl: string) => {
+    parseUrl(newUrl)
+  },
+)
 
 </script>
 
@@ -64,7 +103,7 @@ const cancelForm = async () => {
       </v-card-title>
 
       <v-card-subtitle>
-        <h3>Add New Curseforge Mod</h3>
+        <h3>Add New Mod</h3>
       </v-card-subtitle>
 
       <v-form
@@ -78,12 +117,12 @@ const cancelForm = async () => {
           label="Mod Source"
           :rules="[rules.sourceRequired]"
         />
+
         <v-text-field
           v-model="data.modUrl"
           label="Mod URL"
           :rules="[rules.urlRequired]"
         />
-
 
         <div class="d-flex justify-end">
           <v-btn

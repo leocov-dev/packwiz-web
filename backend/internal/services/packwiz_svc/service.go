@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"packwiz-web/internal/log"
-	"packwiz-web/internal/services/packwiz_cli"
+	"packwiz-web/internal/packwiz_cli"
+	"packwiz-web/internal/services/interpose"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
@@ -38,7 +39,6 @@ func (ps *PackwizService) GetPacks(
 		Permission types.PackPermission
 	}
 	var results []Result
-	packs := make([]tables.Pack, 0)
 
 	query := ps.db.Model(
 		&tables.Pack{},
@@ -76,14 +76,13 @@ func (ps *PackwizService) GetPacks(
 		return nil, response.New(http.StatusInternalServerError, "failed to query db for packs")
 	}
 
-	for _, result := range results {
+	// transform results to raw packs since GORM handles virtual columns weirdly
+	packs := make([]tables.Pack, len(results))
+	for i, result := range results {
 		pack := result.Pack
-		if err := ps.hydratePackData(&pack); err != nil {
-			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %w", pack.Slug, err))
-		}
 		pack.IsArchived = result.IsArchived
 		pack.Permission = result.Permission
-		packs = append(packs, pack)
+		packs[i] = pack
 	}
 
 	log.Info(fmt.Sprintf("Found %d packs", len(packs)))
@@ -99,7 +98,6 @@ func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
 	}
 
 	if err := query.Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
-		log.Debug("pack not exists:", slug)
 		return false
 	}
 
@@ -112,17 +110,29 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 		return response.New(http.StatusBadRequest, "pack already exists")
 	}
 
-	name := request.Name
-	if name == "" {
-		name = request.Slug
-	}
-
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		createInfo, err := interpose.CreatePack(request, author)
+		if err != nil {
+			return response.Wrap(err)
+		}
+
 		if err := tx.Create(&tables.Pack{
-			Slug:        request.Slug,
-			CreatedBy:   author.Id,
-			Status:      types.PackStatusDraft,
-			Description: request.Description,
+			Slug:                   request.Slug,
+			Name:                   request.Name,
+			Description:            request.Description,
+			CreatedBy:              author.Id,
+			UpdatedBy:              author.Id,
+			IsPublic:               false,
+			Status:                 types.PackStatusDraft,
+			MCVersion:              createInfo.MCVersion,
+			Loader:                 createInfo.LoaderType,
+			LoaderVersion:          createInfo.LoaderVersion,
+			AcceptableGameVersions: createInfo.AcceptableVersions,
+
+			Version:    createInfo.Version,
+			PackFormat: createInfo.PackFormat,
+			Hash:       createInfo.Hash,
+			HashFormat: createInfo.HashFormat,
 		}).Error; err != nil {
 			return err
 		}
@@ -135,35 +145,15 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			return err
 		}
 
-		if err := packwiz_cli.NewModpack(
-			request.Slug,
-			name,
-			author.Username,
-			request.Version,
-			request.MinecraftDef.AsCliType(),
-			request.LoaderDef.AsCliType(),
-		); err != nil {
-			return err
-		}
-
 		return nil
 	}); err != nil {
-		return response.New(http.StatusInternalServerError, "failed to create db pack")
-	}
-
-	if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
-		if err := packwiz_cli.SetAcceptableVersions(
-			request.Slug,
-			request.AcceptableVersions...,
-		); err != nil {
-			return response.Wrap(err)
-		}
+		return response.Wrap(err)
 	}
 
 	return nil
 }
 
-func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrateMods bool) (tables.Pack, response.ServerError) {
+func (ps *PackwizService) GetPack(slug string, userId uint) (tables.Pack, response.ServerError) {
 	type Result struct {
 		tables.Pack
 		IsArchived bool
@@ -186,42 +176,64 @@ func (ps *PackwizService) GetPack(slug string, userId uint, hydrateData, hydrate
 		return tables.Pack{}, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
 
+	var mods []tables.Mod
+	if err := ps.db.Where("pack_slug = ?", slug).Find(&mods).Error; err != nil {
+		return tables.Pack{}, response.New(http.StatusInternalServerError, "failed to retrieve mods for pack")
+	}
+
+	for _, mod := range mods {
+		mod.SourceLink = getModSourceLink(mod.Source, mod.ModKey, mod.VersionKey)
+	}
+
+	result.Pack.Mods = mods
 	result.Pack.IsArchived = result.IsArchived
 	result.Pack.Permission = result.Permission
-
-	if hydrateData {
-		err = ps.hydratePackData(&result.Pack)
-		if err != nil {
-			log.Warn(fmt.Sprintf("failed to hydrate data for pack %s, %s", slug, err))
-		}
-	}
-
-	if hydrateMods {
-		err = ps.hydrateModData(&result.Pack)
-		if err != nil {
-			log.Warn(fmt.Sprintf("failed to hydrate mods for pack %s, %s", slug, err))
-		}
-	}
 
 	return result.Pack, nil
 }
 
 // AddMod
 // Add a new mod to an existing pack
-func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest) response.ServerError {
-	if request.Modrinth.IsSet() {
-		data := request.Modrinth
-		return response.Wrap(packwiz_cli.AddModrinthMod(slug, data.Url, "", "", ""))
-	} else if request.Curseforge.IsSet() {
-		data := request.Curseforge
-		return response.Wrap(packwiz_cli.AddCurseforgeMod(slug, data.Url, "", "", "", ""))
+func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest, user tables.User) response.ServerError {
+
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		modInfo, err := interpose.AddModToPack(slug, request)
+		if err != nil {
+			return err
+		}
+
+		return tx.Create(&tables.Mod{
+			PackSlug:    slug,
+			Name:        modInfo.Name,
+			DisplayName: modInfo.DisplayName,
+			FileName:    modInfo.Filename,
+			Side:        modInfo.Side,
+			Pinned:      modInfo.Pinned,
+
+			DownloadUrl:        modInfo.DownloadUrl,
+			DownloadMode:       modInfo.DownloadMode,
+			DownloadHash:       modInfo.DownloadHash,
+			DownloadHashFormat: modInfo.DownloadHashFormat,
+
+			Source:     modInfo.Source,
+			ModKey:     modInfo.ModKey,
+			VersionKey: modInfo.VersionKey,
+
+			CreatedBy: user.Id,
+			UpdatedBy: user.Id,
+
+			Hash:       modInfo.Hash,
+			HashFormat: modInfo.HashFormat,
+		}).Error
+	}); err != nil {
+		return response.Wrap(err)
 	}
 
-	return response.New(http.StatusBadRequest, "invalid add mod request")
+	return nil
 }
 
 // ArchivePack
-// soft delete a pack
+// soft-delete a pack
 func (ps *PackwizService) ArchivePack(slug string) response.ServerError {
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(
@@ -355,13 +367,15 @@ func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
 
 // GetMod
 // get a single mods data
-func (ps *PackwizService) GetMod(slug, mod string) (*types.ModData, response.ServerError) {
-	data, err := findModData(slug, mod)
-	if err != nil {
-		return nil, response.New(http.StatusInternalServerError, "failed to get mod file data")
+func (ps *PackwizService) GetMod(slug, name string) (tables.Mod, response.ServerError) {
+	var mod tables.Mod
+	if err := ps.db.Where("pack_slug = ? AND name = ?", slug, name).First(&mod).Error; err != nil {
+		return mod, response.Wrap(err)
 	}
 
-	return &data, nil
+	mod.SourceLink = getModSourceLink(mod.Source, mod.ModKey, mod.VersionKey)
+
+	return mod, nil
 }
 
 func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) response.ServerError {
@@ -444,30 +458,6 @@ func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) res
 		); err != nil {
 			return response.Wrap(err)
 		}
-	}
-
-	return nil
-}
-
-// -----------------------------------------------------------------------------
-
-func (ps *PackwizService) hydratePackData(pack *tables.Pack) response.ServerError {
-	var err error
-	pack.PackData, err = getModpackData(pack.Slug)
-
-	if err != nil {
-		return response.New(http.StatusInternalServerError, "failed to get pack file data")
-	}
-
-	return nil
-}
-
-func (ps *PackwizService) hydrateModData(pack *tables.Pack) response.ServerError {
-	var err error
-	pack.ModData, err = getModpackMods(pack.Slug)
-
-	if err != nil {
-		return response.New(http.StatusInternalServerError, "failed to get pack mods file data")
 	}
 
 	return nil

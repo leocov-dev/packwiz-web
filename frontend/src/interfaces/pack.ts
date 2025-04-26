@@ -1,4 +1,5 @@
 import {Type} from "class-transformer";
+import type {LoaderVersions} from "@/stores/cache.ts";
 
 
 export class Packs {
@@ -8,27 +9,27 @@ export class Packs {
 
 export class Pack {
   slug!: string;
+  name!: string;
   description!: string;
   createdAt!: string;
   createdBy!: string;
   updatedAt!: string;
+  updatedBy!: string;
   deletedAt?: string;
   isPublic!: boolean;
   status!: PackStatus;
+  mcVersion!: string;
+  loader!: keyof LoaderVersions;
+  loaderVersion!: string;
+  acceptableGameVersions?: string[];
+
+  mods?: Mod[]
+
+  version!: string;
+  packFormat!: string;
+
   isArchived!: boolean;
   permission!: PackPermission;
-  @Type(() => PackData)
-  packData!: PackData | null;
-  @Type(() => ModData)
-  modData!: ModData[] | null;
-
-  get title(): string {
-    return this.packData?.name || this.slug;
-  }
-
-  get dataMissing(): boolean {
-    return !this.packData
-  }
 }
 
 export enum PackStatus {
@@ -40,6 +41,23 @@ export enum PackPermission {
   STATIC = 1,
   VIEW = 10,
   EDIT = 20,
+}
+
+export class Mod {
+  id!: number;
+  name!: string;
+  displayName!: string;
+  type!: string;
+  packSlug!: string;
+  fileName!: string;
+  side!: "client" | "server" | "both";
+  pinned!: boolean;
+
+  source!: string;
+  modKey!: string;
+  versionKey!: string;
+
+  sourceLink!: string;
 }
 
 export class PackData {

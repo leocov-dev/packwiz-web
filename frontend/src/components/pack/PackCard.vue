@@ -19,7 +19,7 @@ const permissionMap = {
   >
     <v-card-title class="d-flex justify-center">
       <h4 class="me-auto">
-        {{ pack.title }}
+        {{ pack.name }}
       </h4>
       <PackStatus :status="pack.isArchived ? 'archived' : pack.status" />
 
@@ -27,12 +27,6 @@ const permissionMap = {
         v-if="pack.isPublic"
         class="ms-2"
         status="public"
-      />
-
-      <PackStatus
-        v-if="pack.dataMissing"
-        class="ms-2"
-        status="warning"
       />
     </v-card-title>
 

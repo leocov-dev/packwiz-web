@@ -1,6 +1,8 @@
 package tables
 
-import "time"
+import (
+	"time"
+)
 
 type Audit struct {
 	Id           uint      `gorm:"primarykey" json:"id"`

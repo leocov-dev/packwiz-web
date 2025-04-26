@@ -2,10 +2,12 @@ package packwiz_cli
 
 // PinMod pin a named mod at its current version
 func PinMod(modpack, name string) error {
-	return runCommand(modpack, "pin", name)
+	_, err := runCommand(modpack, "pin", name)
+	return err
 }
 
 // UnpinMod unpin a mod so that the tool can update it freely
 func UnpinMod(modpack, name string) error {
-	return runCommand(modpack, "unpin", name)
+	_, err := runCommand(modpack, "unpin", name)
+	return err
 }

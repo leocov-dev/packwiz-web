@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type {ModData} from "@/interfaces/pack.ts";
+import type {Mod} from "@/interfaces/pack.ts";
 
-const {mods, canEdit, disabled} = defineProps<{
-  mods: ModData[],
+const {slug, mods, canEdit} = defineProps<{
+  slug: string,
+  mods: Mod[],
   canEdit: boolean,
-  disabled: boolean,
 }>()
 
 defineEmits(['add-mod'])
@@ -33,7 +33,7 @@ const search = ref<string>('')
           hide-details
         />
         <v-btn
-          v-if="canEdit && !disabled"
+          v-if="canEdit"
           class="me-3"
           color="primary"
           variant="flat"
@@ -51,6 +51,7 @@ const search = ref<string>('')
           :key="item.raw.name"
         >
           <ModCard
+            :slug="slug"
             :mod="item.raw"
           />
         </v-list-item>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 
-import type {ModData} from "@/interfaces/pack.ts";
+import type {Mod} from "@/interfaces/pack.ts";
 
-const {mod} = defineProps<{ mod: ModData }>()
+const {slug, mod} = defineProps<{ slug: string, mod: Mod }>()
 
 const openLink = () => {
-  window.open(mod.sourceLink, '_blank')
+  // window.open(mod.sourceLink, '_blank')
 }
 
 </script>
@@ -32,21 +32,24 @@ const openLink = () => {
       <div
         class="ms-4 me-8 text-subtitle-2 text-disabled text-truncate"
       >
-        {{ mod.filename }}
+        {{ mod.fileName }}
       </div>
 
       <div class="d-flex justify-end">
         <v-icon
           v-if="mod.side === 'client' || mod.side === 'both'"
+          v-tooltip="'client'"
           class="me-2"
           icon="mdi-account-outline"
         />
         <v-icon
           v-if="mod.side === 'server' || mod.side === 'both'"
+          v-tooltip="'server'"
           class="me-2"
           icon="mdi-server-outline"
         />
         <v-icon
+          v-tooltip="mod.pinned ? 'pinned' : 'unpinned'"
           class="me-2"
           :icon="mod.pinned ? 'mdi-pin' : 'mdi-pin-off-outline'"
         />
@@ -56,6 +59,7 @@ const openLink = () => {
           color="warning"
           variant="outlined"
           text="Edit"
+          :to="`${slug}/mod/${mod.name}`"
         />
       </div>
     </div>

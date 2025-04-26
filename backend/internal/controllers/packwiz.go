@@ -94,7 +94,13 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPack(slug, user.Id, true, true)
+	var query dto.GetPackQuery
+	err = mustBindQuery(c, &query)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	pack, err := pc.packwizSvc.GetPack(slug, user.Id)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -112,13 +118,18 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 		return
 	}
 
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	var request dto.AddModRequest
 	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	err = pc.packwizSvc.AddMod(slug, request)
+	err = pc.packwizSvc.AddMod(slug, request, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -294,6 +305,29 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+func (pc *PackwizController) GetOneMod(c *gin.Context) {
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	mod, err := mustBindParam(c, "mod")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfModNotExist(c, slug, mod) {
+		return
+	}
+
+	modData, err := pc.packwizSvc.GetMod(slug, mod)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, &modData)
 }
 
 func (pc *PackwizController) RemoveMod(c *gin.Context) {

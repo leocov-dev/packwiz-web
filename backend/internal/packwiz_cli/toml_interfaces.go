@@ -1,6 +1,8 @@
 package packwiz_cli
 
-import "packwiz-web/internal/types"
+import (
+	"packwiz-web/internal/types"
+)
 
 type PackFile struct {
 	Name       string            `toml:"name"`
@@ -12,7 +14,8 @@ type PackFile struct {
 }
 
 type IndexFile struct {
-	Files []IndexMeta `toml:"files"`
+	HashFormat string      `toml:"hash-format"`
+	Files      []IndexMeta `toml:"files"`
 }
 
 type ModFile struct {
@@ -25,7 +28,9 @@ type ModFile struct {
 }
 
 type PackFileIndexMeta struct {
-	File string `toml:"file"`
+	File       string `toml:"file"`
+	HashFormat string `toml:"hash-format"`
+	Hash       string `toml:"hash"`
 }
 
 type PackFileVersions struct {
@@ -43,6 +48,7 @@ type PackFileOptions struct {
 
 type IndexMeta struct {
 	File     string `toml:"file"`
+	Hash     string `toml:"hash"`
 	Metafile bool   `toml:"metafile"`
 }
 
@@ -62,5 +68,8 @@ type UpdateSourceMap struct {
 }
 
 type DownloadMeta struct {
-	Url string `json:"url"`
+	Url        string `json:"url"`
+	Mode       string `json:"mode"`
+	Hash       string `json:"hash"`
+	HashFormat string `json:"hash-format"`
 }

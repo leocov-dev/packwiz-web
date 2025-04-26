@@ -1,10 +1,15 @@
 package packwiz_cli
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/utils"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -30,7 +35,7 @@ func getModpackMutex(modpack string) *sync.Mutex {
 }
 
 // runCommand run a packwiz_cli command (has different context based on active dir)
-func runCommand(modpack string, args ...string) error {
+func runCommand(modpack string, args ...string) (string, error) {
 	// HTTP requests should not modify the packwiz_cli data files on disk at the
 	// same time. Some operations may take a longer time than others, we need to
 	// evaluate if the lock is being held for too long and what can be done.
@@ -41,7 +46,13 @@ func runCommand(modpack string, args ...string) error {
 	// always run in non-interactive mode
 	args = append([]string{"--yes"}, args...)
 
-	cmd := exec.Command("packwiz", args...)
+	exePath, _ := os.Executable()
+	packwizPath := filepath.Join(filepath.Dir(exePath), "packwiz")
+	if !utils.FileExists(packwizPath) {
+		packwizPath = "packwiz"
+	}
+
+	cmd := exec.Command(packwizPath, args...)
 
 	log.Debug("Execute:", cmd.Path, cmd.Args)
 
@@ -49,11 +60,15 @@ func runCommand(modpack string, args ...string) error {
 	cmd.Dir = filepath.Join(config.C.PackwizDir, modpack)
 	output, err := cmd.CombinedOutput()
 
-	log.Debug("Output: ", output)
+	outputText := string(output)
+
 	if err != nil {
-		log.Debug("Error: ", err)
-		return err
+		errorMsg := fmt.Sprintf("%s - %s", strings.Replace(outputText, "\n", ", ", -1), err)
+		log.Error("Error: ", errorMsg)
+		return outputText, errors.New(errorMsg)
+	} else {
+		log.Debug("Output: ", string(output))
 	}
 
-	return nil
+	return outputText, nil
 }

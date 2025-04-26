@@ -6,7 +6,7 @@ import (
 	"os"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/interfaces"
-	"packwiz-web/internal/services/packwiz_cli"
+	"packwiz-web/internal/packwiz_cli"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"

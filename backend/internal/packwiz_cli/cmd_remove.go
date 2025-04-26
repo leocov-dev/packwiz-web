@@ -1,5 +1,6 @@
 package packwiz_cli
 
 func RemoveMod(modpack, name string) error {
-	return runCommand(modpack, "remove", name)
+	_, err := runCommand(modpack, "remove", name)
+	return err
 }

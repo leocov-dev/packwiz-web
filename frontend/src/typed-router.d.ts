@@ -31,6 +31,7 @@ declare module 'vue-router/auto-routes' {
     '/packs/[slug]': RouteRecordInfo<'/packs/[slug]', '/packs/:slug', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
     '/packs/[slug].add-mod': RouteRecordInfo<'/packs/[slug].add-mod', '/packs/:slug/add-mod', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
     '/packs/[slug].edit': RouteRecordInfo<'/packs/[slug].edit', '/packs/:slug/edit', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
+    '/packs/[slug].mod.[name]': RouteRecordInfo<'/packs/[slug].mod.[name]', '/packs/:slug/mod/:name', { slug: ParamValue<true>, name: ParamValue<true> }, { slug: ParamValue<false>, name: ParamValue<false> }>,
     '/packs/new': RouteRecordInfo<'/packs/new', '/packs/new', Record<never, never>, Record<never, never>>,
     '/user/profile': RouteRecordInfo<'/user/profile', '/user/profile', Record<never, never>, Record<never, never>>,
   }

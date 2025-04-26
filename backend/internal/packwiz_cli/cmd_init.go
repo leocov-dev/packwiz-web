@@ -36,5 +36,7 @@ func NewModpack(
 		return err
 	}
 
-	return runCommand(slug, args...)
+	_, err = runCommand(slug, args...)
+
+	return err
 }

@@ -44,8 +44,8 @@ func (r AddCurseforge) IsSet() bool {
 // AddModRequest
 // only one (Modrinth or Curseforge) should be specified
 type AddModRequest struct {
-	Modrinth   AddModrinth   `json:"modrinth" validate:"required_without=curseforge"`
-	Curseforge AddCurseforge `json:"curseforge" validate:"required_without=modrinth"`
+	Modrinth   *AddModrinth   `json:"modrinth"`
+	Curseforge *AddCurseforge `json:"curseforge"`
 }
 
 // Validate

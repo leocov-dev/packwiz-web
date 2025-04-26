@@ -30,3 +30,12 @@ export interface EditPackRequest {
   loader?: LoaderDef
   acceptableVersions?: string[]
 }
+
+export interface AddModRequest {
+  curseforge?: {
+    url: string;
+  }
+  modrinth?: {
+    url: string;
+  }
+}

@@ -32,8 +32,19 @@ export async function fetchAllPacks(
 
 }
 
-export async function fetchOnePack(slug: string): Promise<Pack> {
-  const response = await apiClient.get(`v1/packwiz/pack/${slug}`);
+export async function fetchOnePack(slug: string, skipMods: boolean = false): Promise<Pack> {
+  let url = `v1/packwiz/pack/${slug}`
+
+  const params = new URLSearchParams();
+  if (skipMods) {
+    params.append('skipMods', 'true');
+  }
+
+  if (params.size > 0) {
+    url += `?${params.toString()}`
+  }
+
+  const response = await apiClient.get(url);
   return plainToInstance(Pack, response.data)
 }
 

@@ -3,7 +3,7 @@ package dto
 import (
 	"github.com/go-playground/validator/v10"
 	"packwiz-web/internal/interfaces"
-	"packwiz-web/internal/services/packwiz_cli"
+	"packwiz-web/internal/packwiz_cli"
 	"regexp"
 )
 
@@ -27,7 +27,7 @@ func (m MinecraftDef) Validate() error {
 
 type LoaderDef struct {
 	Name    packwiz_cli.LoaderType `json:"name" validate:"required,oneof=fabric forge liteloader quilt neoforge"`
-	Version string                 `json:"version" validate:"required_without=latest"`
+	Version string                 `json:"version"`
 	Latest  bool                   `json:"latest"`
 }
 

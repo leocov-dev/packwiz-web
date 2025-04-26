@@ -39,4 +39,4 @@ COPY --from=backend \
     /backend/bin/packwiz \
     /app/
 
-ENTRYPOINT /app/backend
+ENTRYPOINT exec /app/backend

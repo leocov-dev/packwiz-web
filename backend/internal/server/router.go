@@ -65,7 +65,7 @@ func NewRouter() *gin.Engine {
 			{
 
 				// -------------------------------------------------------------
-				healthGroup := protectedGroup.Group("health")
+				healthGroup := protectedGroup.Group("health", middleware.SkipAudit)
 				{
 					healthController := controllers.NewHealthController()
 					healthGroup.GET("", healthController.Status)
@@ -77,7 +77,7 @@ func NewRouter() *gin.Engine {
 				// current user
 				userGroup := protectedGroup.Group("user")
 				{
-					userGroup.GET("", userController.GetCurrentUser)
+					userGroup.GET("", userController.GetCurrentUser, middleware.SkipAudit)
 					userGroup.POST("password",
 						func(c *gin.Context) {
 							if err := userController.ChangePassword; err != nil {
@@ -101,7 +101,7 @@ func NewRouter() *gin.Engine {
 					// ---------------------------------------------------------
 					loadersController := controllers.NewLoadersController()
 
-					packwizGroup.GET("loaders", loadersController.GetLoaderVersions)
+					packwizGroup.GET("loaders", loadersController.GetLoaderVersions, middleware.SkipAudit)
 					//packwizGroup.GET("loaders/versions", loadersController.GetLoaderVersions)
 
 					// ---------------------------------------------------------
@@ -131,7 +131,6 @@ func NewRouter() *gin.Engine {
 							editPackGroup := slugGroup.Group("")
 							editPackGroup.Use(canEditPackGuard)
 							{
-								editPackGroup.POST("", packwizController.AddMod)
 								editPackGroup.DELETE("", packwizController.ArchivePack)
 								editPackGroup.PATCH("unarchive", packwizController.UnArchivePack)
 								editPackGroup.PATCH("publish", packwizController.PublishPack)
@@ -146,8 +145,10 @@ func NewRouter() *gin.Engine {
 								editPackGroup.PATCH("users/:userId", packwizController.EditUserAccess)
 
 								// ---------------------------------------------
+								editPackGroup.POST("mod", packwizController.AddMod)
 								modGroup := editPackGroup.Group("mod/:mod")
 								{
+									modGroup.GET("", packwizController.GetOneMod)
 									modGroup.DELETE("", packwizController.RemoveMod)
 									modGroup.PATCH("update", packwizController.UpdateMod)
 									modGroup.PATCH("side", packwizController.ChangeModSide)

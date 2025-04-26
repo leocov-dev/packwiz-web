@@ -54,6 +54,7 @@ func InitDb() {
 	// Run migrations to create tables and relationships
 	err := db.AutoMigrate(
 		&tables.User{},
+		&tables.Mod{},
 		&tables.Pack{},
 		&tables.PackUsers{},
 		&tables.Audit{},

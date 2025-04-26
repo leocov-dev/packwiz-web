@@ -10,8 +10,18 @@ import (
 	"packwiz-web/internal/utils"
 )
 
+func SkipAudit(c *gin.Context) {
+	c.Set("skipAudit", true)
+	c.Next()
+}
+
 func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
 		actionParams := make(map[string]interface{})
 		auditRecord := &tables.Audit{
 			IpAddress: c.ClientIP(),
@@ -41,6 +51,10 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		c.Next()
+
+		if c.GetBool("skipAudit") {
+			return
+		}
 
 		// api auth middleware is bound after this one so this needs to be after
 		// the call to c.Next()

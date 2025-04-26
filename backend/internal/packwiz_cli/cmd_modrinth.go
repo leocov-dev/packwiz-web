@@ -11,7 +11,7 @@ func AddModrinthMod(
 	projectId,
 	versionFilename,
 	versionId string,
-) error {
+) (string, error) {
 	args := []string{
 		"modrinth",
 		"add",
@@ -28,7 +28,18 @@ func AddModrinthMod(
 		args = append(args, "--version-id", versionId)
 	}
 
-	return runCommand(modpack, args...)
+	output, err := runCommand(modpack, args...)
+	if err != nil {
+		return "", err
+	}
+
+	matches := re.FindStringSubmatch(output)
+
+	if len(matches) != 3 {
+		return "", fmt.Errorf("failed to parse output: %s", output)
+	}
+
+	return matches[1], nil
 }
 
 func ExportModrinthPack(modpack, outputDir string, restrictDomains bool) error {
@@ -44,5 +55,6 @@ func ExportModrinthPack(modpack, outputDir string, restrictDomains bool) error {
 		args = append(args, "--restrict-domains", "false")
 	}
 
-	return runCommand(modpack, args...)
+	_, err := runCommand(modpack, args...)
+	return err
 }

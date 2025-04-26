@@ -16,7 +16,7 @@ const {
   isLoading,
   data: pack,
 } = buildDataLoader<Pack>(async () => {
-  return fetchOnePack(route.params.slug)
+  return fetchOnePack(route.params.slug, true)
 })
 </script>
 
