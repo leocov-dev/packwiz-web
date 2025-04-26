@@ -12,6 +12,9 @@ jobs:
   release-draft:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Define Version
         id: vars
