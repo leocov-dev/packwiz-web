@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  pull_request:
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "${{ github.workspace }}/go.mod"
+          cache: true
+
+      - name: Check Go Format
+        run: make fmtcheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "${{ github.workspace }}/go.mod"
+          cache: true
+
+      - name: Run Tests
+        run: make test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "${{ github.workspace }}/go.mod"
+          cache: true
+
+      - name: Install GOX
+        run: go install github.com/mitchellh/gox@latest
+
+      - name: Multi-target Build
+        run: make release
+
+      - name: Run Debug Command
+        run: make && bin/backend help
+
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Build
+        run: make docker-image
+
+      - name: Test Image
+        run: docker run --rm bin/backend help
