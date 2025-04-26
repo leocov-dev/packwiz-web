@@ -17,22 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "${{ github.workspace }}/backend/go.mod"
-          cache: true
-          cache-dependency-path: "${{ github.workspace }}/backend/go.sum"
-
-      - name: Install GOX
-        run: go install github.com/mitchellh/gox@latest
-
-      - name: Multi-target Build
-        run: VERSION_TAG=${{ steps.vars.outputs.tag }} make release
-
-      - name: List Files
-        run: ls ./dist
-
       - name: Draft Release
         uses: release-drafter/release-drafter@v6
         with:
@@ -40,8 +24,3 @@ jobs:
           version: ${{ steps.vars.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload --clobber ${{ steps.vars.outputs.tag }} ./dist/*
