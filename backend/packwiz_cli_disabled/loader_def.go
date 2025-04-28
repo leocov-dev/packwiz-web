@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 type LoaderType string
 

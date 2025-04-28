@@ -51,7 +51,7 @@ func (epc *FrontendController) Handler(c *gin.Context) {
 	file, err := epc.frontendFiles.Open(requestedPath)
 	if err != nil {
 		log.Warn("file open error", requestedPath, err)
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 	defer file.Close()

@@ -203,12 +203,13 @@ func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest, user ta
 		}
 
 		return tx.Create(&tables.Mod{
-			PackSlug:    slug,
-			Name:        modInfo.Name,
-			DisplayName: modInfo.DisplayName,
-			FileName:    modInfo.Filename,
-			Side:        modInfo.Side,
-			Pinned:      modInfo.Pinned,
+			PackSlug: slug,
+			ModSlug:  modInfo.Slug,
+			Name:     modInfo.Name,
+			Type:     modInfo.Type,
+			FileName: modInfo.Filename,
+			Side:     modInfo.Side,
+			Pinned:   modInfo.Pinned,
 
 			DownloadUrl:        modInfo.DownloadUrl,
 			DownloadMode:       modInfo.DownloadMode,
@@ -332,8 +333,12 @@ func (ps *PackwizService) UpdateAll(slug string) response.ServerError {
 
 // ModExists
 // check if a mod exists in a pack
-func (ps *PackwizService) ModExists(slug, mod string) bool {
-	return packwiz_cli.ModExists(slug, mod) == nil
+func (ps *PackwizService) ModExists(slug, modSlug string) bool {
+	var mod tables.Mod
+	if err := ps.db.Where("pack_slug = ? AND mod_slug = ?", slug, modSlug).First(&mod).Error; err != nil {
+		return false
+	}
+	return true
 }
 
 // RemoveMod
@@ -367,9 +372,9 @@ func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
 
 // GetMod
 // get a single mods data
-func (ps *PackwizService) GetMod(slug, name string) (tables.Mod, response.ServerError) {
+func (ps *PackwizService) GetMod(slug, modSlug string) (tables.Mod, response.ServerError) {
 	var mod tables.Mod
-	if err := ps.db.Where("pack_slug = ? AND name = ?", slug, name).First(&mod).Error; err != nil {
+	if err := ps.db.Where("pack_slug = ? AND mod_slug = ?", slug, modSlug).First(&mod).Error; err != nil {
 		return mod, response.Wrap(err)
 	}
 

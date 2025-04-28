@@ -2,7 +2,11 @@
 
 # modpack/ ---
 ### GET static modpack files
-GET {{host}}/packwiz/packA/mods/balm.pw.toml
+GET {{host}}/packwiz/public/packA/pack.toml
+### GET static modpack files
+GET {{host}}/packwiz/public/packA/index.toml
+### GET static modpack files
+GET {{host}}/packwiz/public/packA/mods/balm.pw.toml
 
 # v1/ --------------------------------------------------------------------------
 ### POST login user

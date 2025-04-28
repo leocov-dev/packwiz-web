@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 import (
 	"errors"
@@ -6,12 +6,12 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"os"
 	"packwiz-web/internal/config"
+	"packwiz-web/internal/pwlib/core"
 	"packwiz-web/internal/utils"
 	"path/filepath"
-	"strings"
 )
 
-func parsePackFile(data []byte) (packFile PackFile, err error) {
+func parsePackFile(data []byte) (packFile core.Pack, err error) {
 	err = toml.Unmarshal(data, &packFile)
 	if err != nil {
 		return packFile, err
@@ -24,7 +24,7 @@ func parsePackFile(data []byte) (packFile PackFile, err error) {
 	return packFile, nil
 }
 
-func parseIndexFile(data []byte) (indexFile IndexFile, err error) {
+func parseIndexFile(data []byte) (indexFile core.Index, err error) {
 	err = toml.Unmarshal(data, &indexFile)
 	if err != nil {
 		return indexFile, err
@@ -32,7 +32,7 @@ func parseIndexFile(data []byte) (indexFile IndexFile, err error) {
 	return indexFile, nil
 }
 
-func parseModFile(data []byte) (modFile ModFile, err error) {
+func parseModFile(data []byte) (modFile core.Mod, err error) {
 	err = toml.Unmarshal(data, &modFile)
 	if err != nil {
 		return modFile, err
@@ -40,64 +40,56 @@ func parseModFile(data []byte) (modFile ModFile, err error) {
 	return modFile, nil
 }
 
-func readFile(modpack string, paths ...string) ([]byte, error) {
+func buildFilePath(modpack string, paths ...string) string {
 	pathParts := []string{
 		config.C.PackwizDir,
 		modpack,
 	}
 	pathParts = append(pathParts, paths...)
 
-	expectedFile := filepath.Join(pathParts...)
+	return filepath.Join(pathParts...)
+}
 
-	return os.ReadFile(expectedFile)
+func readFile(modpack string, paths ...string) ([]byte, error) {
+	return os.ReadFile(buildFilePath(modpack, paths...))
 }
 
 func PackExists(modpack string) bool {
-	return utils.FileExists(filepath.Join(config.C.PackwizDir, modpack, "pack.toml"))
+	return utils.FileExists(buildFilePath(modpack, "pack.toml"))
 }
 
-func GetPackFile(modpack string) (PackFile, error) {
+func GetPackFile(modpack string) (core.Pack, error) {
 	packRaw, readErr := readFile(modpack, "pack.toml")
 	if readErr != nil {
-		return PackFile{}, readErr
+		return core.Pack{}, readErr
 	}
 
 	return parsePackFile(packRaw)
 }
 
-func GetIndexFile(modpack string) (IndexFile, error) {
-	indexRaw, readErr := readFile(modpack, "index.toml")
-	if readErr != nil {
-		return IndexFile{}, readErr
-	}
-
-	return parseIndexFile(indexRaw)
+func GetIndexFile(modpack string) (core.Index, error) {
+	return core.LoadIndex(buildFilePath(modpack, "index.toml"))
 }
 
-func GetModFile(modpack string, modFilePath string) (ModFile, error) {
-	modRaw, readErr := readFile(modpack, modFilePath)
-	if readErr != nil {
-		return ModFile{}, readErr
-	}
-
-	return parseModFile(modRaw)
+func GetModFile(modpack string, modFilePath string) (core.Mod, error) {
+	return core.LoadMod(buildFilePath(modpack, modFilePath))
 }
 
-func ModExists(modpack string, modName string) error {
-	indexFile, err := GetIndexFile(modpack)
-	if err != nil {
-		return err
-	}
-
-	for _, mod := range indexFile.Files {
-		parsedName := strings.TrimSuffix(filepath.Base(mod.File), ".pw.toml")
-		if parsedName == modName {
-			return nil
-		}
-	}
-
-	return errors.New(fmt.Sprintf("pack: %s mod: %s not found", modpack, modName))
-}
+//func ModExists(modpack string, modName string) error {
+//	indexFile, err := GetIndexFile(modpack)
+//	if err != nil {
+//		return err
+//	}
+//
+//	for _, mod := range indexFile.Files {
+//		parsedName := strings.TrimSuffix(filepath.Base(mod.), ".pw.toml")
+//		if parsedName == modName {
+//			return nil
+//		}
+//	}
+//
+//	return errors.New(fmt.Sprintf("pack: %s mod: %s not found", modpack, modName))
+//}
 
 func GetAllModpackNames() (packNames []string, err error) {
 	entries, err := os.ReadDir(config.C.PackwizDir)

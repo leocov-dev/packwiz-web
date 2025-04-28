@@ -39,12 +39,27 @@ func NewRouter() *gin.Engine {
 	db := database.GetClient()
 
 	// -------------------------------------------------------------------------
-	packwizFiles := router.Group("packwiz/:token/:slug")
-	packwizFiles.Use(middleware.PackwizFileAuthentication(db))
-	packwizFiles.Use(middleware.PackwizAudit(db))
+	packwizFiles := router.Group(
+		"packwiz-file/:token/:slug",
+		middleware.PackwizFileAuthentication(db),
+		middleware.PackwizAudit(db),
+	)
 	{
 		modpackController := controllers.NewModpackController(db)
-		packwizFiles.GET("*filepath", meta.Tag(meta.CategoryLogin), modpackController.ServeStatic)
+		packwizFiles.GET("*filepath", meta.Tag(meta.CategoryStatic), modpackController.ServeStatic)
+	}
+
+	packwizRenders := router.Group(
+		"packwiz/:token/:slug",
+		middleware.PackwizFileAuthentication(db),
+		middleware.PackwizAudit(db),
+		meta.Tag(meta.CategoryStatic),
+	)
+	{
+		renderController := controllers.NewFileRenderController(db)
+		packwizRenders.GET("pack.toml", renderController.RenderPackFile)
+		packwizRenders.GET("index.toml", renderController.RenderIndexFile)
+		packwizRenders.GET(":type/:mod", renderController.RenderModFile)
 	}
 
 	// -------------------------------------------------------------------------
@@ -55,6 +70,14 @@ func NewRouter() *gin.Engine {
 		// ---------------------------------------------------------------------
 		v1 := api.Group("v1")
 		{
+			// -------------------------------------------------------------
+			healthGroup := v1.Group("health", middleware.SkipAudit)
+			{
+				healthController := controllers.NewHealthController()
+				healthGroup.GET("", healthController.Status)
+			}
+
+			// -------------------------------------------------------------
 			authController := controllers.NewAuthController(db)
 
 			v1.POST("login", middleware.RateLimiter(), meta.Tag(meta.CategoryLogin), authController.Login)
@@ -63,13 +86,9 @@ func NewRouter() *gin.Engine {
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
 			{
-
 				// -------------------------------------------------------------
-				healthGroup := protectedGroup.Group("health", middleware.SkipAudit)
-				{
-					healthController := controllers.NewHealthController()
-					healthGroup.GET("", healthController.Status)
-				}
+				staticDataController := controllers.NewStaticDataController()
+				protectedGroup.GET("static", staticDataController.GetStaticData)
 
 				userController := controllers.NewUserController(db)
 

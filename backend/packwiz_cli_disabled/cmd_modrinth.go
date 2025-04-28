@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 import (
 	"fmt"

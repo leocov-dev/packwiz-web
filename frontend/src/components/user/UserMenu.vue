@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {useAuthStore} from "@/stores/auth.ts";
+import {useStaticDataStore} from "@/stores/static-data.ts";
 
 const authStore = useAuthStore()
+const staticDataStore = useStaticDataStore()
 
 const {width = 100} = defineProps<{ width?: number }>()
 const showMenu = ref(false)
@@ -65,6 +67,12 @@ const showMenu = ref(false)
         </v-list-item>
 
         <ThemeSwitch />
+
+        <v-list-item>
+          <v-list-item-subtitle>
+            Ver. {{ staticDataStore.version }}
+          </v-list-item-subtitle>
+        </v-list-item>
 
         <v-list-item
           prepend-icon="mdi-logout"

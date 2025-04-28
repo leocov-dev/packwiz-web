@@ -1,7 +1,6 @@
 package interpose
 
 import (
-	"packwiz-web/internal/packwiz_cli"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
 )
@@ -47,16 +46,29 @@ func CreatePack(
 		return CreatePackInfo{}, err
 	}
 
-	loader := packwiz_cli.LoaderDataFromVersionsData(packFile.Versions)
+	loaderType, loaderVersion := getLoaderData(packFile.Versions)
 
 	return CreatePackInfo{
-		MCVersion:          packFile.Versions.Minecraft,
-		LoaderType:         loader.Type,
-		LoaderVersion:      loader.Version,
-		AcceptableVersions: packFile.Options.AcceptableGameVersions,
+		MCVersion:          packFile.Versions["minecraft"],
+		LoaderType:         loaderType,
+		LoaderVersion:      loaderVersion,
+		AcceptableVersions: packFile.Options["acceptable-game-versions"].([]string),
 		Version:            packFile.Version,
 		PackFormat:         packFile.PackFormat,
 		Hash:               packFile.Index.Hash,
 		HashFormat:         packFile.Index.HashFormat,
 	}, nil
+}
+
+func getLoaderData(versions map[string]string) (string, string) {
+	var loaderKey string
+	var loaderValue string
+	for k, v := range versions {
+		if k != "minecraft" {
+			loaderKey = k
+			loaderValue = v
+			break
+		}
+	}
+	return loaderKey, loaderValue
 }

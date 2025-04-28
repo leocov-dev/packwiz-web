@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 // PinMod pin a named mod at its current version
 func PinMod(modpack, name string) error {

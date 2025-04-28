@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 // MigrateLoader migrate the loader version in this modpack to the new target
 // the target can be a version string or the literals "latest", "recommended"

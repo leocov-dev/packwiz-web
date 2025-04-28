@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 // UpdateOne update a named mod in the active modpack
 func UpdateOne(modpack, name string) error {

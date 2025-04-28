@@ -1,4 +1,4 @@
-package packwiz_cli
+package packwiz_cli_disabled
 
 // MinecraftDef
 // when Latest is True the Version is ignored

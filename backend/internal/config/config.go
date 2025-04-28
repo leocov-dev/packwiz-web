@@ -74,7 +74,7 @@ func init() {
 
 	var version string
 	if VersionTag == "" {
-		version = "0.0.0-def"
+		version = "0.0.0-dev"
 	} else {
 		version = VersionTag
 	}

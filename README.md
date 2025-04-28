@@ -4,7 +4,7 @@
 
 > [!WARNING]
 >
-> **This is still work-in-progress, but will run locally**
+> **This is in early Alpha,** See [releases](https://github.com/leocov-dev/packwiz-web/releases) for currently available features.
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 
@@ -23,7 +23,7 @@ This is a web service intended to be deployed as a docker container.
 You need to mount a directory into the container to persist your packwiz files.
 You can connect the service to an external Postgres database or a sqlite database in a mounted directory.
 
-[Latest Container Image]()
+[Latest Container Image](https://github.com/leocov-dev/packwiz-web/pkgs/container/packwiz-web)
 
 ### Environment Variables
 
@@ -49,8 +49,8 @@ Each access is logged and available to admins in the UI.
 
 ### Security
 
-By default, admins may create user accounts with passwords managed by the service.
-Additionally, admins may configure OIDC providers and a user can choose to link their account to one.
+By default, admins may create user accounts with passwords managed by the backend service.
+~~Additionally, admins may configure OIDC providers and a user can choose to link their account to one.~~ Not ready yet
 
 The static file server is reasonably secure against directory traversal attacks and can
 only serve files directly inside the packwiz dir.

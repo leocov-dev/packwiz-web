@@ -5,6 +5,7 @@ import (
 	"packwiz-web/internal/packwiz_cli"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/packwiz_schema"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,8 +13,8 @@ import (
 )
 
 type ModInfo struct {
+	Slug               string
 	Name               string
-	DisplayName        string
 	Type               string
 	Filename           string
 	Side               types.ModSide
@@ -76,9 +77,9 @@ func getModData(modpack string, modFilePath string) (ModInfo, error) {
 	source, modKey, versionKey := getModSource(modFile)
 
 	return ModInfo{
-		Name:               strings.TrimSuffix(filepath.Base(modFilePath), ".pw.toml"),
-		DisplayName:        modFile.Name,
-		Type:               strings.TrimSuffix(strings.Split(modFilePath, "/")[0], "s"),
+		Slug:               strings.TrimSuffix(filepath.Base(modFilePath), ".pw.toml"),
+		Name:               modFile.Name,
+		Type:               filepath.Dir(modFilePath),
 		Filename:           modFile.Filename,
 		Side:               modFile.Side,
 		Pinned:             modFile.Pin,
@@ -94,7 +95,7 @@ func getModData(modpack string, modFilePath string) (ModInfo, error) {
 	}, nil
 }
 
-func getModSource(modFile packwiz_cli.ModFile) (string, string, string) {
+func getModSource(modFile packwiz_schema.ModFile) (string, string, string) {
 	if modFile.Update.Modrinth.ModId != "" {
 		return "modrinth", modFile.Update.Modrinth.ModId, modFile.Update.Modrinth.Version
 

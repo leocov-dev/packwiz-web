@@ -3,7 +3,6 @@ package dto
 import (
 	"github.com/go-playground/validator/v10"
 	"packwiz-web/internal/interfaces"
-	"packwiz-web/internal/packwiz_cli"
 	"regexp"
 )
 
