@@ -43,31 +43,31 @@ var preferredHashList = []string{
 
 type HashStringer interface {
 	hash.Hash
-	HashToString([]byte) string
+	String() string
 }
 
 type hexStringer struct {
 	hash.Hash
 }
 
-func (hexStringer) HashToString(data []byte) string {
-	return hex.EncodeToString(data)
+func (s hexStringer) String() string {
+	return hex.EncodeToString(s.Sum(nil))
 }
 
 type number32As64Stringer struct {
 	hash.Hash
 }
 
-func (number32As64Stringer) HashToString(data []byte) string {
-	return strconv.FormatUint(uint64(binary.BigEndian.Uint32(data)), 10)
+func (s number32As64Stringer) String() string {
+	return strconv.FormatUint(uint64(binary.BigEndian.Uint32(s.Sum(nil))), 10)
 }
 
 type number64Stringer struct {
 	hash.Hash
 }
 
-func (number64Stringer) HashToString(data []byte) string {
-	return strconv.FormatUint(binary.BigEndian.Uint64(data), 10)
+func (s number64Stringer) String() string {
+	return strconv.FormatUint(binary.BigEndian.Uint64(s.Sum(nil)), 10)
 }
 
 type LengthHasher struct {
