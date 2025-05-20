@@ -5,7 +5,7 @@ GOFMT_FILES?=$$(find . -type f -name '*.go')
 default: help
 
 # build the server binary
-build:
+build: fmt
 	go build -o $(BIN_TARGET)
 
 # start the server in development mode (will run build first)
@@ -18,12 +18,13 @@ start-prod: build
 
 # run all tests
 test:
+	@mkdir -p coverage
 	@rm -f coverage/coverage.out coverage/coverage.html
 	@go test -v -coverpkg=./... -coverprofile=coverage/coverage.out ./...
 	@go tool cover -html=coverage/coverage.out -o coverage/coverage.html
 
 # format all code
-fmt:
+fmt: tidy
 	@gofmt -w $(GOFMT_FILES)
 
 # assert if code is formatted

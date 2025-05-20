@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"net/url"
 	"packwiz-web/internal/log"
-	"packwiz-web/internal/packwiz_cli"
-	"packwiz-web/internal/services/interpose"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
 	"packwiz-web/internal/types/response"
 	"time"
+
+	"github.com/leocov-dev/packwiz-nxt/core"
 )
 
 type PackwizService struct {
@@ -35,24 +35,18 @@ func (ps *PackwizService) GetPacks(
 
 	type Result struct {
 		tables.Pack
+		Author     string
 		IsArchived bool
-		Permission types.PackPermission
 	}
 	var results []Result
 
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Select(
-		"packs.*, pack_users.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
+		"packs.*, creator.full_name AS full_name, current_user.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
 	).Joins(
-		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
+		"LEFT JOIN pack_users AS creator ON packs.slug = creator.pack_slug AND creator.user_id = packs.created_by",
 		userId,
-	).Where(
-		ps.db.Where(
-			"pack_users.permission >= ?", types.PackPermissionStatic,
-		).Or(
-			"packs.is_public",
-		),
 	).Order("packs.slug asc")
 
 	if request.Search != "" {
@@ -80,8 +74,8 @@ func (ps *PackwizService) GetPacks(
 	packs := make([]tables.Pack, len(results))
 	for i, result := range results {
 		pack := result.Pack
+		pack.Author = result.Author
 		pack.IsArchived = result.IsArchived
-		pack.Permission = result.Permission
 		packs[i] = pack
 	}
 
@@ -91,13 +85,18 @@ func (ps *PackwizService) GetPacks(
 }
 
 func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
-	query := ps.db
+	query := ps.db.Model(tables.Pack{})
 
 	if includeDeleted {
 		query = query.Unscoped()
 	}
 
-	if err := query.Where("slug = ?", slug).First(&tables.Pack{}).Error; err != nil {
+	var exists bool
+	if err := query.Select("1").
+		Where("slug = ?", slug).
+		Limit(1).
+		Find(&exists).
+		Error; err != nil {
 		return false
 	}
 
@@ -111,11 +110,6 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		createInfo, err := interpose.CreatePack(request, author)
-		if err != nil {
-			return response.Wrap(err)
-		}
-
 		if err := tx.Create(&tables.Pack{
 			Slug:                   request.Slug,
 			Name:                   request.Name,
@@ -124,15 +118,13 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			UpdatedBy:              author.Id,
 			IsPublic:               false,
 			Status:                 types.PackStatusDraft,
-			MCVersion:              createInfo.MCVersion,
-			Loader:                 createInfo.LoaderType,
-			LoaderVersion:          createInfo.LoaderVersion,
-			AcceptableGameVersions: createInfo.AcceptableVersions,
+			MCVersion:              request.MinecraftDef.Version,
+			Loader:                 request.LoaderDef.Name,
+			LoaderVersion:          request.LoaderDef.Version,
+			AcceptableGameVersions: request.AcceptableVersions,
 
-			Version:    createInfo.Version,
-			PackFormat: createInfo.PackFormat,
-			Hash:       createInfo.Hash,
-			HashFormat: createInfo.HashFormat,
+			Version:    request.Version,
+			PackFormat: core.CurrentPackFormat,
 		}).Error; err != nil {
 			return err
 		}
@@ -153,26 +145,22 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	return nil
 }
 
-func (ps *PackwizService) GetPack(slug string, userId uint) (tables.Pack, response.ServerError) {
+func (ps *PackwizService) GetPack(slug string) (tables.Pack, response.ServerError) {
 	type Result struct {
 		tables.Pack
 		IsArchived bool
-		Permission types.PackPermission
 	}
 	var result Result
 
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Select(
-		"packs.*, pack_users.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
-	).Joins(
-		"JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?", userId,
+		"packs.*, (deleted_at IS NOT NULL) AS is_archived",
 	).Where(
 		"packs.slug = ?", slug,
 	).Order("packs.slug asc")
 
-	err := query.Unscoped().First(&result).Error
-	if err != nil {
+	if err := query.Unscoped().First(&result).Error; err != nil {
 		return tables.Pack{}, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
 
@@ -187,7 +175,6 @@ func (ps *PackwizService) GetPack(slug string, userId uint) (tables.Pack, respon
 
 	result.Pack.Mods = mods
 	result.Pack.IsArchived = result.IsArchived
-	result.Pack.Permission = result.Permission
 
 	return result.Pack, nil
 }
@@ -196,38 +183,30 @@ func (ps *PackwizService) GetPack(slug string, userId uint) (tables.Pack, respon
 // Add a new mod to an existing pack
 func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest, user tables.User) response.ServerError {
 
-	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		modInfo, err := interpose.AddModToPack(slug, request)
-		if err != nil {
-			return err
-		}
-
-		return tx.Create(&tables.Mod{
-			PackSlug:    slug,
-			Name:        modInfo.Name,
-			DisplayName: modInfo.DisplayName,
-			FileName:    modInfo.Filename,
-			Side:        modInfo.Side,
-			Pinned:      modInfo.Pinned,
-
-			DownloadUrl:        modInfo.DownloadUrl,
-			DownloadMode:       modInfo.DownloadMode,
-			DownloadHash:       modInfo.DownloadHash,
-			DownloadHashFormat: modInfo.DownloadHashFormat,
-
-			Source:     modInfo.Source,
-			ModKey:     modInfo.ModKey,
-			VersionKey: modInfo.VersionKey,
-
-			CreatedBy: user.Id,
-			UpdatedBy: user.Id,
-
-			Hash:       modInfo.Hash,
-			HashFormat: modInfo.HashFormat,
-		}).Error
-	}); err != nil {
-		return response.Wrap(err)
-	}
+	//if err := ps.db.Transaction(func(tx *gorm.DB) error {
+	//	return tx.Create(&tables.Mod{
+	//		PackSlug:    slug,
+	//		Name:        modInfo.Name,
+	//		DisplayName: modInfo.DisplayName,
+	//		FileName:    modInfo.Filename,
+	//		Side:        modInfo.Side,
+	//		Pinned:      modInfo.Pinned,
+	//
+	//		DownloadUrl:        modInfo.DownloadUrl,
+	//		DownloadMode:       modInfo.DownloadMode,
+	//		DownloadHash:       modInfo.DownloadHash,
+	//		DownloadHashFormat: modInfo.DownloadHashFormat,
+	//
+	//		Source:     modInfo.Source,
+	//		ModKey:     modInfo.ModKey,
+	//		VersionKey: modInfo.VersionKey,
+	//
+	//		CreatedBy: user.Id,
+	//		UpdatedBy: user.Id,
+	//	}).Error
+	//}); err != nil {
+	//	return response.Wrap(err)
+	//}
 
 	return nil
 }
@@ -313,8 +292,12 @@ func (ps *PackwizService) MakePackPrivate(slug string) response.ServerError {
 // SetAcceptableVersions
 // set a mod packs acceptable minecraft versions
 func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcceptableVersionsRequest) response.ServerError {
-	if err := packwiz_cli.SetAcceptableVersions(slug, request.Versions...); err != nil {
-		return response.New(http.StatusInternalServerError, "failed to set acceptable versions")
+	if err := ps.db.
+		Model(tables.Pack{}).
+		Where(tables.Pack{Slug: slug}).
+		Update("acceptableGameVersions", request.Versions).
+		Error; err != nil {
+		return response.Wrap(err)
 	}
 
 	return nil
@@ -323,9 +306,11 @@ func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcce
 // UpdateAll
 // update all the mods in a pack, skipping pinned mods
 func (ps *PackwizService) UpdateAll(slug string) response.ServerError {
-	if packwiz_cli.UpdateAll(slug) != nil {
-		return response.New(http.StatusInternalServerError, "failed to update all mods")
-	}
+
+	// TODO: expose update in lib
+	//if packwiz_cli.UpdateAll(slug) != nil {
+	//	return response.New(http.StatusInternalServerError, "failed to update all mods")
+	//}
 
 	return nil
 }
@@ -333,14 +318,29 @@ func (ps *PackwizService) UpdateAll(slug string) response.ServerError {
 // ModExists
 // check if a mod exists in a pack
 func (ps *PackwizService) ModExists(slug, mod string) bool {
-	return packwiz_cli.ModExists(slug, mod) == nil
+	var exists bool
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Select("1").
+		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Limit(1).
+		Find(&exists).
+		Error; err != nil {
+		return false
+	}
+
+	return exists
 }
 
 // RemoveMod
 // remove a given mod from a given pack
 func (ps *PackwizService) RemoveMod(slug, mod string) response.ServerError {
-	if packwiz_cli.RemoveMod(slug, mod) != nil {
-		return response.New(http.StatusInternalServerError, "failed to remove mod")
+
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Delete(tables.Mod{PackSlug: slug, Slug: mod}).
+		Error; err != nil {
+		return response.Wrap(err)
 	}
 
 	return nil
@@ -358,9 +358,10 @@ func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
 		return response.New(http.StatusBadRequest, "cannot update pinned mod")
 	}
 
-	if packwiz_cli.UpdateOne(slug, mod) != nil {
-		return response.New(http.StatusInternalServerError, "failed to update mod")
-	}
+	// TODO: expose in lib
+	//if packwiz_cli.UpdateOne(slug, mod) != nil {
+	//	return response.New(http.StatusInternalServerError, "failed to update mod")
+	//}
 
 	return nil
 }
@@ -378,29 +379,25 @@ func (ps *PackwizService) GetMod(slug, name string) (tables.Mod, response.Server
 	return mod, nil
 }
 
-func (ps *PackwizService) ChangeModSide(slug, mod string, side types.ModSide) response.ServerError {
-	if packwiz_cli.ChangeModSide(slug, mod, side) != nil {
-		return response.New(http.StatusInternalServerError, "failed to change mod side")
+func (ps *PackwizService) ChangeModSide(slug, mod string, side core.ModSide) response.ServerError {
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Update("side", side).
+		Error; err != nil {
+		return response.Wrap(err)
 	}
 
 	return nil
 }
 
-// PinMod
-// pin a mod to prevent it from being updated
-func (ps *PackwizService) PinMod(slug, mod string) response.ServerError {
-	if packwiz_cli.PinMod(slug, mod) != nil {
-		return response.New(http.StatusInternalServerError, "failed to pin mod")
-	}
-
-	return nil
-}
-
-// UnpinMod
-// unpin a mod to allow it to be updated
-func (ps *PackwizService) UnpinMod(slug, mod string) response.ServerError {
-	if packwiz_cli.UnpinMod(slug, mod) != nil {
-		return response.New(http.StatusInternalServerError, "failed to unpin mod")
+func (ps *PackwizService) SetModPinnedValue(slug, mod string, value bool) response.ServerError {
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Update("pinned", value).
+		Error; err != nil {
+		return response.Wrap(err)
 	}
 
 	return nil
@@ -430,34 +427,20 @@ func (ps *PackwizService) GetPersonalLink(
 
 func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) response.ServerError {
 
-	if request.Name != "" {
-		if err := packwiz_cli.RenamePack(
-			slug,
-			request.Name,
-		); err != nil {
-			return response.Wrap(err)
-		}
-	}
-
-	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Model(
-			&tables.Pack{Slug: slug},
-		).Updates(
-			&tables.Pack{
-				Description: request.Description,
-			},
-		).Error
-	}); err != nil {
+	pack, err := ps.GetPack(slug)
+	if err != nil {
 		return response.Wrap(err)
 	}
 
-	if request.AcceptableVersions != nil && len(request.AcceptableVersions) > 0 {
-		if err := packwiz_cli.SetAcceptableVersions(
-			slug,
-			request.AcceptableVersions...,
-		); err != nil {
-			return response.Wrap(err)
-		}
+	if request.Name != "" {
+		pack.Name = request.Name
+	}
+
+	pack.Description = request.Description
+	pack.AcceptableGameVersions = request.AcceptableVersions
+
+	if err := ps.db.Save(pack).Error; err != nil {
+		return response.Wrap(err)
 	}
 
 	return nil

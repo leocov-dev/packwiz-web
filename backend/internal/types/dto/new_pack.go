@@ -3,7 +3,6 @@ package dto
 import (
 	"github.com/go-playground/validator/v10"
 	"packwiz-web/internal/interfaces"
-	"packwiz-web/internal/packwiz_cli"
 	"regexp"
 )
 
@@ -13,30 +12,14 @@ type MinecraftDef struct {
 	Snapshot bool   `json:"snapshot"`
 }
 
-func (m MinecraftDef) AsCliType() packwiz_cli.MinecraftDef {
-	return packwiz_cli.MinecraftDef{
-		Version:  m.Version,
-		Latest:   m.Latest,
-		Snapshot: m.Snapshot,
-	}
-}
-
 func (m MinecraftDef) Validate() error {
 	return validator.New(validator.WithRequiredStructEnabled()).Struct(m)
 }
 
 type LoaderDef struct {
-	Name    packwiz_cli.LoaderType `json:"name" validate:"required,oneof=fabric forge liteloader quilt neoforge"`
-	Version string                 `json:"version"`
-	Latest  bool                   `json:"latest"`
-}
-
-func (l LoaderDef) AsCliType() packwiz_cli.LoaderDef {
-	return packwiz_cli.LoaderDef{
-		Name:    l.Name,
-		Version: l.Version,
-		Latest:  l.Latest,
-	}
+	Name    string `json:"name" validate:"required,oneof=fabric forge liteloader quilt neoforge"`
+	Version string `json:"version"`
+	Latest  bool   `json:"latest"`
 }
 
 func (l LoaderDef) Validate() error {

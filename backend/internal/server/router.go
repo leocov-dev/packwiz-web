@@ -1,12 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/middleware/meta"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/types"
 	"packwiz-web/public"
 	"time"
@@ -39,12 +41,14 @@ func NewRouter() *gin.Engine {
 	db := database.GetClient()
 
 	// -------------------------------------------------------------------------
-	packwizFiles := router.Group("packwiz/:token/:slug")
-	packwizFiles.Use(middleware.PackwizFileAuthentication(db))
+	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
+	packwizFiles.Use(middleware.ConsumerAuthentication(db))
 	packwizFiles.Use(middleware.PackwizAudit(db))
 	{
-		modpackController := controllers.NewModpackController(db)
-		packwizFiles.GET("*filepath", meta.Tag(meta.CategoryLogin), modpackController.ServeStatic)
+		tomlController := controllers.NewTomlController(db)
+		packwizFiles.GET("pack.toml", tomlController.RenderPackToml)
+		packwizFiles.GET("index.toml", tomlController.RenderIndexToml)
+		packwizFiles.GET(fmt.Sprintf(":%s/:%s", params.ModType, params.ModSlug), tomlController.RenderModToml)
 	}
 
 	// -------------------------------------------------------------------------
@@ -121,7 +125,7 @@ func NewRouter() *gin.Engine {
 						canViewPackGuard := middleware.PackPermissionGuard(types.PackPermissionView, db)
 						canEditPackGuard := middleware.PackPermissionGuard(types.PackPermissionEdit, db)
 
-						slugGroup := packGroup.Group(":slug")
+						slugGroup := packGroup.Group(fmt.Sprintf(":%s", params.PackSlug))
 						slugGroup.Use(canViewPackGuard)
 						{
 							slugGroup.HEAD("", packwizController.PackHead)
@@ -141,12 +145,12 @@ func NewRouter() *gin.Engine {
 								editPackGroup.PATCH("update-all", packwizController.UpdateAll)
 								editPackGroup.GET("users", packwizController.GetPackUsers)
 								editPackGroup.POST("users", packwizController.AddPackUser)
-								editPackGroup.DELETE("users/:userId", packwizController.RemovePackUser)
-								editPackGroup.PATCH("users/:userId", packwizController.EditUserAccess)
+								editPackGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), packwizController.RemovePackUser)
+								editPackGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), packwizController.EditUserAccess)
 
 								// ---------------------------------------------
 								editPackGroup.POST("mod", packwizController.AddMod)
-								modGroup := editPackGroup.Group("mod/:mod")
+								modGroup := editPackGroup.Group(fmt.Sprintf("mod/:%s", params.ModSlug))
 								{
 									modGroup.GET("", packwizController.GetOneMod)
 									modGroup.DELETE("", packwizController.RemoveMod)

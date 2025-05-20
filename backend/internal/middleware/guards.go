@@ -4,13 +4,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 )
 
 func PackPermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		slug := c.Param("slug")
+		slug := c.Param(string(params.PackSlug))
 		if slug == "" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return

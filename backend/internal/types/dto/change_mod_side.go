@@ -2,11 +2,11 @@ package dto
 
 import (
 	"github.com/go-playground/validator/v10"
-	"packwiz-web/internal/types"
+	"github.com/leocov-dev/packwiz-nxt/core"
 )
 
 type ChangeModSideRequest struct {
-	Side types.ModSide `json:"side" validate:"oneof=client server both"`
+	Side core.ModSide `json:"side" validate:"oneof=client server both"`
 }
 
 func (f *ChangeModSideRequest) Validate() error {

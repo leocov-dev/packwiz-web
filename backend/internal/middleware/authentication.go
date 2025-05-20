@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 )
@@ -44,9 +45,9 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
+func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		slug := c.Param("slug")
+		slug := c.Param(string(params.PackSlug))
 
 		if slug == "" {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -64,7 +65,7 @@ func PackwizFileAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		token := c.Param("token")
+		token := c.Param(string(params.Token))
 		if token == "" {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return

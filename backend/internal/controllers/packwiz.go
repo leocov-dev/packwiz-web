@@ -89,18 +89,13 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	user, err := mustBindCurrentUser(c)
-	if pc.abortWithError(c, err) {
-		return
-	}
-
 	var query dto.GetPackQuery
 	err = mustBindQuery(c, &query)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPack(slug, user.Id)
+	pack, err := pc.packwizSvc.GetPack(slug)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -430,7 +425,7 @@ func (pc *PackwizController) PinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.PinMod(slug, mod)
+	err = pc.packwizSvc.SetModPinnedValue(slug, mod, true)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -463,7 +458,7 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.UnpinMod(slug, mod)
+	err = pc.packwizSvc.SetModPinnedValue(slug, mod, false)
 	if pc.abortWithError(c, err) {
 		return
 	}

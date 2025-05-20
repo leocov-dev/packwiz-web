@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"github.com/leocov-dev/packwiz-nxt/core"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"packwiz-web/internal/types"
@@ -27,10 +28,33 @@ type Pack struct {
 
 	Version    string `json:"version"`
 	PackFormat string `json:"packFormat"`
-	Hash       string `json:"hash"`
-	HashFormat string `json:"hashFormat"`
 
 	// hydrated fields
-	IsArchived bool                 `gorm:"-" json:"isArchived"` // hydrated based on DeletedAt
-	Permission types.PackPermission `gorm:"-" json:"permission"` // hydrated with current PackUsers.Permission
+	Author     string `gorm:"-" json:"author"`
+	IsArchived bool   `gorm:"-" json:"isArchived"` // hydrated based on DeletedAt
+}
+
+func (p Pack) AsMeta() core.Pack {
+	mods := map[string]*core.Mod{}
+
+	for _, mod := range p.Mods {
+		mods[mod.Slug] = mod.AsMeta()
+	}
+
+	return core.Pack{
+		Name:        p.Name,
+		Author:      p.Author,
+		Version:     p.Version,
+		Description: p.Description,
+		PackFormat:  p.PackFormat,
+		Versions: map[string]string{
+			"minecraft": p.MCVersion,
+			p.Loader:    p.LoaderVersion,
+		},
+		Export: nil,
+		Options: map[string]interface{}{
+			"acceptableGameVersions": p.AcceptableGameVersions,
+		},
+		Mods: mods,
+	}
 }

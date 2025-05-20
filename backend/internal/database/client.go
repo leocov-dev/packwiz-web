@@ -6,8 +6,6 @@ import (
 	gormLogger "gorm.io/gorm/logger"
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/log"
-	"packwiz-web/internal/services/importer"
-	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
 	"path/filepath"
@@ -91,12 +89,12 @@ func CreateDefaultAdminUser() {
 }
 
 func ReconcileFileData() {
-	reconciler := importer.NewDataReconciler(
-		db,
-		packwiz_svc.NewPackwizService(db),
-	)
-	err := reconciler.ReconcilePackwizDir()
-	if err != nil {
-		log.Error(err)
-	}
+	//reconciler := importer.NewDataReconciler(
+	//	db,
+	//	packwiz_svc.NewPackwizService(db),
+	//)
+	//err := reconciler.ReconcilePackwizDir()
+	//if err != nil {
+	//	log.Error(err)
+	//}
 }

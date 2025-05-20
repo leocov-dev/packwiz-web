@@ -1,13 +1,15 @@
 package types
 
+import "github.com/leocov-dev/packwiz-nxt/core"
+
 type ModrinthData struct {
 	ModrinthId string `json:"modId"`
 	Version    string `json:"version"`
 }
 
 type CurseforgeData struct {
-	FileId    int `json:"fileId"`
 	ProjectId int `json:"projectId"`
+	FileId    int `json:"fileId"`
 }
 
 type ModSource struct {
@@ -21,21 +23,13 @@ type ModSource struct {
 	ProjectId int `json:"projectId,omitempty"`
 }
 
-type ModSide string
-
-const (
-	SideClient ModSide = "client"
-	SideServer ModSide = "server"
-	SideBoth   ModSide = "both"
-)
-
 type ModData struct {
-	Name        string    `json:"name"`
-	DisplayName string    `json:"displayName"`
-	Type        string    `json:"type"`
-	Filename    string    `json:"filename"`
-	Side        ModSide   `json:"side"`
-	Pinned      bool      `json:"pinned"`
-	Source      ModSource `json:"source"`
-	SourceLink  string    `json:"sourceLink"`
+	Name        string       `json:"name"`
+	DisplayName string       `json:"displayName"`
+	Type        string       `json:"type"`
+	Filename    string       `json:"filename"`
+	Side        core.ModSide `json:"side"`
+	Pinned      bool         `json:"pinned"`
+	Source      ModSource    `json:"source"`
+	SourceLink  string       `json:"sourceLink"`
 }
