@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {type Pack, PackPermission} from "@/interfaces/pack.ts";
+import {PackPermission, PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import ModsList from "@/components/mods/ModsList.vue";
-import {toTitleCase} from "../../services/utils.ts";
+import {toTitleCase} from "@/services/utils.ts";
 import {useAuthStore} from "@/stores/auth.ts";
 import {
   archivePack,
@@ -14,7 +14,7 @@ import {
 } from "@/services/packs.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 
-const {pack} = defineProps<{ pack: Pack }>()
+const {pack} = defineProps<{ pack: PackResponse }>()
 
 defineEmits(['reload'])
 
@@ -182,7 +182,7 @@ const makePrivate = async () => {
         class="d-flex flex-wrap ga-3 align-center justify-end mt-3 ms-3 me-3"
       >
         <v-btn
-          v-if="!pack.isArchived && (pack.permission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
           prepend-icon="mdi-pencil"
           text="Edit"
           :to="`/packs/${pack.slug}/edit`"
@@ -271,7 +271,7 @@ const makePrivate = async () => {
     <ModsList
       :slug="pack.slug"
       :mods="pack.mods || []"
-      :can-edit="pack.permission >= PackPermission.EDIT && !pack.isArchived"
+      :can-edit="pack.currentUserPermission >= PackPermission.EDIT && !pack.isArchived"
       @add-mod="onAddMod"
     />
   </div>

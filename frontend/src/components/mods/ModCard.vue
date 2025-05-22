@@ -14,7 +14,7 @@ const openLink = () => {
   <v-card class="ma-1 ps-5 pe-5 pt-3 pb-3 elevation-4">
     <div class="d-flex align-center">
       <div>
-        {{ mod.displayName }}
+        {{ mod.name }}
       </div>
       <v-btn
         v-if="mod.sourceLink"
@@ -37,16 +37,22 @@ const openLink = () => {
 
       <div class="d-flex justify-end">
         <v-icon
-          v-if="mod.side === 'client' || mod.side === 'both'"
+          v-if="mod.side === 'client'"
           v-tooltip="'client'"
           class="me-2"
           icon="mdi-account-outline"
         />
         <v-icon
-          v-if="mod.side === 'server' || mod.side === 'both'"
+          v-if="mod.side === 'server'"
           v-tooltip="'server'"
           class="me-2"
           icon="mdi-server-outline"
+        />
+        <v-icon
+          v-if="mod.side === 'both'"
+          v-tooltip="'both'"
+          class="me-2"
+          icon="mdi-circle-double"
         />
         <v-icon
           v-tooltip="mod.pinned ? 'pinned' : 'unpinned'"

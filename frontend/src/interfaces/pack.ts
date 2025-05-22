@@ -1,10 +1,11 @@
 import {Type} from "class-transformer";
 import type {LoaderVersions} from "@/stores/cache.ts";
+import type {User} from "@/interfaces/user.ts";
 
 
-export class Packs {
+export class AllPacksResponse {
   @Type(() => Pack)
-  packs!: Pack[];
+  packs?: Pack[];
 }
 
 export class Pack {
@@ -12,9 +13,10 @@ export class Pack {
   name!: string;
   description!: string;
   createdAt!: string;
-  createdBy!: string;
+  createdBy!: number;
+  author!: User;
   updatedAt!: string;
-  updatedBy!: string;
+  updatedBy!: number;
   deletedAt?: string;
   isPublic!: boolean;
   status!: PackStatus;
@@ -22,14 +24,17 @@ export class Pack {
   loader!: keyof LoaderVersions;
   loaderVersion!: string;
   acceptableGameVersions?: string[];
-
-  mods?: Mod[]
-
   version!: string;
   packFormat!: string;
+  mods?: Mod[]
 
-  isArchived!: boolean;
-  permission!: PackPermission;
+  get isArchived(): boolean {
+    return this.deletedAt !== null && this.deletedAt !== undefined;
+  }
+}
+
+export class PackResponse extends Pack {
+  currentUserPermission!: PackPermission;
 }
 
 export enum PackStatus {
@@ -45,61 +50,33 @@ export enum PackPermission {
 
 export class Mod {
   id!: number;
-  name!: string;
-  displayName!: string;
-  type!: string;
   packSlug!: string;
+  slug!: string;
+  name!: string;
+  type!: string;
   fileName!: string;
   side!: "client" | "server" | "both";
   pinned!: boolean;
-
   source!: string;
   modKey!: string;
   versionKey!: string;
-
-  sourceLink!: string;
+  createdBy!: number;
+  createdAt!: string;
+  updatedBy!: number;
+  updatedAt!: string;
 }
 
-export class PackData {
+
+export class ModDependency {
+  fileName!: string;
+  modType!: string;
   name!: string;
-  packFormat!: string;
-  version!: string;
-  @Type(() => Versions)
-  versions!: Versions;
-  options!: Options;
-}
-
-export class Versions {
-  minecraft!: string;
-  @Type(() => Loader)
-  loader!: Loader;
-}
-
-export class Options {
-  acceptableGameVersions?: string[];
-}
-
-export class Loader {
-  type!: string;
-  version!: string;
-}
-
-class ModSource {
-  type!: string;
-  modId: string;
-  version: string;
-  fileId: string;
-  projectId: string;
-}
-
-export class ModData {
-  name!: string;
-  displayName!: string;
-  type!: string;
-  filename!: string;
   side!: "client" | "server" | "both";
-  pinned!: boolean;
-  @Type(() => ModSource)
-  source!: ModSource;
-  sourceLink!: string;
+  slug!: string;
+  url!: string;
+}
+
+
+export class ModDependenciesResponse {
+  missing!: ModDependency[]
 }

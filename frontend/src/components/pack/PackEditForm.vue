@@ -3,7 +3,6 @@ import PackInfoForm from "@/components/pack/PackInfoForm.vue";
 import type {EditPackRequest} from "@/interfaces/requests.ts";
 import {sleep} from "@/services/utils.ts";
 import {type Pack} from "@/interfaces/pack.ts";
-import type {LoaderVersions} from "@/stores/cache.ts";
 import {editPack} from "@/services/packs.service.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()

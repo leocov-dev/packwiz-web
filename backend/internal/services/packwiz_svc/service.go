@@ -1,18 +1,20 @@
 package packwiz_svc
 
 import (
+	"codeberg.org/jmansfield/go-modrinth/modrinth"
 	"fmt"
 	"gorm.io/gorm"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/leocov-dev/packwiz-nxt/core"
+	"github.com/leocov-dev/packwiz-nxt/sources"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
 	"packwiz-web/internal/types/response"
-	"time"
-
-	"github.com/leocov-dev/packwiz-nxt/core"
 )
 
 type PackwizService struct {
@@ -25,27 +27,24 @@ func NewPackwizService(db *gorm.DB) *PackwizService {
 	}
 }
 
-func (ps *PackwizService) GetPacks(
+func (ps *PackwizService) GetPacksWithPerms(
 	request dto.AllPacksQuery,
 	userId uint,
-) ([]tables.Pack, response.ServerError) {
+) ([]dto.PackResponse, response.ServerError) {
 	if len(request.Status) == 0 && !request.Archived {
 		request.Status = []types.PackStatus{types.PackStatusDraft, types.PackStatusPublished}
 	}
 
-	type Result struct {
-		tables.Pack
-		Author     string
-		IsArchived bool
-	}
-	var results []Result
+	var results []dto.PackResponse
 
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Select(
-		"packs.*, creator.full_name AS full_name, current_user.permission AS permission, (deleted_at IS NOT NULL) AS is_archived",
+		"packs.*, pack_users.permission as current_user_permission",
+	).Preload(
+		"User",
 	).Joins(
-		"LEFT JOIN pack_users AS creator ON packs.slug = creator.pack_slug AND creator.user_id = packs.created_by",
+		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
 		userId,
 	).Order("packs.slug asc")
 
@@ -59,9 +58,9 @@ func (ps *PackwizService) GetPacks(
 	}
 
 	if request.Archived {
-		sub = sub.Or("deleted_at IS NOT NULL")
+		sub = sub.Or("packs.deleted_at IS NOT NULL")
 	} else {
-		sub = sub.Where("deleted_at IS NULL")
+		sub = sub.Where("packs.deleted_at IS NULL")
 	}
 
 	query = query.Where(sub)
@@ -70,18 +69,9 @@ func (ps *PackwizService) GetPacks(
 		return nil, response.New(http.StatusInternalServerError, "failed to query db for packs")
 	}
 
-	// transform results to raw packs since GORM handles virtual columns weirdly
-	packs := make([]tables.Pack, len(results))
-	for i, result := range results {
-		pack := result.Pack
-		pack.Author = result.Author
-		pack.IsArchived = result.IsArchived
-		packs[i] = pack
-	}
+	log.Debug(fmt.Sprintf("Found %d packs", len(results)))
 
-	log.Info(fmt.Sprintf("Found %d packs", len(packs)))
-
-	return packs, nil
+	return results, nil
 }
 
 func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
@@ -100,7 +90,7 @@ func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
 		return false
 	}
 
-	return true
+	return exists
 }
 
 func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) response.ServerError {
@@ -118,9 +108,9 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			UpdatedBy:              author.Id,
 			IsPublic:               false,
 			Status:                 types.PackStatusDraft,
-			MCVersion:              request.MinecraftDef.Version,
-			Loader:                 request.LoaderDef.Name,
-			LoaderVersion:          request.LoaderDef.Version,
+			MCVersion:              request.MinecraftVersion,
+			Loader:                 request.LoaderName,
+			LoaderVersion:          request.LoaderVersion,
 			AcceptableGameVersions: request.AcceptableVersions,
 
 			Version:    request.Version,
@@ -146,67 +136,126 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 }
 
 func (ps *PackwizService) GetPack(slug string) (tables.Pack, response.ServerError) {
-	type Result struct {
-		tables.Pack
-		IsArchived bool
-	}
-	var result Result
+	var result tables.Pack
 
 	query := ps.db.Model(
 		&tables.Pack{},
-	).Select(
-		"packs.*, (deleted_at IS NOT NULL) AS is_archived",
+	).Preload(
+		"Mods",
 	).Where(
 		"packs.slug = ?", slug,
 	).Order("packs.slug asc")
 
 	if err := query.Unscoped().First(&result).Error; err != nil {
-		return tables.Pack{}, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
+		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
 
-	var mods []tables.Mod
-	if err := ps.db.Where("pack_slug = ?", slug).Find(&mods).Error; err != nil {
-		return tables.Pack{}, response.New(http.StatusInternalServerError, "failed to retrieve mods for pack")
+	return result, nil
+}
+
+func (ps *PackwizService) GetPackWithPerms(slug string, userId uint) (dto.PackResponse, response.ServerError) {
+	var result dto.PackResponse
+
+	query := ps.db.Model(
+		&tables.Pack{},
+	).Preload(
+		"Mods",
+	).Select(
+		"packs.*, pack_users.permission as current_user_permission",
+	).Joins(
+		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
+		userId,
+	).Where(
+		"packs.slug = ?", slug,
+	).Order("packs.slug asc")
+
+	if err := query.Unscoped().First(&result).Error; err != nil {
+		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
 
-	for _, mod := range mods {
-		mod.SourceLink = getModSourceLink(mod.Source, mod.ModKey, mod.VersionKey)
+	return result, nil
+}
+
+func (ps *PackwizService) GetMissingModDependencies(packSlug string, request dto.AddModRequest) ([]*core.Mod, response.ServerError) {
+	var err error
+
+	dbPack, err := ps.GetPack(packSlug)
+	if err != nil {
+		return nil, response.Wrap(err)
 	}
 
-	result.Pack.Mods = mods
-	result.Pack.IsArchived = result.IsArchived
+	pack := dbPack.AsMeta()
 
-	return result.Pack, nil
+	var missingDependencies []*core.Mod
+
+	if request.Modrinth != nil {
+		missingDependencies, err = lookupModrinthDependencies(request.Modrinth.Url, pack)
+	} else if request.Curseforge != nil {
+		missingDependencies, err = lookupCurseforgeDependencies(request.Curseforge.Url, pack)
+	} else {
+		return nil, response.New(http.StatusBadRequest, "invalid mod type")
+	}
+
+	var missing []*core.Mod
+	for _, mod := range missingDependencies {
+		missing = append(missing, mod)
+	}
+
+	return missing, nil
 }
 
 // AddMod
 // Add a new mod to an existing pack
-func (ps *PackwizService) AddMod(slug string, request dto.AddModRequest, user tables.User) response.ServerError {
+func (ps *PackwizService) AddMod(packSlug string, request dto.AddModRequest, user tables.User) response.ServerError {
 
-	//if err := ps.db.Transaction(func(tx *gorm.DB) error {
-	//	return tx.Create(&tables.Mod{
-	//		PackSlug:    slug,
-	//		Name:        modInfo.Name,
-	//		DisplayName: modInfo.DisplayName,
-	//		FileName:    modInfo.Filename,
-	//		Side:        modInfo.Side,
-	//		Pinned:      modInfo.Pinned,
-	//
-	//		DownloadUrl:        modInfo.DownloadUrl,
-	//		DownloadMode:       modInfo.DownloadMode,
-	//		DownloadHash:       modInfo.DownloadHash,
-	//		DownloadHashFormat: modInfo.DownloadHashFormat,
-	//
-	//		Source:     modInfo.Source,
-	//		ModKey:     modInfo.ModKey,
-	//		VersionKey: modInfo.VersionKey,
-	//
-	//		CreatedBy: user.Id,
-	//		UpdatedBy: user.Id,
-	//	}).Error
-	//}); err != nil {
-	//	return response.Wrap(err)
-	//}
+	var err error
+
+	dbPack, err := ps.GetPack(packSlug)
+	if err != nil {
+		return response.Wrap(err)
+	}
+
+	pack := dbPack.AsMeta()
+
+	var newMods []*core.Mod
+
+	if request.Modrinth != nil {
+		newMods, err = addModrinthMod(request.Modrinth.Url, pack)
+	} else if request.Curseforge != nil {
+		newMods, err = addCurseforgeMod(request.Curseforge.Url, pack)
+	} else {
+		return response.New(http.StatusBadRequest, "invalid mod type")
+	}
+
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		for _, mod := range newMods {
+			if err := tx.Create(&tables.Mod{
+				Slug:     mod.Slug,
+				PackSlug: packSlug,
+				Name:     mod.Name,
+				FileName: mod.FileName,
+				Side:     mod.Side,
+				Pinned:   mod.Pin,
+				Download: tables.DownloadInfo{
+					URL:        mod.Download.URL,
+					Mode:       mod.Download.Mode,
+					Hash:       mod.Download.Hash,
+					HashFormat: mod.Download.HashFormat,
+				},
+				Source:     "modrinth",
+				ModKey:     mod.Update["modrinth"]["mod-id"].(string),
+				VersionKey: mod.Update["modrinth"]["version"].(string),
+				CreatedBy:  user.Id,
+				UpdatedBy:  user.Id,
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return response.Wrap(err)
+	}
 
 	return nil
 }
@@ -374,8 +423,6 @@ func (ps *PackwizService) GetMod(slug, name string) (tables.Mod, response.Server
 		return mod, response.Wrap(err)
 	}
 
-	mod.SourceLink = getModSourceLink(mod.Source, mod.ModKey, mod.VersionKey)
-
 	return mod, nil
 }
 
@@ -444,4 +491,69 @@ func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) res
 	}
 
 	return nil
+}
+
+// ---
+
+func lookupModrinthDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
+	var err error
+
+	_, version, err := modrinthProjectAndVersion(url, pack)
+	if err != nil {
+		return nil, err
+	}
+
+	var missingDependencies []*core.Mod
+	if len(version.Dependencies) > 0 {
+
+		missingDependencies, err = sources.ModrinthFindMissingDependencies(version, pack, "")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return missingDependencies, nil
+}
+
+func lookupCurseforgeDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
+	return nil, nil
+}
+
+func modrinthProjectAndVersion(url string, pack core.Pack) (*modrinth.Project, *modrinth.Version, error) {
+	projectSlug := sources.ParseAsModrinthSlug(url)
+	log.Debug("project packSlug: ", projectSlug)
+
+	project, err := sources.GetModrinthClient().Projects.Get(projectSlug)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Debug("project: ", *project.ID, *project.Title)
+
+	version, err := sources.ModrinthGetLatestVersion(*project.ID, *project.Title, pack, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Debug("version: ", *version.ID, *version.Name)
+
+	return project, version, nil
+}
+
+func addModrinthMod(url string, pack core.Pack) ([]*core.Mod, error) {
+	project, version, err := modrinthProjectAndVersion(url, pack)
+	if err != nil {
+		return nil, err
+	}
+
+	missingDependencies, err := lookupModrinthDependencies(url, pack)
+
+	mainMod, err := sources.ModrinthNewMod(project, version, "", pack.GetCompatibleLoaders(), "")
+	if err != nil {
+		return nil, err
+	}
+
+	return append(missingDependencies, mainMod), nil
+}
+
+func addCurseforgeMod(url string, pack core.Pack) ([]*core.Mod, error) {
+	return nil, nil
 }

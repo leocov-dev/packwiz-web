@@ -1,4 +1,4 @@
-import {Packs, Pack} from "@/interfaces/pack";
+import {AllPacksResponse, PackResponse} from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
 import type {EditPackRequest, NewPackRequest} from "@/interfaces/requests.ts";
@@ -8,7 +8,7 @@ export async function fetchAllPacks(
   statusList: string[],
   archived: boolean = false,
   search: string = '',
-): Promise<Packs> {
+): Promise<AllPacksResponse> {
 
   let url = 'v1/packwiz/pack'
 
@@ -28,11 +28,11 @@ export async function fetchAllPacks(
   }
 
   const response = await apiClient.get(url);
-  return plainToInstance(Packs, response.data)
+  return plainToInstance(AllPacksResponse, response.data)
 
 }
 
-export async function fetchOnePack(slug: string, skipMods: boolean = false): Promise<Pack> {
+export async function fetchOnePack(slug: string, skipMods: boolean = false): Promise<PackResponse> {
   let url = `v1/packwiz/pack/${slug}`
 
   const params = new URLSearchParams();
@@ -45,7 +45,7 @@ export async function fetchOnePack(slug: string, skipMods: boolean = false): Pro
   }
 
   const response = await apiClient.get(url);
-  return plainToInstance(Pack, response.data)
+  return plainToInstance(PackResponse, response.data)
 }
 
 

@@ -17,8 +17,9 @@ export interface NewPackRequest {
   name: string;
   version: string;
   description: string;
-  minecraft: MinecraftDef
-  loader: LoaderDef
+  minecraftVersion: string;
+  loaderName: string;
+  loaderVersion: string;
   acceptableVersions: string[]
 }
 

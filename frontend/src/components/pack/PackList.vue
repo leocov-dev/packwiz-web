@@ -27,7 +27,7 @@ const {
   const archived = activeFilters.includes('archived')
 
   const response = await fetchAllPacks(statusList, archived, model.value.search)
-  return response.packs
+  return response.packs || []
 })
 
 const filterConfig: FiltersConfig = {

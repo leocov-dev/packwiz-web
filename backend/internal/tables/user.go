@@ -10,7 +10,7 @@ type User struct {
 	Id               uint           `gorm:"primarykey" json:"id"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
-	DeletedAt        gorm.DeletedAt `gorm:"index"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deletedAt"`
 	Username         string         `gorm:"unique" json:"username"`
 	FullName         string         `json:"fullName"`
 	Email            string         `gorm:"unique" json:"email"`

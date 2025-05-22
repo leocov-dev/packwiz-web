@@ -32,16 +32,9 @@ const buildRequest: () => NewPackRequest = () => {
     name: form.name,
     version: form.packVersion,
     description: form.description,
-    minecraft: {
-      version: nonVersion.includes(form.minecraftVersion || "") ? "" : form.minecraftVersion || "",
-      latest: form.minecraftVersion === "Latest",
-      snapshot: form.minecraftVersion === "Latest Snapshot",
-    },
-    loader: {
-      name: (form.loader.name || "").toLowerCase(),
-      version: form.loader.version === "Latest" ? "" : form.loader.version,
-      latest: form.loader.version === "Latest",
-    },
+    minecraftVersion: nonVersion.includes(form.minecraftVersion || "") ? "" : form.minecraftVersion || "",
+    loaderName: (form.loader.name || "").toLowerCase(),
+    loaderVersion: form.loader.version === "Latest" ? "" : form.loader.version,
     acceptableVersions: form.acceptableVersions,
   }
 }

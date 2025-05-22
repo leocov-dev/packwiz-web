@@ -14,6 +14,6 @@ const goHome = () => {
     action-text="Return Home"
     color="warning"
     @click:action="goHome"
-  ></v-empty-state>
+  />
 </template>
 

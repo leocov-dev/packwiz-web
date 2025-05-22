@@ -11,12 +11,11 @@ const version = defineModel<string>('version', {default: ""})
 
 const loaderVersions = ref<string[]>([])
 const loaders = ref<string[]>(cacheStore.loaders)
-const useLatest = ref(false)
 const noDataText = ref("")
 
 const rules = {
   loaderRequired: (value: string) => !!value || "Loader is required",
-  versionRequired: (value: string) => !!value || "Loader Version is required, or select 'Use Latest'",
+  versionRequired: (value: string) => !!value || "Loader Version is required",
 }
 
 // ----
@@ -45,13 +44,9 @@ const getLoaderVersions = (loader: keyof LoaderVersions | undefined, mcVersion: 
     mcVersion = cacheStore.minecraftLatest
   }
 
-  noDataText.value = "No Versions Available!"
+  noDataText.value = `No versions available for Minecraft ${mcVersion}`
   return listOrMap[mcVersion.split('-')[0]]
 }
-
-watch(useLatest, (checked) => {
-  version.value = checked ? "Latest" : ""
-})
 
 watch(() => minecraftVersion, (newVersion) => {
   version.value = ""
@@ -85,12 +80,6 @@ onMounted(() => {
       :no-data-text="noDataText"
       label="Version"
       class="me-4"
-      :disabled="useLatest"
-    />
-    <v-checkbox
-      v-model="useLatest"
-      label="Use Latest"
-      class="me-2"
     />
   </div>
 </template>

@@ -21,6 +21,6 @@ const goHome = () => {
     color="primary"
     action-text="Return Home"
     @click:action="goHome"
-  ></v-empty-state>
+  />
 </template>
 

@@ -106,7 +106,6 @@ func NewRouter() *gin.Engine {
 					loadersController := controllers.NewLoadersController()
 
 					packwizGroup.GET("loaders", loadersController.GetLoaderVersions, middleware.SkipAudit)
-					//packwizGroup.GET("loaders/versions", loadersController.GetLoaderVersions)
 
 					// ---------------------------------------------------------
 					importController := controllers.NewImportController(db)
@@ -150,6 +149,7 @@ func NewRouter() *gin.Engine {
 
 								// ---------------------------------------------
 								editPackGroup.POST("mod", packwizController.AddMod)
+								editPackGroup.POST("mod/missing-dependencies", packwizController.ListMissingDependencies)
 								modGroup := editPackGroup.Group(fmt.Sprintf("mod/:%s", params.ModSlug))
 								{
 									modGroup.GET("", packwizController.GetOneMod)

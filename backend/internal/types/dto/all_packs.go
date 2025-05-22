@@ -2,6 +2,7 @@ package dto
 
 import (
 	"github.com/go-playground/validator/v10"
+	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 )
 
@@ -13,4 +14,13 @@ type AllPacksQuery struct {
 
 func (f *AllPacksQuery) Validate() error {
 	return validator.New(validator.WithRequiredStructEnabled()).Struct(f)
+}
+
+type PackResponse struct {
+	tables.Pack
+	CurrentUserPermission types.PackPermission `json:"currentUserPermission"`
+}
+
+type AllPacksResponse struct {
+	Packs []PackResponse `json:"packs"`
 }

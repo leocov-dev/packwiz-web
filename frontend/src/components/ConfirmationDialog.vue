@@ -54,7 +54,7 @@ const onAccept = () => {
         {{ text }}
       </v-card-text>
       <v-card-actions>
-        <v-spacer/>
+        <v-spacer />
         <v-btn
           class="me-3"
           color="primary"

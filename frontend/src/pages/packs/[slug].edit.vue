@@ -21,7 +21,6 @@ const {
 </script>
 
 <template>
-
   <div
     v-if="isLoading"
     class="ma-6"
@@ -36,5 +35,5 @@ const {
   <PackEditForm
     v-else-if="pack"
     :pack="pack"
-    />
+  />
 </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {type Pack} from "@/interfaces/pack.ts";
-import {addMod} from "@/services/mods.service.ts";
+import {addMod, listMissingDependencies} from "@/services/mods.service.ts";
 import type {AddModRequest} from "@/interfaces/requests.ts";
+import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -10,6 +11,7 @@ const router = useRouter()
 const error = ref(false)
 const isValid = ref(false)
 const loading = ref(false)
+const dependencies = ref<ModDependency[]>([])
 
 const data = ref({
   modSource: "",
@@ -31,25 +33,43 @@ const parseUrl = (url: string) => {
   }
 }
 
-const submitForm = async () => {
-  error.value = false
-  loading.value = true
+const checkForDependencies = async () => {
+  const request = buildRequest()
 
-  let request: AddModRequest
+  if (request === undefined) {
+    return
+  }
+  const deps = await listMissingDependencies(pack.slug, request)
 
+  dependencies.value = deps.missing
+}
+
+const buildRequest = (): AddModRequest | undefined => {
   if (data.value.modSource === "Curseforge") {
-    request = {
+    return {
       curseforge: {
         url: data.value.modUrl,
       }
     }
   } else if (data.value.modSource === "Modrinth") {
-    request = {
+    return {
       modrinth: {
         url: data.value.modUrl,
       }
     }
-  } else {
+  }
+
+  error.value = true
+  console.error(`Invalid mod source: ${data.value.modSource}`)
+}
+
+const submitForm = async () => {
+  error.value = false
+  loading.value = true
+
+  const request = buildRequest()
+
+  if (request === undefined) {
     error.value = true
     loading.value = false
     console.error(`Invalid mod source: ${data.value.modSource}`)
@@ -76,8 +96,14 @@ const cancelForm = async () => {
 
 watch(
   () => data.value.modUrl,
-  (newUrl: string) => {
-    parseUrl(newUrl)
+  async (newUrl: string) => {
+    loading.value = true
+    try {
+      parseUrl(newUrl)
+      await checkForDependencies()
+    } finally {
+      loading.value = false
+    }
   },
 )
 
@@ -98,7 +124,7 @@ watch(
     <v-card>
       <v-card-title>
         <h1 class="me-5">
-          {{ pack.packData?.name || pack.slug }}
+          {{ pack.name || pack.slug }}
         </h1>
       </v-card-title>
 
@@ -122,6 +148,12 @@ watch(
           v-model="data.modUrl"
           label="Mod URL"
           :rules="[rules.urlRequired]"
+        />
+
+        <MissingDependencies
+          v-if="!!dependencies"
+          class="mt-2 mb-6"
+          :missing="dependencies"
         />
 
         <div class="d-flex justify-end">

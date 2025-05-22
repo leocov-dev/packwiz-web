@@ -10,7 +10,7 @@ require (
 	github.com/gin-contrib/sessions v1.0.3
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.26.0
-	github.com/leocov-dev/packwiz-nxt v0.0.2
+	github.com/leocov-dev/packwiz-nxt v0.0.3
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -23,6 +23,8 @@ require (
 	gorm.io/gorm v1.26.1
 )
 
+require codeberg.org/jmansfield/go-modrinth v0.6.0
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
@@ -30,6 +32,7 @@ require (
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect

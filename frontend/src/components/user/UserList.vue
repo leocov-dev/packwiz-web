@@ -1,5 +1,5 @@
 <script lang="ts">
-import {type FiltersConfig, type Filters, reduceFilters} from "@/components/FiltersMenu.vue";
+import {type FiltersConfig, type Filters} from "@/components/FiltersMenu.vue";
 
 export interface UserListModel {
   search: string,

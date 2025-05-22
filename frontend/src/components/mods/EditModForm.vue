@@ -49,10 +49,10 @@ const cancelForm = async () => {
     <v-card>
       <v-card-title class="d-flex align-baseline">
         <h1 class="me-5">
-          {{ pack.packData?.name || pack.slug }}
+          {{ pack.name || pack.slug }}
         </h1>
         <h2 class="me-5">
-          {{ mod.displayName || mod.name }}
+          {{ mod.name || mod.slug }}
         </h2>
       </v-card-title>
 

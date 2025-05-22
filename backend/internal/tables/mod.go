@@ -1,6 +1,9 @@
 package tables
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"github.com/leocov-dev/packwiz-nxt/core"
 	"strconv"
 	"time"
@@ -13,31 +16,38 @@ type DownloadInfo struct {
 	HashFormat string `json:"hashFormat"`
 }
 
+func (d DownloadInfo) Value() (driver.Value, error) {
+	return json.Marshal(d)
+}
+
+func (d *DownloadInfo) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed in DownloadInfo Scan")
+	}
+	return json.Unmarshal(bytes, d)
+}
+
 type Mod struct {
-	Id       uint         `gorm:"primarykey" json:"id"`
-	Slug     string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:2" json:"slug"`
-	PackSlug string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:1" json:"packSlug"`
-	Name     string       `json:"name"`
-	FileName string       `json:"fileName"`
-	Side     core.ModSide `json:"side"`
-	Pinned   bool         `json:"pinned"`
-
-	Download DownloadInfo `gorm:"type:json"  json:"download"`
-
-	HashFormat string `gorm:"default:sha256" json:"hashFormat"`
-	Alias      string `json:"alias"`
-	Type       string `gorm:"default:mods" json:"type"`
-	Source     string `json:"source"`
-	ModKey     string `json:"modKey"`
-	VersionKey string `json:"versionKey"`
-	Preserve   bool   `gorm:"default:false" json:"preserve"`
-
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	CreatedBy uint      `json:"createdBy"`
-	UpdatedBy uint      `json:"updatedBy"`
-
-	SourceLink string `gorm:"-" json:"sourceLink"`
+	Id         uint         `gorm:"primarykey" json:"id"`
+	Slug       string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:2" json:"slug"`
+	PackSlug   string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:1" json:"packSlug"`
+	Name       string       `json:"name"`
+	FileName   string       `json:"fileName"`
+	Side       core.ModSide `json:"side"`
+	Pinned     bool         `json:"pinned"`
+	Download   DownloadInfo `gorm:"type:json"  json:"download"`
+	HashFormat string       `gorm:"default:sha256" json:"hashFormat"`
+	Alias      string       `json:"alias"`
+	Type       string       `gorm:"default:mods" json:"type"`
+	Source     string       `json:"source"`
+	ModKey     string       `json:"modKey"`
+	VersionKey string       `json:"versionKey"`
+	Preserve   bool         `gorm:"default:false" json:"preserve"`
+	CreatedAt  time.Time    `json:"createdAt"`
+	UpdatedAt  time.Time    `json:"updatedAt"`
+	CreatedBy  uint         `json:"createdBy"`
+	UpdatedBy  uint         `json:"updatedBy"`
 }
 
 func (m Mod) AsMeta() *core.Mod {

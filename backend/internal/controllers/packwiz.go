@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_svc"
-	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
 	"packwiz-web/internal/types/response"
@@ -24,19 +24,33 @@ func NewPackwizController(db *gorm.DB) *PackwizController {
 
 func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 
-	user := c.MustGet("user").(tables.User)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	var query dto.AllPacksQuery
-	err := mustBindQuery(c, &query)
+
+	err = mustBindQuery(c, &query)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	packs, err := pc.packwizSvc.GetPacks(query, user.Id)
+	packs, err := pc.packwizSvc.GetPacksWithPerms(query, user.Id)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	dataOK(c, gin.H{"packs": packs})
+	if packs == nil {
+		// get the response to return an empty array instead of null
+		packs = make([]dto.PackResponse, 0)
+	}
+
+	allPacks := dto.AllPacksResponse{
+		Packs: packs,
+	}
+
+	dataOK(c, allPacks)
 }
 
 func (pc *PackwizController) NewPack(c *gin.Context) {
@@ -80,6 +94,11 @@ func (pc *PackwizController) PackHead(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetOnePack(c *gin.Context) {
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
 	slug, err := mustBindParam(c, "slug")
 	if pc.abortWithError(c, err) {
 		return
@@ -95,7 +114,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPack(slug)
+	pack, err := pc.packwizSvc.GetPackWithPerms(slug, user.Id)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -130,6 +149,43 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+func (pc *PackwizController) ListMissingDependencies(c *gin.Context) {
+	slug, err := mustBindParam(c, "slug")
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, slug, false) {
+		return
+	}
+
+	var request dto.AddModRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	missing, err := pc.packwizSvc.GetMissingModDependencies(slug, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var data []dto.ModDependency
+
+	for _, mod := range missing {
+		data = append(data, dto.ModDependency{
+			Slug:     mod.Slug,
+			Name:     mod.Name,
+			FileName: mod.FileName,
+			ModType:  mod.ModType,
+			Side:     mod.Side,
+			Url:      mod.Download.URL,
+		})
+	}
+
+	dataOK(c, gin.H{"missing": data})
 }
 
 func (pc *PackwizController) ArchivePack(c *gin.Context) {
@@ -516,6 +572,7 @@ func (pc *PackwizController) EditUserAccess(c *gin.Context) {
 // exit the request if the given error is not nil
 func (pc *PackwizController) abortWithError(c *gin.Context, err response.ServerError) bool {
 	if err != nil {
+		log.Debug(err)
 		err.JSON(c)
 		return true
 	}

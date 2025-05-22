@@ -5,6 +5,10 @@ import {linkToClipboard, openPublicLink} from "@/services/packs.service.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
+const actionsDisabled = computed(() => {
+  return pack.isArchived || pack.status === PackStatus.DRAFT
+})
+
 const snackbar = useSnackbarStore()
 
 
@@ -40,7 +44,31 @@ const actions: {
 </script>
 
 <template>
-  <div>
+  <v-tooltip
+    v-if="actionsDisabled"
+    text="Publish this pack to enable links"
+    location="bottom"
+  >
+    <template #activator="{ props }">
+      <div v-bind="props">
+        <template
+          v-for="actionItem in actions"
+          :key="actionItem.icon"
+        >
+          <v-btn
+            link
+            density="comfortable"
+            color="default"
+            variant="plain"
+            :icon="actionItem.icon"
+            :disabled="true"
+          />
+        </template>
+      </div>
+    </template>
+  </v-tooltip>
+
+  <div v-else>
     <template
       v-for="actionItem in actions"
       :key="actionItem.icon"
@@ -54,7 +82,7 @@ const actions: {
             variant="plain"
             v-bind="props"
             :icon="actionItem.icon"
-            :disabled="pack.isArchived || pack.status === PackStatus.DRAFT"
+            :disabled="actionsDisabled"
             @click="actionItem.action"
           />
         </template>

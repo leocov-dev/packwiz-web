@@ -16,6 +16,7 @@ type Pack struct {
 	DeletedAt              gorm.DeletedAt              `gorm:"index" json:"deletedAt"`
 	Description            string                      `json:"description"`
 	CreatedBy              uint                        `json:"createdBy"`
+	Author                 User                        `gorm:"foreignKey:CreatedBy" json:"author"`
 	UpdatedBy              uint                        `json:"updatedBy"`
 	IsPublic               bool                        `json:"isPublic"`
 	Status                 types.PackStatus            `gorm:"default:draft" json:"status"`
@@ -23,15 +24,10 @@ type Pack struct {
 	Loader                 string                      `json:"loader"`
 	LoaderVersion          string                      `json:"loaderVersion"`
 	AcceptableGameVersions datatypes.JSONSlice[string] `json:"acceptableGameVersions"`
+	Version                string                      `json:"version"`
+	PackFormat             string                      `json:"packFormat"`
 
-	Mods []Mod `json:"mods"`
-
-	Version    string `json:"version"`
-	PackFormat string `json:"packFormat"`
-
-	// hydrated fields
-	Author     string `gorm:"-" json:"author"`
-	IsArchived bool   `gorm:"-" json:"isArchived"` // hydrated based on DeletedAt
+	Mods []Mod `gorm:"foreignKey:PackSlug" json:"mods"`
 }
 
 func (p Pack) AsMeta() core.Pack {
@@ -43,7 +39,7 @@ func (p Pack) AsMeta() core.Pack {
 
 	return core.Pack{
 		Name:        p.Name,
-		Author:      p.Author,
+		Author:      p.Author.Username,
 		Version:     p.Version,
 		Description: p.Description,
 		PackFormat:  p.PackFormat,
@@ -53,7 +49,7 @@ func (p Pack) AsMeta() core.Pack {
 		},
 		Export: nil,
 		Options: map[string]interface{}{
-			"acceptableGameVersions": p.AcceptableGameVersions,
+			"acceptable-game-versions": []string(p.AcceptableGameVersions),
 		},
 		Mods: mods,
 	}

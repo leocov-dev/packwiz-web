@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {Pack, PackPermission} from "@/interfaces/pack.ts";
+import {PackPermission, PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 
-const {pack} = defineProps<{ pack: Pack }>()
+const {pack} = defineProps<{ pack: PackResponse }>()
 
 const permissionMap = {
   [PackPermission.STATIC]: "-",
@@ -36,9 +36,9 @@ const permissionMap = {
 
     <v-card-actions class="ms-2 me-2 d-flex justify-end">
       <v-btn
-        v-if="pack.permission >= PackPermission.VIEW"
+        v-if="pack.currentUserPermission >= PackPermission.VIEW"
         class="me-auto"
-        :text="permissionMap[pack.permission]"
+        :text="permissionMap[pack.currentUserPermission]"
         :to="`/packs/${pack.slug}`"
         variant="tonal"
         density="comfortable"

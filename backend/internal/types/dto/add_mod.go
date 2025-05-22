@@ -2,6 +2,7 @@ package dto
 
 import (
 	"github.com/go-playground/validator/v10"
+	"github.com/leocov-dev/packwiz-nxt/core"
 )
 
 type AddModrinth struct {
@@ -68,4 +69,13 @@ func (r AddModRequest) Validate() error {
 	//	return nil
 	//}
 	//return errorGroup
+}
+
+type ModDependency struct {
+	Slug     string       `json:"slug"`
+	Name     string       `json:"name"`
+	FileName string       `json:"fileName"`
+	ModType  string       `json:"modType"`
+	Side     core.ModSide `json:"side"`
+	Url      string       `json:"url"`
 }
