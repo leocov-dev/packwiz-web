@@ -4,9 +4,11 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"os"
-	"packwiz-web/internal/utils"
 	"path/filepath"
 	"strings"
+
+	libConfig "github.com/leocov-dev/packwiz-nxt/config"
+	"packwiz-web/internal/utils"
 )
 
 type Config struct {
@@ -38,6 +40,8 @@ const (
 	envPackwiz       = "PACKWIZ_DIR"
 	envDb            = "DATABASE"
 	envSessionSecret = "SESSION_SECRET"
+	curseforgeApiKey = "CF_API_KEY"
+	githubApiKey     = "GH_API_KEY"
 )
 
 func init() {
@@ -72,12 +76,18 @@ func init() {
 	config.BindEnv(envSessionSecret)
 	config.SetDefault(envSessionSecret, "insecure-session-secret")
 
+	config.BindEnv(curseforgeApiKey)
+	config.BindEnv(githubApiKey)
+
 	var version string
 	if VersionTag == "" {
 		version = "0.0.0-def"
 	} else {
 		version = VersionTag
 	}
+
+	libConfig.SetCurseforgeApiKey(config.GetString(curseforgeApiKey))
+	libConfig.SetGitHubApiKey(config.GetString(githubApiKey))
 
 	C = Config{
 		Name:           filepath.Base(exePath),

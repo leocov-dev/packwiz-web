@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/leocov-dev/packwiz-nxt/core"
-	"strconv"
 	"time"
 )
 
@@ -28,6 +27,20 @@ func (d *DownloadInfo) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, d)
 }
 
+type UpdateInfo map[string]interface{}
+
+func (u UpdateInfo) Value() (driver.Value, error) {
+	return json.Marshal(u)
+}
+
+func (u *UpdateInfo) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed in UpdateInfo Scan")
+	}
+	return json.Unmarshal(bytes, u)
+}
+
 type Mod struct {
 	Id         uint         `gorm:"primarykey" json:"id"`
 	Slug       string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:2" json:"slug"`
@@ -41,8 +54,7 @@ type Mod struct {
 	Alias      string       `json:"alias"`
 	Type       string       `gorm:"default:mods" json:"type"`
 	Source     string       `json:"source"`
-	ModKey     string       `json:"modKey"`
-	VersionKey string       `json:"versionKey"`
+	Update     UpdateInfo   `gorm:"type:json"  json:"update"`
 	Preserve   bool         `gorm:"default:false" json:"preserve"`
 	CreatedAt  time.Time    `json:"createdAt"`
 	UpdatedAt  time.Time    `json:"updatedAt"`
@@ -51,21 +63,6 @@ type Mod struct {
 }
 
 func (m Mod) AsMeta() *core.Mod {
-	update := core.ModUpdate{}
-	if m.Source == "modrinth" {
-		update["modrinth"] = map[string]interface{}{
-			"modId":   m.ModKey,
-			"version": m.VersionKey,
-		}
-	} else if m.Source == "curseforge" {
-		projectId, _ := strconv.Atoi(m.ModKey)
-		fileId, _ := strconv.Atoi(m.VersionKey)
-		update["curseforge"] = map[string]interface{}{
-			"projectId": projectId,
-			"fileId":    fileId,
-		}
-	}
-
 	return &core.Mod{
 		Name:     m.Name,
 		FileName: m.FileName,
@@ -77,12 +74,24 @@ func (m Mod) AsMeta() *core.Mod {
 			Hash:       m.Download.Hash,
 			Mode:       m.Download.Mode,
 		},
-		Update:     update,
+		Update:     core.ModUpdate{m.Source: core.ModSourceData(m.Update)},
 		Option:     nil,
 		Slug:       m.Slug,
 		ModType:    m.Type,
 		HashFormat: m.HashFormat,
 		Alias:      m.Alias,
 		Preserve:   m.Preserve,
+	}
+}
+
+func ExtractModSource(mod *core.Mod) (string, map[string]interface{}) {
+	if data, ok := mod.Update["modrinth"]; ok {
+		return "modrinth", data
+	} else if data, ok := mod.Update["curseforge"]; ok {
+		return "curseforge", data
+	} else if data, ok := mod.Update["github"]; ok {
+		return "github", data
+	} else {
+		return "", map[string]interface{}{}
 	}
 }

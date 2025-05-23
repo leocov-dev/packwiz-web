@@ -2,13 +2,16 @@
 import {type Pack} from "@/interfaces/pack.ts";
 import {addMod, listMissingDependencies} from "@/services/mods.service.ts";
 import type {AddModRequest} from "@/interfaces/requests.ts";
+import type {ModDependency} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
+import axios from "axios";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
 const router = useRouter()
 
 const error = ref(false)
+const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
 const dependencies = ref<ModDependency[]>([])
@@ -28,6 +31,8 @@ const parseUrl = (url: string) => {
     data.value.modSource = "Curseforge"
   } else if (url.includes("modrinth.com")) {
     data.value.modSource = "Modrinth"
+  } else if (url.includes("github.com")) {
+    data.value.modSource = "Github"
   } else {
     data.value.modSource = ""
   }
@@ -57,6 +62,12 @@ const buildRequest = (): AddModRequest | undefined => {
         url: data.value.modUrl,
       }
     }
+  } else if (data.value.modSource === "Github") {
+    return {
+      github: {
+        url: data.value.modUrl,
+      }
+    }
   }
 
   error.value = true
@@ -72,7 +83,8 @@ const submitForm = async () => {
   if (request === undefined) {
     error.value = true
     loading.value = false
-    console.error(`Invalid mod source: ${data.value.modSource}`)
+    errorMsg.value = `Invalid mod source: ${data.value.modSource}`
+    console.warn(errorMsg.value)
     return
   }
 
@@ -82,7 +94,14 @@ const submitForm = async () => {
     await router.push({path: `/packs/${pack.slug}`})
   } catch (e) {
     error.value = true
-    console.error(e)
+
+    if (axios.isAxiosError(e)) {
+      errorMsg.value = e.response?.data?.error || "Failed to add mod"
+    } else {
+      errorMsg.value = String(e)
+    }
+
+    console.error(errorMsg.value)
   } finally {
     loading.value = false
   }
@@ -97,6 +116,7 @@ const cancelForm = async () => {
 watch(
   () => data.value.modUrl,
   async (newUrl: string) => {
+    error.value = false
     loading.value = true
     try {
       parseUrl(newUrl)
@@ -116,7 +136,7 @@ watch(
     <v-alert
       v-if="error"
       class="mb-6"
-      text="Error adding new mod..."
+      :text="'Error: ' + (errorMsg || 'failed to add new mod...')"
       type="error"
       icon="mdi-alert"
       closable
@@ -139,7 +159,7 @@ watch(
       >
         <v-select
           v-model="data.modSource"
-          :items="['Curseforge', 'Modrinth']"
+          :items="['Curseforge', 'Modrinth', 'GitHub']"
           label="Mod Source"
           :rules="[rules.sourceRequired]"
         />
@@ -151,7 +171,7 @@ watch(
         />
 
         <MissingDependencies
-          v-if="!!dependencies"
+          v-if="(dependencies || []).length > 0"
           class="mt-2 mb-6"
           :missing="dependencies"
         />

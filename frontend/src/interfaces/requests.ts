@@ -39,4 +39,7 @@ export interface AddModRequest {
   modrinth?: {
     url: string;
   }
+  github?: {
+    url: string;
+  }
 }

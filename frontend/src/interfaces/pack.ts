@@ -58,8 +58,7 @@ export class Mod {
   side!: "client" | "server" | "both";
   pinned!: boolean;
   source!: string;
-  modKey!: string;
-  versionKey!: string;
+  update!: {[key: string]: string | number}
   createdBy!: number;
   createdAt!: string;
   updatedBy!: number;

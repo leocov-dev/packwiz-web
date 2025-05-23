@@ -42,11 +42,26 @@ func (r AddCurseforge) IsSet() bool {
 	return r.Validate() == nil
 }
 
+type AddGitHub struct {
+	Url string `json:"url" validate:"required,url"`
+}
+
+// Validate
+// assert that AddCurseforge is valid
+func (r AddGitHub) Validate() error {
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(r)
+}
+
+func (r AddGitHub) IsSet() bool {
+	return r.Validate() == nil
+}
+
 // AddModRequest
 // only one (Modrinth or Curseforge) should be specified
 type AddModRequest struct {
 	Modrinth   *AddModrinth   `json:"modrinth"`
 	Curseforge *AddCurseforge `json:"curseforge"`
+	GitHub     *AddCurseforge `json:"github"`
 }
 
 // Validate

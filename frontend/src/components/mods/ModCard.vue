@@ -4,6 +4,15 @@ import type {Mod} from "@/interfaces/pack.ts";
 
 const {slug, mod} = defineProps<{ slug: string, mod: Mod }>()
 
+
+const modTypeIconMap: {[key: string]: string} = {
+  "mods": "mdi-shield-sword-outline",
+  "resourcepacks": "mdi-package-variant-closed",
+  "shaderpacks": "mdi-crystal-ball",
+  "plugins": "mdi-power-socket-us",
+}
+
+
 const openLink = () => {
   // window.open(mod.sourceLink, '_blank')
 }
@@ -13,19 +22,25 @@ const openLink = () => {
 <template>
   <v-card class="ma-1 ps-5 pe-5 pt-3 pb-3 elevation-4">
     <div class="d-flex align-center">
+      <v-icon
+        v-tooltip="mod.type"
+        class="me-2"
+        :icon="modTypeIconMap[mod.type] || 'mdi-puzzle-outline'"
+      />
+
       <div>
         {{ mod.name }}
       </div>
-      <v-btn
-        v-if="mod.sourceLink"
-        class="ms-2"
-        link
-        density="comfortable"
-        color="default"
-        variant="plain"
-        icon="mdi-open-in-new"
-        @click="openLink"
-      />
+      <!--      <v-btn-->
+      <!--        v-if="mod.sourceLink"-->
+      <!--        class="ms-2"-->
+      <!--        link-->
+      <!--        density="comfortable"-->
+      <!--        color="default"-->
+      <!--        variant="plain"-->
+      <!--        icon="mdi-open-in-new"-->
+      <!--        @click="openLink"-->
+      <!--      />-->
 
       <v-spacer />
 
