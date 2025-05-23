@@ -15,6 +15,9 @@ RUN npx vite build \
 
 FROM golang:1.23-bookworm as backend
 
+ARG VERSION_TAG
+ARG CF_API_KEY
+
 WORKDIR /backend
 
 COPY ./backend .
@@ -28,7 +31,7 @@ RUN make fetch-packwiz
 
 RUN  go build \
      -o ./bin/backend \
-     --ldflags="-X 'packwiz-web/internal/config.VersionTag=$VERSION_TAG'"
+     --ldflags="-X 'packwiz-web/main.VersionTag=$VERSION_TAG' -X 'github.com/packwiz-nxt/main.CfApiKey=$CF_API_KEY'"
 
 FROM debian:bookworm-slim as runtime
 

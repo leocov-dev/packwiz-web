@@ -1,8 +1,6 @@
 package packwiz_svc
 
 import (
-	"codeberg.org/jmansfield/go-modrinth/modrinth"
-	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"net/http"
@@ -10,7 +8,6 @@ import (
 	"time"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
-	"github.com/leocov-dev/packwiz-nxt/sources"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -513,167 +510,4 @@ func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) res
 	}
 
 	return nil
-}
-
-// ---
-
-func lookupModrinthDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
-	var err error
-
-	_, version, err := modrinthProjectAndVersion(url, pack)
-	if err != nil {
-		return nil, err
-	}
-
-	var missingDependencies []*core.Mod
-	if len(version.Dependencies) > 0 {
-
-		missingDependencies, err = sources.ModrinthFindMissingDependencies(version, pack, "")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return missingDependencies, nil
-}
-
-func lookupCurseforgeDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
-	_, fileInfoData, err := curseforgeModInfoFromUrl(url, pack)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get mod info: %w", err)
-	}
-
-	primaryMCVersion, err := pack.GetMCVersion()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get primary MC version: %w", err)
-	}
-
-	if len(fileInfoData.Dependencies) > 0 {
-		return sources.CurseforgeFindMissingDependencies(pack, *fileInfoData, primaryMCVersion)
-	}
-
-	// no dependencies
-	return nil, nil
-}
-
-func modrinthProjectAndVersion(url string, pack core.Pack) (*modrinth.Project, *modrinth.Version, error) {
-	projectSlug := sources.ParseAsModrinthSlug(url)
-	if projectSlug == "" {
-		return nil, nil, errors.New("invalid modrinth url")
-	}
-	log.Debug("project slug: ", projectSlug)
-
-	project, err := sources.GetModrinthClient().Projects.Get(projectSlug)
-	if err != nil {
-		return nil, nil, fmt.Errorf("project lookup failed: %w", err)
-	}
-	if project == nil {
-		return nil, nil, fmt.Errorf("project not found for slug: %s", projectSlug)
-	}
-	log.Debug("project: ", *project.ID, *project.Title)
-
-	version, err := sources.ModrinthGetLatestVersion(*project.ID, *project.Title, pack, "")
-	if err != nil {
-		return nil, nil, fmt.Errorf("version lookup failed: %w", err)
-	}
-	if version == nil {
-		return nil, nil, fmt.Errorf("version not found for project: %s", *project.ID)
-	}
-	log.Debug("version: ", *version.ID, *version.Name)
-
-	return project, version, nil
-}
-
-func addModrinthMod(url string, pack core.Pack) ([]*core.Mod, error) {
-	project, version, err := modrinthProjectAndVersion(url, pack)
-	if err != nil {
-		return nil, err
-	}
-
-	mainMod, err := sources.ModrinthNewMod(project, version, "", pack.GetCompatibleLoaders(), "")
-	if err != nil {
-		return nil, err
-	}
-
-	if mainMod == nil {
-		return nil, errors.New("failed to add mod")
-	}
-
-	missingDependencies, err := lookupModrinthDependencies(url, pack)
-
-	return append(missingDependencies, mainMod), nil
-}
-
-func curseforgeModInfoFromUrl(url string, pack core.Pack) (*sources.CfModInfo, *sources.CfModFileInfo, error) {
-	mcVersions, err := pack.GetSupportedMCVersions()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get supported MC versions: %w", err)
-	}
-
-	category, slug, fileID, err := sources.CurseforgeParseUrl(url)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse Curseforge URL: %w", err)
-	}
-
-	categoryID, classID, err := sources.CurseforgeCategoryLookup(category)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to lookup Curseforge category: %w", err)
-	}
-
-	loaderType := sources.CfGetSearchLoaderType(pack)
-
-	results, err := sources.GetCurseforgeClient().GetSearch("", slug, classID, categoryID, "", loaderType)
-	if err != nil || len(results) == 0 {
-		return nil, nil, fmt.Errorf("failed to search Curseforge: %w", err)
-	}
-	// TODO: results filtering???
-
-	//if len(results) == 1 {
-	//	modInfoData = results[0]
-	//} else {
-	//	fuzzySearchResults := fuzzy.FindFrom(slug, results)
-	//}
-	modInfoData := results[0]
-
-	fileInfoData, err := sources.GetLatestFile(modInfoData, mcVersions, fileID, pack.GetCompatibleLoaders())
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get latest file: %w", err)
-	}
-
-	return &modInfoData, &fileInfoData, err
-}
-
-func addCurseforgeMod(url string, pack core.Pack) ([]*core.Mod, error) {
-
-	modInfoData, fileInfoData, err := curseforgeModInfoFromUrl(url, pack)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get mod info: %w", err)
-	}
-
-	mod, err := sources.CurseforgeNewMod(*modInfoData, *fileInfoData, false)
-	if err != nil {
-		return nil, err
-	}
-
-	if mod == nil {
-		return nil, errors.New("failed to add mod")
-	}
-
-	missingDependencies, err := lookupCurseforgeDependencies(url, pack)
-
-	return append(missingDependencies, mod), nil
-}
-
-func addGithubMod(url string, _ core.Pack) ([]*core.Mod, error) {
-
-	mod, err := sources.GitHubNewMod(url, "", "", "mods")
-	if err != nil {
-		return nil, err
-	}
-
-	if mod == nil {
-		return nil, errors.New("failed to add mod")
-	}
-
-	return []*core.Mod{mod}, nil
 }

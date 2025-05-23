@@ -27,33 +27,32 @@ You can connect the service to an external Postgres database or a sqlite databas
 
 ### Environment Variables
 
-| var                 | value                                   | description                                                                                              |
-|---------------------|-----------------------------------------|----------------------------------------------------------------------------------------------------------|
-| PWW_MODE            | ["production", "development"]           | developers should set this to "development" for additional logging. Do NOT deploy in "development" mode. |
-| PWW_PACKWIZ_DIR     | absolute path, ie: /packwiz-web/packwiz | this directory contains all the Packwiz toml files and may be configured as a git repository             |
-| PWW_DATA_DIR        | absolute path, ie: /packwiz-web/data    | if you are using an sqlite database this is where it will be stored                                      |
-| PWW_ADMIN_PASSWORD  | min 16 char string                      | set the password for the default `admin` account                                                         |
-| PWW_DATABASE        | ["postres", "sqlite"]                   | set the database to use on the backend                                                                   |
-| PWW_SESSION_SECRET  | a long random string                    | encryption key for the HTTP session                                                                      |
-| PWW_TRUSTED_PROXIES | comma separated string list             | `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy            |
+| var                 | value                                  | description                                                                                                                          |
+|---------------------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production` |
+| PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account       |
+| PWW_DATABASE        | ["postres", "sqlite"]                  | Set the database to use on the backend, the default is `sqlite`                                                                      |
+| PWW_DATA_DIR        | absolute path, ie: `/packwiz-web/data` | If you are using an sqlite database this is where it will be stored                                                                  |
+| PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                         |
+| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                   |
+| PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.        |
+| PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits if registering many mods from GitHub you can supply an API key. None is included by default.                    |
 
 ### User Access
 
 Users access mods at the static file endpoint:
-`https://<host>/packwiz/<pack-name>/pack.toml`
-
-If a modpack is nod public each user must use their access token:
-`https://<host>/packwiz/<pack-name>/pack.toml?token=<access-token>`
-Each access is logged and available to admins in the UI.
-
+- if the pack is public:
+  - `https://<host>/packwiz/public/<pack-name>/pack.toml`
+  - this url may be shared with anyone
+- if the pack is not public:
+  - `https://<host>/packwiz/<user-token>/<pack-name>/pack.toml`
+  - this url is not intended to be shared
+  - user access is logged 
+  - the token can be regenerated
 
 ### Security
 
 By default, admins may create user accounts with passwords managed by the service.
-Additionally, admins may configure OIDC providers and a user can choose to link their account to one.
-
-The static file server is reasonably secure against directory traversal attacks and can
-only serve files directly inside the packwiz dir.
 
 #### Audit Logs
 

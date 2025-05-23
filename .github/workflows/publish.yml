@@ -60,3 +60,4 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: |
             VERSION_TAG=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            CF_API_KEY=${{ secrets.CF_API_KEY }}

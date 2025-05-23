@@ -24,12 +24,8 @@ type Config struct {
 }
 
 var (
-	// VersionTag
-	// this must be exported to set it from build command
-	// but should not be accessed directly
-	VersionTag string
-
-	C Config
+	C          Config
+	versionTag string = "0.0.0-dev"
 )
 
 const (
@@ -43,6 +39,13 @@ const (
 	curseforgeApiKey = "CF_API_KEY"
 	githubApiKey     = "GH_API_KEY"
 )
+
+func SetVersionTag(tag string) {
+	if tag == "" {
+		return
+	}
+	versionTag = tag
+}
 
 func init() {
 	exePath, _ := os.Executable()
@@ -62,7 +65,6 @@ func init() {
 	config.SetDefault(envAdminPassword, utils.GenerateRandomString(32))
 
 	config.BindEnv(envProxies)
-	config.SetDefault(envProxies, "")
 
 	config.BindEnv(envData)
 	config.SetDefault(envData, filepath.Join(packwizWebRoot, "data"))
@@ -79,19 +81,16 @@ func init() {
 	config.BindEnv(curseforgeApiKey)
 	config.BindEnv(githubApiKey)
 
-	var version string
-	if VersionTag == "" {
-		version = "0.0.0-def"
-	} else {
-		version = VersionTag
+	if cfApiKey := os.Getenv(curseforgeApiKey); cfApiKey != "" {
+		libConfig.SetCurseforgeApiKey(cfApiKey)
 	}
-
-	libConfig.SetCurseforgeApiKey(config.GetString(curseforgeApiKey))
-	libConfig.SetGitHubApiKey(config.GetString(githubApiKey))
+	if ghApiKey := os.Getenv(githubApiKey); ghApiKey != "" {
+		libConfig.SetGitHubApiKey(ghApiKey)
+	}
 
 	C = Config{
 		Name:           filepath.Base(exePath),
-		Version:        version,
+		Version:        versionTag,
 		Mode:           config.GetString(envMode),
 		AdminPassword:  config.GetString(envAdminPassword),
 		TrustedProxies: strings.Fields(config.GetString(envProxies)),
