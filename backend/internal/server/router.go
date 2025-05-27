@@ -99,6 +99,14 @@ func NewRouter() *gin.Engine {
 					adminGroup.GET("users", userController.GetUsersPaginated)
 				}
 
+				// ---
+				staticDataGroup := protectedGroup.Group("static-data", middleware.SkipAudit)
+				{
+					staticDataController := controllers.NewStaticDataController()
+
+					staticDataGroup.GET("", staticDataController.GetStaticData)
+				}
+
 				// -------------------------------------------------------------
 				packwizGroup := protectedGroup.Group("packwiz")
 				{

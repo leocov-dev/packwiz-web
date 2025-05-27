@@ -4,23 +4,24 @@
 
 > [!WARNING]
 >
-> **This is still work-in-progress, but will run locally**
+> **This is still work-in-progress**
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
+This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz-nxt) that exposes more functionality as a library.
 
 You are able to administer Mods by creating new packs and adding, removing or updating mods.
 Any changes are immediately available to users.
 
 1. [x] Create Modpacks in a beautiful interactive web UI
 2. [x] Admin and User accounts for secure collaboration
-3. [x] Serve static Modpack files to users
+3. [x] Serve static Modpack files to servers/clients
 4. [ ] Duplicate existing packs to test out changes
-5. [ ] Modpack changes are tracked via Git. Roll back changes to a previous state
-6. [ ] Upload existing Packwiz mod configurations
+5. [ ] Snapshot Modpacks and roll back to previous states
+6. [ ] Import existing Packwiz mod configurations
+7. [ ] OIDC authentication
 
 ## Deploy
 This is a web service intended to be deployed as a docker container.
-You need to mount a directory into the container to persist your packwiz files.
 You can connect the service to an external Postgres database or a sqlite database in a mounted directory.
 
 [Latest Container Image]()
@@ -82,9 +83,7 @@ The [examples](examples) directory contains some examples for local deployments.
 The frontend and backend can be built into a container image for deployment.
 
 ```shell
-# build an image locally
+# build and run the container locally
 make build-image
-
-# basic run (env vars and volumes must be set)
-docker run --rm packwiz-web start
+docker run packwiz-web
 ```

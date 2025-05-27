@@ -1,5 +1,4 @@
 BIN_TARGET := $(CURDIR)/bin/backend
-BIN_PACKWIZ := $(CURDIR)/bin
 GOFMT_FILES?=$$(find . -type f -name '*.go')
 
 default: help
@@ -34,10 +33,6 @@ fmtcheck:
 # cleanup go.mod files
 tidy:
 	@go mod tidy
-
-# fetch and install packwiz_data CLI for current arch
-fetch-packwiz:
-	GOBIN=$(BIN_PACKWIZ) go install github.com/packwiz/packwiz@241f24b550f6fe838913a56bdd58bac2fc53254a
 
 # print help information
 help:

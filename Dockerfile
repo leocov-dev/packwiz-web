@@ -27,8 +27,6 @@ COPY --from=frontend /frontend/dist ./public/frontend
 COPY /backend/go.mod /backend/go.sum ./
 RUN go mod download && go mod verify
 
-RUN make fetch-packwiz
-
 RUN  go build \
      -o ./bin/backend \
      --ldflags="-X 'packwiz-web/main.VersionTag=$VERSION_TAG' -X 'github.com/packwiz-nxt/main.CfApiKey=$CF_API_KEY'"
@@ -42,4 +40,6 @@ COPY --from=backend \
     /backend/bin/packwiz \
     /app/
 
-ENTRYPOINT exec /app/backend
+ENTRYPOINT ["/app/backend"]
+
+CMD ["start"]

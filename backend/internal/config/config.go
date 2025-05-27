@@ -18,7 +18,6 @@ type Config struct {
 	AdminPassword  string
 	TrustedProxies []string
 	DataDir        string
-	PackwizDir     string
 	Database       string
 	SessionSecret  []byte
 }
@@ -33,7 +32,6 @@ const (
 	envAdminPassword = "ADMIN_PASSWORD"
 	envProxies       = "TRUSTED_PROXIES"
 	envData          = "DATA_DIR"
-	envPackwiz       = "PACKWIZ_DIR"
 	envDb            = "DATABASE"
 	envSessionSecret = "SESSION_SECRET"
 	curseforgeApiKey = "CF_API_KEY"
@@ -69,9 +67,6 @@ func init() {
 	config.BindEnv(envData)
 	config.SetDefault(envData, filepath.Join(packwizWebRoot, "data"))
 
-	config.BindEnv(envPackwiz)
-	config.SetDefault(envPackwiz, filepath.Join(packwizWebRoot, "packs"))
-
 	config.BindEnv(envDb)
 	config.SetDefault(envDb, "sqlite")
 
@@ -95,7 +90,6 @@ func init() {
 		AdminPassword:  config.GetString(envAdminPassword),
 		TrustedProxies: strings.Fields(config.GetString(envProxies)),
 		DataDir:        filepath.Clean(config.GetString(envData)),
-		PackwizDir:     filepath.Clean(config.GetString(envPackwiz)),
 		Database:       config.GetString(envDb),
 		SessionSecret:  []byte(config.GetString(envSessionSecret)),
 	}
@@ -109,7 +103,6 @@ func init() {
 
 	createDirs := []string{
 		C.DataDir,
-		C.PackwizDir,
 	}
 
 	for _, dir := range createDirs {

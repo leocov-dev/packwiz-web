@@ -87,14 +87,3 @@ func CreateDefaultAdminUser() {
 		},
 	).FirstOrCreate(&tables.User{})
 }
-
-func ReconcileFileData() {
-	//reconciler := importer.NewDataReconciler(
-	//	db,
-	//	packwiz_svc.NewPackwizService(db),
-	//)
-	//err := reconciler.ReconcilePackwizDir()
-	//if err != nil {
-	//	log.Error(err)
-	//}
-}
