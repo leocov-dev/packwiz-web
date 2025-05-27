@@ -37,7 +37,6 @@ WORKDIR /app
 
 COPY --from=backend \
     /backend/bin/backend \
-    /backend/bin/packwiz \
     /app/
 
 ENTRYPOINT ["/app/backend"]
