@@ -1,7 +1,13 @@
 name: ci
 
 on:
+  workflow_dispatch:
   pull_request:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - "*"
 
 permissions:
   contents: read
@@ -65,9 +71,6 @@ jobs:
           go-version-file: "${{ github.workspace }}/backend/go.mod"
           cache: true
           cache-dependency-path: "${{ github.workspace }}/backend/go.sum"
-
-      - name: Install GOX
-        run: go install github.com/mitchellh/gox@latest
 
       - name: Build
         run: make build-all
