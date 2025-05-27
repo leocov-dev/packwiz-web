@@ -10,7 +10,7 @@ export interface PackListModel {
 <script setup lang="ts">
 import {useAuthStore} from "@/stores/auth.ts";
 import {fetchAllPacks} from "@/services/packs.service.ts";
-import {type Pack} from "@/interfaces/pack.ts";
+import {type PackResponse} from "@/interfaces/pack.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 
 const model = defineModel({required: true, type: Object as () => PackListModel})
@@ -21,7 +21,7 @@ const {
   isLoading,
   data,
   reload,
-} = buildDataLoader<Pack[]>(async () => {
+} = buildDataLoader<PackResponse[]>(async () => {
   const activeFilters = reduceFilters(model.value.filters)
   const statusList = activeFilters.filter(f => f !== 'archived')
   const archived = activeFilters.includes('archived')

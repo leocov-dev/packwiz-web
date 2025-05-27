@@ -6,7 +6,7 @@ meta:
 <script setup lang="ts">
 import {useRoute} from "vue-router";
 
-const route = useRoute<'/users/[id]'>()
+const route = useRoute<'/admin/users/[id]'>()
 </script>
 
 <template>

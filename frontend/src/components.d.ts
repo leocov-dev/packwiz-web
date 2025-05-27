@@ -8,9 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AcceptableVersions: typeof import('./components/forms/AcceptableVersions.vue')['default']
-    AddCurseforge: typeof import('./components/mods/AddCurseforge.vue')['default']
     AddModForm: typeof import('./components/mods/AddModForm.vue')['default']
-    AddModrinth: typeof import('./components/mods/AddModrinth.vue')['default']
     AppFooter: typeof import('./components/AppFooter.vue')['default']
     ChangePasswordForm: typeof import('./components/user/ChangePasswordForm.vue')['default']
     ConfirmationDialog: typeof import('./components/ConfirmationDialog.vue')['default']

@@ -50,7 +50,7 @@ jobs:
           cache-dependency-path: "backend/go.sum"
 
       - name: Run Tests
-        run: make test
+        run: cd backend && make test
 
   build:
     runs-on: ubuntu-latest

@@ -4,8 +4,8 @@ import type {User} from "@/interfaces/user.ts";
 
 
 export class AllPacksResponse {
-  @Type(() => Pack)
-  packs?: Pack[];
+  @Type(() => PackResponse)
+  packs?: PackResponse[];
 }
 
 export class Pack {

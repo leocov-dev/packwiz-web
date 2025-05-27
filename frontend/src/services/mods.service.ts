@@ -13,7 +13,7 @@ export async function addMod(slug: string, addModRequest: AddModRequest) {
   return apiClient.post(`v1/packwiz/pack/${slug}/mod`, addModRequest)
 }
 
-export async function listMissingDependencies(slug: string, addModRequest: AddModRequest): Promise<ModDependencies> {
+export async function listMissingDependencies(slug: string, addModRequest: AddModRequest): Promise<ModDependenciesResponse> {
   const response = await apiClient.post(`v1/packwiz/pack/${slug}/mod/missing-dependencies`, addModRequest)
   return plainToInstance(ModDependenciesResponse, response.data)
 }

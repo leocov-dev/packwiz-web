@@ -1,4 +1,4 @@
-FROM node:22.0.0 as frontend
+FROM node:22.0.0 AS frontend
 
 WORKDIR /frontend
 
@@ -13,7 +13,7 @@ RUN npx vite build \
     --mode production
 
 
-FROM golang:1.23-bookworm as backend
+FROM golang:1.23-bookworm AS backend
 
 ARG VERSION_TAG
 ARG CF_API_KEY
@@ -27,11 +27,11 @@ COPY --from=frontend /frontend/dist ./public/frontend
 COPY /backend/go.mod /backend/go.sum ./
 RUN go mod download && go mod verify
 
-RUN  go build \
+RUN go build \
      -o ./bin/backend \
      --ldflags="-X 'packwiz-web/main.VersionTag=$VERSION_TAG' -X 'github.com/packwiz-nxt/main.CfApiKey=$CF_API_KEY'"
 
-FROM debian:bookworm-slim as runtime
+FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 

@@ -6,7 +6,7 @@ meta:
 <script setup lang="ts">
 import {useRoute} from "vue-router";
 import {buildDataLoader} from "@/composables/data-loader.ts";
-import {ModData, type Pack} from "@/interfaces/pack.ts";
+import {type Pack, type Mod} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
 import {fetchOneMod} from "@/services/mods.service.ts";
 
@@ -15,7 +15,7 @@ const route = useRoute<'/packs/[slug].mod.[name]'>()
 const {
   isLoading,
   data,
-} = buildDataLoader<{ pack: Pack, mod: ModData }>(async () => {
+} = buildDataLoader<{ pack: Pack, mod: Mod }>(async () => {
   const pack = await fetchOnePack(route.params.slug, true)
   const mod = await fetchOneMod(route.params.slug, route.params.name)
   return {pack, mod}

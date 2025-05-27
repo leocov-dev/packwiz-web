@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {ModData, type Pack} from "@/interfaces/pack.ts";
+import {type Pack, type Mod} from "@/interfaces/pack.ts";
 
-const {pack, mod} = defineProps<{ pack: Pack, mod: ModData }>()
+const {pack, mod} = defineProps<{ pack: Pack, mod: Mod }>()
 
 const router = useRouter()
 
