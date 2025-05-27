@@ -22,12 +22,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "${{ github.workspace }}/backend/go.mod"
+          go-version-file: "backend/go.mod"
           cache: true
-          cache-dependency-path: "${{ github.workspace }}/backend/go.sum"
+          cache-dependency-path: "backend/go.sum"
 
       - name: Check Go Format
-        run: make fmtcheck
+        run: cd backend && make fmtcheck
 
   test:
     runs-on: ubuntu-latest
@@ -38,16 +38,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: "${{ github.workspace }}/frontend/package.json"
+          node-version-file: "frontend/package.json"
           cache: true
-          cache-dependency-path: "${{ github.workspace }}/frontend/package-lock.json"
+          cache-dependency-path: "frontend/package-lock.json"
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "${{ github.workspace }}/backend/go.mod"
+          go-version-file: "backend/go.mod"
           cache: true
-          cache-dependency-path: "${{ github.workspace }}/backend/go.sum"
+          cache-dependency-path: "backend/go.sum"
 
       - name: Run Tests
         run: make test
@@ -61,16 +61,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: "${{ github.workspace }}/frontend/package.json"
+          node-version-file: "frontend/package.json"
           cache: true
-          cache-dependency-path: "${{ github.workspace }}/frontend/package-lock.json"
+          cache-dependency-path: "frontend/package-lock.json"
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "${{ github.workspace }}/backend/go.mod"
+          go-version-file: "backend/go.mod"
           cache: true
-          cache-dependency-path: "${{ github.workspace }}/backend/go.sum"
+          cache-dependency-path: "backend/go.sum"
 
       - name: Build
         run: make build-all
