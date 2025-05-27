@@ -59,6 +59,9 @@ func NewRouter() *gin.Engine {
 		// ---------------------------------------------------------------------
 		v1 := api.Group("v1")
 		{
+			healthController := controllers.NewHealthController()
+			v1.GET("healthcheck", healthController.Status)
+
 			authController := controllers.NewAuthController(db)
 
 			v1.POST("login", middleware.RateLimiter(), meta.Tag(meta.CategoryLogin), authController.Login)
@@ -67,13 +70,6 @@ func NewRouter() *gin.Engine {
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
 			{
-
-				// -------------------------------------------------------------
-				healthGroup := protectedGroup.Group("health", middleware.SkipAudit)
-				{
-					healthController := controllers.NewHealthController()
-					healthGroup.GET("", healthController.Status)
-				}
 
 				userController := controllers.NewUserController(db)
 
