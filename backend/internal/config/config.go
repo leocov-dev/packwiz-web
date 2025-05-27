@@ -20,6 +20,11 @@ type Config struct {
 	DataDir        string
 	Database       string
 	SessionSecret  []byte
+	PGHost         string
+	PGUser         string
+	PGPassword     string
+	PGDBName       string
+	PGPort         int
 }
 
 var (
@@ -33,6 +38,11 @@ const (
 	envProxies       = "TRUSTED_PROXIES"
 	envData          = "DATA_DIR"
 	envDb            = "DATABASE"
+	pgHost           = "PG_HOST"
+	pgPort           = "PG_PORT"
+	pgUser           = "PG_USER"
+	pgPassword       = "PG_PASSWORD"
+	pgDBName         = "PG_DBNAME"
 	envSessionSecret = "SESSION_SECRET"
 	curseforgeApiKey = "CF_API_KEY"
 	githubApiKey     = "GH_API_KEY"
@@ -70,6 +80,16 @@ func init() {
 	config.BindEnv(envDb)
 	config.SetDefault(envDb, "sqlite")
 
+	config.BindEnv(pgHost)
+	config.SetDefault(pgHost, "localhost")
+	config.BindEnv(pgPort)
+	config.SetDefault(pgPort, 5432)
+	config.BindEnv(pgUser)
+	config.SetDefault(pgUser, "postgres")
+	config.BindEnv(pgPassword)
+	config.BindEnv(pgDBName)
+	config.SetDefault(pgDBName, "packwiz")
+
 	config.BindEnv(envSessionSecret)
 	config.SetDefault(envSessionSecret, "insecure-session-secret")
 
@@ -92,6 +112,11 @@ func init() {
 		DataDir:        filepath.Clean(config.GetString(envData)),
 		Database:       config.GetString(envDb),
 		SessionSecret:  []byte(config.GetString(envSessionSecret)),
+		PGHost:         config.GetString(pgHost),
+		PGUser:         config.GetString(pgUser),
+		PGPassword:     config.GetString(pgPassword),
+		PGDBName:       config.GetString(pgDBName),
+		PGPort:         config.GetInt(pgPort),
 	}
 
 	if C.AdminPassword == "" {

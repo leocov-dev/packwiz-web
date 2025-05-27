@@ -1,14 +1,17 @@
 package database
 
 import (
+	"fmt"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
+	"path/filepath"
+
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
-	"path/filepath"
 )
 
 var db *gorm.DB
@@ -40,8 +43,24 @@ func init() {
 			panic("failed to load sqlite database")
 		}
 	case "postgres":
-		// TODO
-		panic("postgres database not implemented")
+		dsn := fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+			config.C.PGHost,     // e.g., "localhost"
+			config.C.PGUser,     // e.g., "postgres"
+			config.C.PGPassword, // e.g., "yourPassword"
+			config.C.PGDBName,   // e.g., "yourDB"
+			config.C.PGPort,     // e.g., 5432
+		)
+		db, err = gorm.Open(
+			postgres.Open(dsn),
+			&gorm.Config{
+				Logger: newGormLogger(gormLogLevel, log.Log),
+			},
+		)
+		if err != nil {
+			panic("failed to load postgres database: " + err.Error())
+		}
+
 	default:
 		panic("database not configured")
 
@@ -52,8 +71,8 @@ func InitDb() {
 	// Run migrations to create tables and relationships
 	err := db.AutoMigrate(
 		&tables.User{},
-		&tables.Mod{},
 		&tables.Pack{},
+		&tables.Mod{},
 		&tables.PackUsers{},
 		&tables.Audit{},
 	)

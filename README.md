@@ -32,12 +32,23 @@ You can connect the service to an external Postgres database or a sqlite databas
 |---------------------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production` |
 | PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account       |
-| PWW_DATABASE        | ["postres", "sqlite"]                  | Set the database to use on the backend, the default is `sqlite`                                                                      |
+| PWW_DATABASE        | ["postgres", "sqlite"]                 | Set the database to use on the backend, the default is `sqlite`                                                                      |
 | PWW_DATA_DIR        | absolute path, ie: `/packwiz-web/data` | If you are using an sqlite database this is where it will be stored                                                                  |
 | PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                         |
 | PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                   |
 | PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.        |
 | PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits if registering many mods from GitHub you can supply an API key. None is included by default.                    |
+
+Postgres connection vars:
+
+| var             | description                                                  |
+|-----------------|--------------------------------------------------------------|
+| PWW_PG_HOST     | database host, url, ip addr, default: localhost              |
+| PWW_PG_PORT     | database connection port, default: 5432                      |
+| PWW_PG_USER     | database connection username, default: postgres              |
+| PWW_PG_PASSWORD | database connection password                                 |
+| PWW_PG_DBNAME   | database name to use, should already exist, default: packwiz |
+
 
 ### User Access
 
