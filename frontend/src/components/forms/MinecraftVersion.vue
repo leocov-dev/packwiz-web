@@ -8,6 +8,7 @@ const {includeLatest} = defineProps({includeLatest: Boolean})
 let versionsList = cacheStore.minecraftVersions
 if (includeLatest) {
   versionsList = [
+    // TODO: request including these formatted strings is not valid
     `Latest (${cacheStore.minecraftLatest})`,
     `Latest Snapshot (${cacheStore.minecraftSnapshot})`,
     ...versionsList

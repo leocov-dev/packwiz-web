@@ -71,7 +71,7 @@ const isValid = ref(false)
         <v-col>
           <MinecraftVersion
             v-model:version="data.minecraftVersion"
-            :include-latest="true"
+            :include-latest="false"
           />
         </v-col>
         <v-col>
