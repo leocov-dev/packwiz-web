@@ -67,7 +67,7 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		// api auth middleware is bound after this one so this needs to be after
 		// the call to c.Next()
 		if user, ok := c.Get("user"); ok {
-			auditRecord.UserId = user.(tables.User).Id
+			auditRecord.UserId = user.(tables.User).ID
 			actionParams["user"] = user.(tables.User).Username
 		}
 

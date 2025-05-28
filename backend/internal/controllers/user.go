@@ -47,7 +47,7 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	_ = uc.svc.InvalidateUserSessions(user.Id)
+	_ = uc.svc.InvalidateUserSessions(user.ID)
 	_ = clearSession(c)
 
 	isOK(c)
@@ -71,7 +71,7 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 		request.Username = "admin"
 	}
 
-	if err := uc.svc.UpdateUser(currentUser.Id, request); err != nil {
+	if err := uc.svc.UpdateUser(currentUser.ID, request); err != nil {
 		err.JSON(c)
 		return
 	}
@@ -86,14 +86,14 @@ func (uc *UserController) InvalidateCurrentUserSessions(c *gin.Context) {
 		return
 	}
 
-	if err := uc.svc.InvalidateUserSessions(currentUser.Id); err != nil {
+	if err := uc.svc.InvalidateUserSessions(currentUser.ID); err != nil {
 		err.JSON(c)
 		return
 	}
 
-	currentUser.SessionKey = uc.svc.NewSessionKey(currentUser.Id)
+	currentUser.SessionKey = uc.svc.NewSessionKey(currentUser.ID)
 
-	if err := newSession(c, currentUser); err != nil {
+	if err := newSession(c, currentUser.ID, currentUser.SessionKey); err != nil {
 		err.JSON(c)
 		return
 	}

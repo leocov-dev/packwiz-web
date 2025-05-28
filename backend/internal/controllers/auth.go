@@ -38,9 +38,9 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	ac.user.GetOrMakeSessionKey(&user)
+	sessionKey := ac.user.GetOrMakeSessionKey(&user)
 
-	if err := newSession(c, user); err != nil {
+	if err := newSession(c, user.ID, sessionKey); err != nil {
 		err.JSON(c)
 		return
 	}

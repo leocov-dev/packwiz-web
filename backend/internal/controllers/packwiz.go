@@ -36,7 +36,7 @@ func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 		return
 	}
 
-	packs, err := pc.packwizSvc.GetPacksWithPerms(query, user.Id)
+	packs, err := pc.packwizSvc.GetPacksWithPerms(query, user.ID)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -114,7 +114,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPackWithPerms(slug, user.Id)
+	pack, err := pc.packwizSvc.GetPackWithPerms(slug, user.ID)
 	if pc.abortWithError(c, err) {
 		return
 	}

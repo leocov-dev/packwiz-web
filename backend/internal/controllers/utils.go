@@ -94,10 +94,10 @@ func clearSession(c *gin.Context) response.ServerError {
 	return nil
 }
 
-func newSession(c *gin.Context, user tables.User) response.ServerError {
+func newSession(c *gin.Context, userId uint, sessionKey string) response.ServerError {
 	session := sessions.Default(c)
-	session.Set("userId", user.Id)
-	session.Set("sessionKey", user.SessionKey)
+	session.Set("userId", userId)
+	session.Set("sessionKey", sessionKey)
 	if err := session.Save(); err != nil {
 		return response.New(http.StatusInternalServerError, "failed to save session")
 	}

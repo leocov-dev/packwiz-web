@@ -102,8 +102,8 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 			Slug:                   request.Slug,
 			Name:                   request.Name,
 			Description:            request.Description,
-			CreatedBy:              author.Id,
-			UpdatedBy:              author.Id,
+			CreatedBy:              author.ID,
+			UpdatedBy:              author.ID,
 			IsPublic:               false,
 			Status:                 types.PackStatusDraft,
 			MCVersion:              request.MinecraftVersion,
@@ -119,7 +119,7 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 		if err := tx.Create(&tables.PackUsers{
 			PackSlug:   request.Slug,
-			UserId:     author.Id,
+			UserId:     author.ID,
 			Permission: types.PackPermissionEdit,
 		}).Error; err != nil {
 			return err
@@ -264,8 +264,8 @@ func (ps *PackwizService) AddMod(packSlug string, request dto.AddModRequest, use
 				},
 				Source:    source,
 				Update:    update,
-				CreatedBy: user.Id,
-				UpdatedBy: user.Id,
+				CreatedBy: user.ID,
+				UpdatedBy: user.ID,
 			}).Error; err != nil {
 				return err
 			}

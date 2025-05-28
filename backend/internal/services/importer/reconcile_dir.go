@@ -62,10 +62,10 @@ func NewDataReconciler(db *gorm.DB, packwizSvc *packwiz_svc.PackwizService) *Dat
 //
 //		packUser := tables.PackUsers{
 //			PackSlug:   slug,
-//			UserId:     admin.Id,
+//			UserId:     admin.ID,
 //			Permission: types.PackPermissionEdit,
 //		}
-//		if err = dr.db.Where("pack_slug = ? AND user_id = ?", slug, admin.Id).Attrs(packUser).FirstOrCreate(&packUser).Error; err != nil {
+//		if err = dr.db.Where("pack_slug = ? AND user_id = ?", slug, admin.ID).Attrs(packUser).FirstOrCreate(&packUser).Error; err != nil {
 //			errorGroup.Add(fmt.Errorf("failed to set admin user on pack '%s': %w", slug, err))
 //			continue
 //		}

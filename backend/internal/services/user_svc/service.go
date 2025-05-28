@@ -23,7 +23,7 @@ func NewUserService(db *gorm.DB) *UserService {
 
 func (s *UserService) FindById(id uint) (tables.User, error) {
 	var user tables.User
-	if err := s.db.Where("id == ?", id).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return user, err
 	}
 
@@ -32,7 +32,7 @@ func (s *UserService) FindById(id uint) (tables.User, error) {
 
 func (s *UserService) FindByUsername(username string) (tables.User, error) {
 	var user tables.User
-	if err := s.db.Where("username == ?", username).First(&user).Error; err != nil {
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return user, err
 	}
 	return user, nil
@@ -73,7 +73,7 @@ func (s *UserService) ChangePassword(user tables.User, form dto.ChangePasswordFo
 
 	if err := s.db.
 		Model(&tables.User{}).
-		Where("id == ?", user.Id).
+		Where("id = ?", user.ID).
 		Update("password", hashed).Error; err != nil {
 		return response.New(
 			http.StatusInternalServerError,
@@ -102,7 +102,7 @@ func (s *UserService) CheckPasswordComplexity(password string) bool {
 
 func (s *UserService) GetOrMakeSessionKey(user *tables.User) string {
 	if user.SessionKey == "" {
-		user.SessionKey = s.NewSessionKey(user.Id)
+		user.SessionKey = s.NewSessionKey(user.ID)
 	}
 	return user.SessionKey
 }
@@ -113,7 +113,7 @@ func (s *UserService) NewSessionKey(userId uint) string {
 	// ignore the error, prioritize letting the user log in, this session
 	// will be invalidated on a fresh login
 	if err := s.db.Model(&tables.User{}).
-		Where("id == ?", userId).
+		Where("id = ?", userId).
 		Update("session_key", newKey).Error; err != nil {
 		log.Error("Failed to update session key, ", err)
 	}
@@ -123,7 +123,7 @@ func (s *UserService) NewSessionKey(userId uint) string {
 
 func (s *UserService) InvalidateUserSessions(userId uint) response.ServerError {
 	if err := s.db.Model(&tables.User{}).
-		Where("id == ?", userId).
+		Where("id = ?", userId).
 		Update("session_key", "").Error; err != nil {
 		return response.New(
 			http.StatusInternalServerError,

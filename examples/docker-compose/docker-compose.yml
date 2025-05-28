@@ -1,12 +1,25 @@
-
-# TODO work in progress...
-
 services:
   packwiz-web:
-    image: ghcr.io/leocov-dev/packwiz-web:latest
+    depends_on:
+      - postgres
+    #    image: ghcr.io/leocov-dev/packwiz-web:latest
+    image: packwiz-web:latest
+    ports:
+      - "8080:8080"
     environment:
-    volumes:
+      - PWW_DATABASE=postgres
+      - PWW_PG_HOST=postgres
+      - PWW_PG_USER=packwiz
+      - PWW_PG_PASSWORD=9r7xkPRVQjZXnCQvD1J21n0z5zxQtaGmUd1nJyzv0eU
+      - PWW_PG_DBNAME=packwiz
+      - PWW_SESSION_SECRET=YsGQor59TaYzgUzSQe1ycygill
+      - PWW_MODE=production
+      - PWW_ADMIN_PASSWORD=adminPassword1234
+
   postgres:
-    image:
+    image: postgres:15
     environment:
-    volumes:
+      - POSTGRES_DB=packwiz
+      - POSTGRES_USER=packwiz
+      - POSTGRES_PASSWORD=9r7xkPRVQjZXnCQvD1J21n0z5zxQtaGmUd1nJyzv0eU
+      - TZ=Etc/UTC

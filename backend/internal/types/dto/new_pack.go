@@ -31,7 +31,7 @@ type NewPackRequest struct {
 	Name               string   `json:"name" validate:"required"`
 	Version            string   `json:"version" validate:"required"`
 	Description        string   `json:"description"`
-	MinecraftVersion   string   `json:"minecraft" validate:"required"`
+	MinecraftVersion   string   `json:"minecraftVersion" validate:"required"`
 	LoaderName         string   `json:"loaderName" validate:"required"`
 	LoaderVersion      string   `json:"loaderVersion" validate:"required"`
 	AcceptableVersions []string `json:"acceptableVersions"`

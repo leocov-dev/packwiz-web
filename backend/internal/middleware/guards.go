@@ -20,7 +20,7 @@ func PackPermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.Ha
 
 		if err := db.Where(
 			"pack_slug = ? AND user_id = ? AND permission >= ?",
-			slug, user.Id, minPermission,
+			slug, user.ID, minPermission,
 		).First(&tables.PackUsers{}).Error; err != nil {
 			c.AbortWithStatus(http.StatusForbidden)
 			return

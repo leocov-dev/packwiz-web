@@ -78,7 +78,7 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		var packUser tables.PackUsers
-		if err := db.Where("pack_slug = ? AND user_id = ?", slug, user.Id).First(&packUser).Error; err != nil {
+		if err := db.Where("pack_slug = ? AND user_id = ?", slug, user.ID).First(&packUser).Error; err != nil {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
