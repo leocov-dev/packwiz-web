@@ -80,7 +80,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/public/frontend',
+    outDir: './dist',
     emptyOutDir: true,
     rollupOptions: {
       // TODO: having an issue with a generated chunk file "_plugin-vue:export-helper"
