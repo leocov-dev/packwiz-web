@@ -12,7 +12,10 @@ This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz
 You are able to administer Mods by creating new packs and adding, removing or updating mods.
 Any changes are immediately available to users.
 
-1. [x] Create Modpacks in a beautiful interactive web UI
+1. [ ] Manage Modpacks in a beautiful interactive web UI
+   1. [x] Create Packs and add Mods
+   2. [ ] Edit Packs and Mods
+   3. [ ] Update Packs and Mods
 2. [x] Admin and User accounts for secure collaboration
 3. [x] Serve static Modpack files to servers/clients
 4. [ ] Duplicate existing packs to test out changes
