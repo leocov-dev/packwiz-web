@@ -71,10 +71,14 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
           echo "digests=$(ls -1 /tmp/digests | tr '\n' ' ')" >> $GITHUB_OUTPUT
 
+      - name: Set platform name
+        id: platform
+        run: echo "name=$(echo ${{ matrix.platform }} | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ matrix.platform }}
+          name: digests-${{ steps.platform.outputs.name }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
