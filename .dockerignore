@@ -4,5 +4,9 @@
 /backend/bin
 /backend/coverage
 /backend/public/frontend
+/backend/*_test.go
+
+.snapshots/
+.testdata/
 
 /frontend/node_modules
