@@ -48,7 +48,6 @@ jobs:
           tags: type=semver,pattern={{version}}
 
       - name: Build and push Docker image linux/amd64
-        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -63,7 +62,6 @@ jobs:
             CF_API_KEY=${{ secrets.CF_API_KEY }}
 
       - name: Build and push Docker image linux/arm64
-        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
