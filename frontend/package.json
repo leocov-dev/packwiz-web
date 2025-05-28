@@ -9,9 +9,12 @@
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
-    "build-only": "vite build",
+    "build-only": "vite build && npm run deploy-frontend",
     "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "clean-public-frontend": "find ../backend/public/frontend -mindepth 1 ! -name '.keep' -exec rm -rf {} +",
+    "copy-dist-to-public": "cp -r dist/* ../backend/public/frontend/",
+    "deploy-frontend": "npm run clean-public-frontend && npm run copy-dist-to-public"
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
