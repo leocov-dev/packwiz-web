@@ -2,6 +2,7 @@
 **/.*-version
 
 /backend/bin
+/backend/coverage
 /backend/public/frontend
 
 /frontend/node_modules
