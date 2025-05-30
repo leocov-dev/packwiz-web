@@ -119,12 +119,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          outputs: |
-            type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=false
+        run: |
+          # List all digest files
+          digests=$(ls -1 /tmp/digests/*)
+          
+          # Create manifest list
+          docker buildx imagetools create \
+            --tag ${{ steps.meta.outputs.tags }} \
+            $(for digest in $digests; do echo -n "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$(cat $digest) "; done)${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=false
