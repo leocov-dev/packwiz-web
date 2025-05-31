@@ -123,7 +123,11 @@ jobs:
           # List all digest files
           digests=$(ls -1 /tmp/digests/*)
           
-          # Create manifest list
-          docker buildx imagetools create \
-            --tag ${{ steps.meta.outputs.tags }} \
-            $(for digest in $digests; do echo -n "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$(cat $digest) "; done)${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=false
+          # Create manifest list and sources array
+          sources=""
+          for digest in $digests; do
+            sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$(cat $digest)"
+          done
+          
+          # Create the manifest with the collected sources
+          docker buildx imagetools create --tag ${{ steps.meta.outputs.tags }} $sources
