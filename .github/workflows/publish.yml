@@ -116,12 +116,12 @@ jobs:
 
       - name: Create manifest list and push
         run: |
-          digests=$(ls -1 /tmp/digests/*)
+          digests=$(ls /tmp/digests)
 
           # Assemble sources array
           sources=""
           for digest in $digests; do
-            sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$($digest)"
+            sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$digest"
           done
 
           # Add one --tag for each tag in steps.meta.outputs.tags
