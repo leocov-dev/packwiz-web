@@ -120,14 +120,22 @@ jobs:
 
       - name: Create manifest list and push
         run: |
-          # List all digest files
           digests=$(ls -1 /tmp/digests/*)
-          
-          # Create manifest list and sources array
+
+          # Assemble sources array
           sources=""
           for digest in $digests; do
             sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$(cat $digest)"
           done
-          
-          # Create the manifest with the collected sources
-          docker buildx imagetools create --tag ${{ steps.meta.outputs.tags }} $sources
+
+          # Add one --tag for each tag in steps.meta.outputs.tags
+          tag_args=""
+          for tag in $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' '); do
+            tag_args="$tag_args --tag $tag"
+          done
+
+          # Show what will be run for easier debugging
+          echo docker buildx imagetools create $tag_args $sources
+
+          # Run the manifest create command with all the tags
+          docker buildx imagetools create $tag_args $sources
