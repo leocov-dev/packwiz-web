@@ -21,9 +21,6 @@ jobs:
             runner: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.runner }}
-    
-    outputs:
-      digests: ${{ steps.digest.outputs.digests }}
       
     permissions:
       contents: read
@@ -69,7 +66,6 @@ jobs:
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-          echo "digests=$(ls -1 /tmp/digests | tr '\n' ' ')" >> $GITHUB_OUTPUT
 
       - name: Set platform name
         id: platform
@@ -125,7 +121,7 @@ jobs:
           # Assemble sources array
           sources=""
           for digest in $digests; do
-            sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$(cat $digest)"
+            sources="$sources ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$($digest)"
           done
 
           # Add one --tag for each tag in steps.meta.outputs.tags
