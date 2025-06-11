@@ -55,8 +55,7 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,push=true
           build-args: |
             VERSION_TAG=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             CF_API_KEY=${{ secrets.CF_API_KEY }}
