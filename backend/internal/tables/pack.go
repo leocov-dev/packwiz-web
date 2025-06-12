@@ -13,7 +13,7 @@ type Pack struct {
 	Name                   string                      `json:"name"`
 	CreatedAt              time.Time                   `json:"createdAt"`
 	UpdatedAt              time.Time                   `json:"updatedAt"`
-	DeletedAt              gorm.DeletedAt              `gorm:"index" json:"deletedAt"`
+	DeletedAt              gorm.DeletedAt              `json:"deletedAt"`
 	Description            string                      `json:"description"`
 	CreatedBy              uint                        `json:"createdBy"`
 	Author                 User                        `gorm:"foreignKey:CreatedBy" json:"author"`
