@@ -47,4 +47,4 @@ COPY --from=backend \
 
 ENTRYPOINT ["/app/backend"]
 
-CMD ["start"]
+CMD ["start", "--migrate"]

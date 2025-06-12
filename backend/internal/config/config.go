@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/spf13/viper"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,14 +16,12 @@ type Config struct {
 	Mode           string
 	AdminPassword  string
 	TrustedProxies []string
-	DataDir        string
-	Database       string
 	SessionSecret  []byte
 	PGHost         string
 	PGUser         string
 	PGPassword     string
-	PGDBName       string
 	PGPort         int
+	PGDbName       string
 }
 
 var (
@@ -36,13 +33,11 @@ const (
 	envMode          = "MODE"
 	envAdminPassword = "ADMIN_PASSWORD"
 	envProxies       = "TRUSTED_PROXIES"
-	envData          = "DATA_DIR"
-	envDb            = "DATABASE"
+	pgDbName         = "PG_DBNAME"
 	pgHost           = "PG_HOST"
 	pgPort           = "PG_PORT"
 	pgUser           = "PG_USER"
 	pgPassword       = "PG_PASSWORD"
-	pgDBName         = "PG_DBNAME"
 	envSessionSecret = "SESSION_SECRET"
 	curseforgeApiKey = "CF_API_KEY"
 	githubApiKey     = "GH_API_KEY"
@@ -57,7 +52,6 @@ func SetVersionTag(tag string) {
 
 func init() {
 	exePath, _ := os.Executable()
-	packwizWebRoot := filepath.Join(filepath.Dir(exePath), "packwiz-web")
 
 	config := viper.New()
 
@@ -74,12 +68,6 @@ func init() {
 
 	config.BindEnv(envProxies)
 
-	config.BindEnv(envData)
-	config.SetDefault(envData, filepath.Join(packwizWebRoot, "data"))
-
-	config.BindEnv(envDb)
-	config.SetDefault(envDb, "sqlite")
-
 	config.BindEnv(pgHost)
 	config.SetDefault(pgHost, "localhost")
 	config.BindEnv(pgPort)
@@ -87,8 +75,8 @@ func init() {
 	config.BindEnv(pgUser)
 	config.SetDefault(pgUser, "postgres")
 	config.BindEnv(pgPassword)
-	config.BindEnv(pgDBName)
-	config.SetDefault(pgDBName, "packwiz")
+	config.BindEnv(pgDbName)
+	config.SetDefault(pgDbName, "packwiz")
 
 	config.BindEnv(envSessionSecret)
 	config.SetDefault(envSessionSecret, "insecure-session-secret")
@@ -109,13 +97,11 @@ func init() {
 		Mode:           config.GetString(envMode),
 		AdminPassword:  config.GetString(envAdminPassword),
 		TrustedProxies: strings.Fields(config.GetString(envProxies)),
-		DataDir:        filepath.Clean(config.GetString(envData)),
-		Database:       config.GetString(envDb),
 		SessionSecret:  []byte(config.GetString(envSessionSecret)),
 		PGHost:         config.GetString(pgHost),
 		PGUser:         config.GetString(pgUser),
 		PGPassword:     config.GetString(pgPassword),
-		PGDBName:       config.GetString(pgDBName),
+		PGDbName:       config.GetString(pgDbName),
 		PGPort:         config.GetInt(pgPort),
 	}
 
@@ -125,16 +111,4 @@ func init() {
 	if len(C.AdminPassword) < 16 {
 		panic("ADMIN_PASSWORD must be at least 16 characters")
 	}
-
-	createDirs := []string{
-		C.DataDir,
-	}
-
-	for _, dir := range createDirs {
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			log.Panicln("failed to create directory: ", dir)
-		}
-	}
-
 }

@@ -32,7 +32,6 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			choice := args[0]
 
-			database.InitDb()
 			db := database.GetClient()
 
 			switch choice {

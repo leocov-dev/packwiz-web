@@ -2,24 +2,23 @@ services:
   packwiz-web:
     depends_on:
       - postgres
-    #    image: ghcr.io/leocov-dev/packwiz-web:latest
-    image: packwiz-web:latest
+    image: ghcr.io/leocov-dev/packwiz-web:latest  # release builds
+    #image: packwiz-web:latest  # local development
     ports:
       - "8080:8080"
     environment:
       - PWW_DATABASE=postgres
       - PWW_PG_HOST=postgres
       - PWW_PG_USER=packwiz
-      - PWW_PG_PASSWORD=9r7xkPRVQjZXnCQvD1J21n0z5zxQtaGmUd1nJyzv0eU
+      - PWW_PG_PASSWORD=insecure-db-password
       - PWW_PG_DBNAME=packwiz
-      - PWW_SESSION_SECRET=YsGQor59TaYzgUzSQe1ycygill
-      - PWW_MODE=production
-      - PWW_ADMIN_PASSWORD=adminPassword1234
+      - PWW_SESSION_SECRET=insecure-session-secret
+      - PWW_MODE=development
+      - PWW_ADMIN_PASSWORD=insecure-admin-pass
 
   postgres:
-    image: postgres:15
+    image: postgres:17
     environment:
       - POSTGRES_DB=packwiz
-      - POSTGRES_USER=packwiz
-      - POSTGRES_PASSWORD=9r7xkPRVQjZXnCQvD1J21n0z5zxQtaGmUd1nJyzv0eU
+      - POSTGRES_PASSWORD=insecure-db-password
       - TZ=Etc/UTC

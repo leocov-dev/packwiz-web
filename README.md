@@ -25,7 +25,7 @@ Any changes are immediately available to users.
 
 ## Deploy
 This is a web service intended to be deployed as a docker container.
-You can connect the service to an external Postgres database or a sqlite database in a mounted directory.
+A Postgres database is required.
 
 [Latest Container Image]()
 
@@ -35,8 +35,6 @@ You can connect the service to an external Postgres database or a sqlite databas
 |---------------------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production` |
 | PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account       |
-| PWW_DATABASE        | ["postgres", "sqlite"]                 | Set the database to use on the backend, the default is `sqlite`                                                                      |
-| PWW_DATA_DIR        | absolute path, ie: `/packwiz-web/data` | If you are using an sqlite database this is where it will be stored                                                                  |
 | PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                         |
 | PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                   |
 | PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.        |
@@ -84,6 +82,10 @@ All API actions are logged in an audit log table.
 ```shell
 # Build the frontend and backend with:
 make build-all
+
+# set or export the minimum env vars
+PWW_MODE="development"
+PWW_PG_PASSWORD="yourdbpass"
 
 # Run in development mode
 make start-dev
