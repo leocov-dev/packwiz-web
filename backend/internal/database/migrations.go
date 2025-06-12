@@ -1,34 +1,54 @@
 package database
 
 import (
+	"embed"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"packwiz-web/internal/config"
 	"packwiz-web/internal/log"
 )
 
-func RunMigrations() error {
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+// createMigrateInstance creates a new migrate instance with all the necessary setup
+func createMigrateInstance() (*migrate.Migrate, error) {
 	sqlDB, err := db.DB()
 	if err != nil {
-		return fmt.Errorf("failed to get underlying sql.DB: %v", err)
+		return nil, fmt.Errorf("failed to get underlying sql.DB: %v", err)
 	}
 
 	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
 	if err != nil {
-		return fmt.Errorf("failed to create database driver: %v", err)
+		return nil, fmt.Errorf("failed to create database driver: %v", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+	sourceDriver, err := iofs.New(migrationFS, "migrations")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create source driver: %v", err)
+	}
+
+	m, err := migrate.NewWithInstance(
+		"iofs",
+		sourceDriver,
 		config.C.PGDbName,
 		driver,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %v", err)
+		return nil, fmt.Errorf("failed to create migrate instance: %v", err)
+	}
+
+	return m, nil
+}
+
+func RunMigrations() error {
+	m, err := createMigrateInstance()
+	if err != nil {
+		return err
 	}
 	defer m.Close()
 
@@ -52,23 +72,9 @@ func RunMigrations() error {
 }
 
 func RollbackMigration(steps int) error {
-	sqlDB, err := db.DB()
+	m, err := createMigrateInstance()
 	if err != nil {
-		return fmt.Errorf("failed to get underlying sql.DB: %v", err)
-	}
-
-	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to create database driver: %v", err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
-		config.C.PGDbName,
-		driver,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %v", err)
+		return err
 	}
 	defer m.Close()
 
