@@ -39,6 +39,11 @@ RUN go build \
 
 FROM debian:bookworm-slim AS runtime
 
+RUN apt-get update && \
+    apt-get install -y curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=backend \
