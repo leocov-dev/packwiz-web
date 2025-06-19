@@ -39,7 +39,7 @@ const permissionMap = {
         v-if="pack.currentUserPermission >= PackPermission.VIEW"
         class="me-auto"
         :text="permissionMap[pack.currentUserPermission]"
-        :to="`/packs/${pack.slug}`"
+        :to="`/packs/${pack.id}`"
         variant="tonal"
         density="comfortable"
       />

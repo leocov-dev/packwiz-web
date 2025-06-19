@@ -9,6 +9,7 @@ export class AllPacksResponse {
 }
 
 export class Pack {
+  id!: number;
   slug!: string;
   name!: string;
   description!: string;
@@ -50,8 +51,8 @@ export enum PackPermission {
 
 export class Mod {
   id!: number;
-  packSlug!: string;
   slug!: string;
+  packId!: string;
   name!: string;
   type!: string;
   fileName!: string;

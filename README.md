@@ -4,7 +4,8 @@
 
 > [!WARNING]
 >
-> **This is still work-in-progress**
+> **This is still a work-in-progress**
+> Some features may be broken or might change drastically between releases
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz-nxt) that exposes more functionality as a library.
@@ -25,20 +26,21 @@ Any changes are immediately available to users.
 
 ## Deploy
 This is a web service intended to be deployed as a docker container.
-A Postgres database is required.
+A Postgres database is required. 
+See [docker-compose.yml](examples/docker-compose/docker-compose.yml) for a very basic example.
 
-[Latest Container Image]()
+[Latest Container Image](https://github.com/leocov-dev/packwiz-web/pkgs/container/packwiz-web)
 
 ### Environment Variables
 
-| var                 | value                                  | description                                                                                                                          |
-|---------------------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production` |
-| PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account       |
-| PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                         |
-| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                   |
-| PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.        |
-| PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits if registering many mods from GitHub you can supply an API key. None is included by default.                    |
+| var                 | value                                  | description                                                                                                                           |
+|---------------------|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production`. |
+| PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account.       |
+| PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                          |
+| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                    |
+| PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.         |
+| PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits or download from private repositories from GitHub you can supply an API key. None is included by default.        |
 
 Postgres connection vars:
 

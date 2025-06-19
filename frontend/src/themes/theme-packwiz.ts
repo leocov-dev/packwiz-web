@@ -2,15 +2,15 @@ export const ThemePackwiz = {
   light:{
     dark: false,
     colors: {
-      primary: '#aa30da',
-      secondary: '#42a8cf',
+      primary: '#8b3eaa',
+      secondary: '#665593',
     },
   },
   dark:{
     dark: true,
     colors: {
-      primary: '#aa30da',
-      secondary: '#42a8cf',
+      primary: '#8b3eaa',
+      secondary: '#665593',
     },
   },
 }

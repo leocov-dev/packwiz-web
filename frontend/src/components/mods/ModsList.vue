@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
 
-const {slug, mods, canEdit} = defineProps<{
-  slug: string,
+const {packId, mods, canEdit} = defineProps<{
+  packId: number,
   mods: Mod[],
   canEdit: boolean,
 }>()
@@ -51,7 +51,7 @@ const search = ref<string>('')
           :key="item.raw.name"
         >
           <ModCard
-            :slug="slug"
+            :pack-id="packId"
             :mod="item.raw"
           />
         </v-list-item>

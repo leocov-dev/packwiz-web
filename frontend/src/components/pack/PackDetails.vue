@@ -29,7 +29,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const onAddMod = () => {
-  router.push({path: `/packs/${pack.slug}/add-mod`})
+  router.push({path: `/packs/${pack.id}/add-mod`})
 }
 
 interface Chip {
@@ -66,32 +66,32 @@ const chipList: Chip[] = [
 
 
 const convertToDraft = async () => {
-  await convertPackToDraft(pack.slug)
+  await convertPackToDraft(pack.id)
   router.go(0)
 }
 
 const publish = async () => {
-  await publishPack(pack.slug)
+  await publishPack(pack.id)
   router.go(0)
 }
 
 const archive = async () => {
-  await archivePack(pack.slug)
+  await archivePack(pack.id)
   router.go(0)
 }
 
 const unArchive = async () => {
-  await unArchivePack(pack.slug)
+  await unArchivePack(pack.id)
   router.go(0)
 }
 
 const makePublic = async () => {
-  await makePackPublic(pack.slug)
+  await makePackPublic(pack.id)
   router.go(0)
 }
 
 const makePrivate = async () => {
-  await makePackPrivate(pack.slug)
+  await makePackPrivate(pack.id)
   router.go(0)
 }
 
@@ -269,7 +269,7 @@ const makePrivate = async () => {
     </v-card>
 
     <ModsList
-      :slug="pack.slug"
+      :pack-id="pack.id"
       :mods="pack.mods || []"
       :can-edit="pack.currentUserPermission >= PackPermission.EDIT && !pack.isArchived"
       @add-mod="onAddMod"

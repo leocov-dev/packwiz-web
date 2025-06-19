@@ -1,51 +1,31 @@
 <script setup lang="ts">
 
-import {ref} from 'vue';
-import {useTheme} from 'vuetify';
-import {usePrefStore} from "@/stores/user";
+import {useAppTheme} from "@/composables/userTheme.ts"
 
-const userPrefs = usePrefStore()
-const theme = useTheme();
-const darkMode = ref(userPrefs.theme === 'dark')
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-
-const toggleTheme = () => {
-  userPrefs.setTheme(darkMode.value ? 'light' : 'dark');
-  theme.global.name.value = userPrefs.theme;
-  darkMode.value = !darkMode.value;
-}
-
-const detectSystemTheme = () => {
-  const prefersDark = mediaQuery.matches;
-  userPrefs.setTheme(prefersDark ? 'dark' : 'light');
-}
-
-const systemThemeListener = (event: MediaQueryListEvent) => {
-  if (userPrefs.theme === 'system') {
-    userPrefs.setTheme(event.matches ? 'dark' : 'light');
-  }
-}
-
-onMounted(() => {
-  if (userPrefs.theme === 'system') {
-    detectSystemTheme()
-  }
-
-  mediaQuery.addEventListener('change', systemThemeListener);
-})
-
-onUnmounted(() => {
-  mediaQuery.removeEventListener('change', systemThemeListener);
-})
+const {userTheme} = useAppTheme()
 
 </script>
 
 <template>
-  <v-list-item
-    link
-    :title="darkMode ? 'Dark' : 'Light'"
-    prepend-icon="mdi-theme-light-dark"
-    @click="toggleTheme"
-  />
+  <v-radio-group
+    v-model="userTheme"
+    inline
+    class="d-flex"
+  >
+    <v-radio value="system">
+      <template #label>
+        <v-icon icon="mdi-desktop-classic" />
+      </template>
+    </v-radio>
+    <v-radio value="dark">
+      <template #label>
+        <v-icon icon="mdi-brightness-3" />
+      </template>
+    </v-radio>
+    <v-radio value="light">
+      <template #label>
+        <v-icon icon="mdi-brightness-5" />
+      </template>
+    </v-radio>
+  </v-radio-group>
 </template>

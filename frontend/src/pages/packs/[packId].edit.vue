@@ -10,13 +10,13 @@ import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {Pack} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
 
-const route = useRoute<'/packs/[slug].add-mod'>()
+const route = useRoute<'/packs/[packId].add-mod'>()
 
 const {
   isLoading,
   data: pack,
 } = buildDataLoader<Pack>(async () => {
-  return fetchOnePack(route.params.slug)
+  return fetchOnePack(route.params.packId)
 })
 </script>
 

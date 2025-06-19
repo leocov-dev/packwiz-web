@@ -61,12 +61,16 @@ watch(
     items-per-page="0"
   >
     <template #header>
-      <v-toolbar class="ps-5 pe-5 pt-2 pb-2">
+      <v-toolbar
+        class="ps-5 pe-5 pt-2 pb-2"
+        elevation="4"
+      >
         <SearchBar
           v-model="model.search"
           max-width="400"
           class="me-auto"
           density="comfortable"
+          elevation="4"
         />
 
         <v-btn
@@ -76,6 +80,7 @@ watch(
           color="primary"
           variant="flat"
           class="me-3"
+          elevation="4"
         />
 
         <FiltersMenu
@@ -112,7 +117,10 @@ watch(
           md="4"
           sm="12"
         >
-          <PackCard :pack="item.raw" />
+          <PackCard
+            :pack="item.raw"
+            elevation="4"
+          />
         </v-col>
       </v-row>
     </template>

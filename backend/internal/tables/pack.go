@@ -9,7 +9,8 @@ import (
 )
 
 type Pack struct {
-	Slug                   string                      `gorm:"primarykey" json:"slug"`
+	ID                     uint                        `gorm:"primaryKey" json:"id"`
+	Slug                   string                      `json:"slug"`
 	Name                   string                      `json:"name"`
 	CreatedAt              time.Time                   `json:"createdAt"`
 	UpdatedAt              time.Time                   `json:"updatedAt"`
@@ -27,7 +28,7 @@ type Pack struct {
 	Version                string                      `json:"version"`
 	PackFormat             string                      `json:"packFormat"`
 
-	Mods []Mod `gorm:"foreignKey:PackSlug" json:"mods"`
+	Mods []Mod `gorm:"foreignKey:PackID" json:"mods"`
 }
 
 func (p Pack) AsMeta() core.Pack {

@@ -5,7 +5,7 @@ import (
 )
 
 type Audit struct {
-	Id           uint      `gorm:"primarykey" json:"id"`
+	ID           uint      `json:"id"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UserId       uint      `json:"userId"`
 	Action       string    `json:"action"`

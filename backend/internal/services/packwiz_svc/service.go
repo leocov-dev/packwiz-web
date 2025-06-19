@@ -42,7 +42,7 @@ func (ps *PackwizService) GetPacksWithPerms(
 	).Preload(
 		"User",
 	).Joins(
-		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
+		"LEFT JOIN pack_users ON packs.id = pack_users.pack_id AND pack_users.user_id = ?",
 		userId,
 	).Order("packs.slug asc")
 
@@ -72,7 +72,7 @@ func (ps *PackwizService) GetPacksWithPerms(
 	return results, nil
 }
 
-func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
+func (ps *PackwizService) PackExists(packId uint, includeDeleted bool) bool {
 	query := ps.db.Model(tables.Pack{})
 
 	if includeDeleted {
@@ -81,7 +81,26 @@ func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
 
 	var exists bool
 	if err := query.Select("1").
-		Where("slug = ?", slug).
+		Where("id = ?", packId).
+		Limit(1).
+		Find(&exists).
+		Error; err != nil {
+		return false
+	}
+
+	return exists
+}
+
+func (ps *PackwizService) PackExistsBySlug(packSlug string, includeDeleted bool) bool {
+	query := ps.db.Model(tables.Pack{})
+
+	if includeDeleted {
+		query = query.Unscoped()
+	}
+
+	var exists bool
+	if err := query.Select("1").
+		Where("slug = ?", packSlug).
 		Limit(1).
 		Find(&exists).
 		Error; err != nil {
@@ -93,12 +112,12 @@ func (ps *PackwizService) PackExists(slug string, includeDeleted bool) bool {
 
 func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) response.ServerError {
 
-	if ps.PackExists(request.Slug, true) {
+	if ps.PackExistsBySlug(request.Slug, true) {
 		return response.New(http.StatusBadRequest, "pack already exists")
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&tables.Pack{
+		newPack := &tables.Pack{
 			Slug:                   request.Slug,
 			Name:                   request.Name,
 			Description:            request.Description,
@@ -113,13 +132,15 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 			Version:    request.Version,
 			PackFormat: core.CurrentPackFormat,
-		}).Error; err != nil {
+		}
+
+		if err := tx.Create(newPack).Error; err != nil {
 			return err
 		}
 
 		if err := tx.Create(&tables.PackUsers{
-			PackSlug:   request.Slug,
-			UserId:     author.ID,
+			PackID:     newPack.ID,
+			UserID:     author.ID,
 			Permission: types.PackPermissionEdit,
 		}).Error; err != nil {
 			return err
@@ -132,8 +153,7 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 	return nil
 }
-
-func (ps *PackwizService) GetPack(slug string) (tables.Pack, response.ServerError) {
+func (ps *PackwizService) GetPackById(packId uint) (tables.Pack, response.ServerError) {
 	var result tables.Pack
 
 	query := ps.db.Model(
@@ -141,8 +161,25 @@ func (ps *PackwizService) GetPack(slug string) (tables.Pack, response.ServerErro
 	).Preload(
 		"Mods",
 	).Where(
-		"packs.slug = ?", slug,
-	).Order("packs.slug asc")
+		&tables.Pack{ID: packId},
+	)
+
+	if err := query.Unscoped().First(&result).Error; err != nil {
+		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%d' not found", packId))
+	}
+
+	return result, nil
+}
+func (ps *PackwizService) GetPackBySlug(slug string) (tables.Pack, response.ServerError) {
+	var result tables.Pack
+
+	query := ps.db.Model(
+		&tables.Pack{},
+	).Preload(
+		"Mods",
+	).Where(
+		&tables.Pack{Slug: slug},
+	)
 
 	if err := query.Unscoped().First(&result).Error; err != nil {
 		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
@@ -151,7 +188,7 @@ func (ps *PackwizService) GetPack(slug string) (tables.Pack, response.ServerErro
 	return result, nil
 }
 
-func (ps *PackwizService) GetPackWithPerms(slug string, userId uint) (dto.PackResponse, response.ServerError) {
+func (ps *PackwizService) GetPackWithPerms(packId, userId uint) (dto.PackResponse, response.ServerError) {
 	var result dto.PackResponse
 
 	query := ps.db.Model(
@@ -161,29 +198,29 @@ func (ps *PackwizService) GetPackWithPerms(slug string, userId uint) (dto.PackRe
 	).Select(
 		"packs.*, pack_users.permission as current_user_permission",
 	).Joins(
-		"LEFT JOIN pack_users ON packs.slug = pack_users.pack_slug AND pack_users.user_id = ?",
+		"LEFT JOIN pack_users ON packs.id = pack_users.pack_id AND pack_users.user_id = ?",
 		userId,
 	).Where(
-		"packs.slug = ?", slug,
-	).Order("packs.slug asc")
+		"packs.id = ?", packId,
+	)
 
 	if err := query.Unscoped().First(&result).Error; err != nil {
-		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
+		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%d' not found", packId))
 	}
 
 	return result, nil
 }
 
-func (ps *PackwizService) GetMissingModDependencies(packSlug string, request dto.AddModRequest) ([]*core.Mod, response.ServerError) {
-	var err error
+func (ps *PackwizService) GetMissingModDependencies(packId uint, request dto.AddModRequest) ([]*core.Mod, response.ServerError) {
 
-	dbPack, err := ps.GetPack(packSlug)
-	if err != nil {
-		return nil, response.Wrap(err)
+	dbPack, gErr := ps.GetPackById(packId)
+	if gErr != nil {
+		return nil, gErr
 	}
 
 	pack := dbPack.AsMeta()
 
+	var err error
 	var missingDependencies []*core.Mod
 
 	if request.Modrinth != nil {
@@ -197,21 +234,20 @@ func (ps *PackwizService) GetMissingModDependencies(packSlug string, request dto
 		return nil, response.New(http.StatusBadRequest, "invalid mod type")
 	}
 
-	var missing []*core.Mod
-	for _, mod := range missingDependencies {
-		missing = append(missing, mod)
+	if err != nil {
+		return nil, response.Wrap(err)
 	}
 
-	return missing, nil
+	return missingDependencies, nil
 }
 
 // AddMod
 // Add a new mod to an existing pack
-func (ps *PackwizService) AddMod(packSlug string, request dto.AddModRequest, user tables.User) response.ServerError {
+func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user tables.User) response.ServerError {
 
 	var err error
 
-	dbPack, err := ps.GetPack(packSlug)
+	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
 		return response.Wrap(err)
 	}
@@ -250,7 +286,7 @@ func (ps *PackwizService) AddMod(packSlug string, request dto.AddModRequest, use
 
 			if err := tx.Create(&tables.Mod{
 				Slug:     mod.Slug,
-				PackSlug: packSlug,
+				PackID:   dbPack.ID,
 				Name:     mod.Name,
 				FileName: mod.FileName,
 				Side:     mod.Side,
@@ -281,10 +317,10 @@ func (ps *PackwizService) AddMod(packSlug string, request dto.AddModRequest, use
 
 // ArchivePack
 // soft-delete a pack
-func (ps *PackwizService) ArchivePack(slug string) response.ServerError {
+func (ps *PackwizService) ArchivePack(packId uint) response.ServerError {
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(
-			&tables.Pack{Slug: slug},
+			&tables.Pack{ID: packId},
 		).Updates(
 			&tables.Pack{
 				IsPublic: false,
@@ -307,10 +343,10 @@ func (ps *PackwizService) ArchivePack(slug string) response.ServerError {
 
 // UnArchivePack
 // remove soft delete from a pack
-func (ps *PackwizService) UnArchivePack(slug string) response.ServerError {
+func (ps *PackwizService) UnArchivePack(packId uint) response.ServerError {
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		return tx.Unscoped().Model(
-			&tables.Pack{Slug: slug},
+			&tables.Pack{ID: packId},
 		).Update(
 			"deleted_at", nil,
 		).Error
@@ -323,34 +359,34 @@ func (ps *PackwizService) UnArchivePack(slug string) response.ServerError {
 
 // SetPackStatus
 // change the pack status
-func (ps *PackwizService) SetPackStatus(slug string, status types.PackStatus) response.ServerError {
-	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("status", status).Error; err != nil {
+func (ps *PackwizService) SetPackStatus(packId uint, status types.PackStatus) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{ID: packId}).Update("status", status).Error; err != nil {
 		return response.New(http.StatusInternalServerError, "failed to set pack status")
 	}
 
 	return nil
 }
 
-func (ps *PackwizService) IsPackPublished(slug string) bool {
-	err := ps.db.Where(&tables.Pack{Slug: slug, Status: types.PackStatusPublished}).First(&tables.Pack{}).Error
+func (ps *PackwizService) IsPackPublished(packId uint) bool {
+	err := ps.db.Where(&tables.Pack{ID: packId, Status: types.PackStatusPublished}).First(&tables.Pack{}).Error
 	return err == nil
 }
 
-func (ps *PackwizService) IsPackPublic(slug string) bool {
-	err := ps.db.Where(&tables.Pack{Slug: slug, IsPublic: true}).First(&tables.Pack{}).Error
+func (ps *PackwizService) IsPackPublicById(packId uint) bool {
+	err := ps.db.Where(&tables.Pack{ID: packId, IsPublic: true}).First(&tables.Pack{}).Error
 	return err == nil
 }
 
-func (ps *PackwizService) MakePackPublic(slug string) response.ServerError {
-	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", true).Error; err != nil {
+func (ps *PackwizService) MakePackPublic(packId uint) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{ID: packId}).Update("is_public", true).Error; err != nil {
 		return response.New(http.StatusInternalServerError, "failed to make pack public")
 	}
 
 	return nil
 }
 
-func (ps *PackwizService) MakePackPrivate(slug string) response.ServerError {
-	if err := ps.db.Model(&tables.Pack{Slug: slug}).Update("is_public", false).Error; err != nil {
+func (ps *PackwizService) MakePackPrivate(packId uint) response.ServerError {
+	if err := ps.db.Model(&tables.Pack{ID: packId}).Update("is_public", false).Error; err != nil {
 		return response.New(http.StatusInternalServerError, "failed to make pack private")
 	}
 
@@ -359,10 +395,10 @@ func (ps *PackwizService) MakePackPrivate(slug string) response.ServerError {
 
 // SetAcceptableVersions
 // set a mod packs acceptable minecraft versions
-func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcceptableVersionsRequest) response.ServerError {
+func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcceptableVersionsRequest) response.ServerError {
 	if err := ps.db.
 		Model(tables.Pack{}).
-		Where(tables.Pack{Slug: slug}).
+		Where(tables.Pack{ID: packId}).
 		Update("acceptableGameVersions", request.Versions).
 		Error; err != nil {
 		return response.Wrap(err)
@@ -373,24 +409,30 @@ func (ps *PackwizService) SetAcceptableVersions(slug string, request dto.SetAcce
 
 // UpdateAll
 // update all the mods in a pack, skipping pinned mods
-func (ps *PackwizService) UpdateAll(slug string) response.ServerError {
+func (ps *PackwizService) UpdateAll(packId uint) response.ServerError {
+
+	_, err := ps.GetPackById(packId)
+	if err != nil {
+		return err
+	}
 
 	// TODO: expose update in lib
 	//if packwiz_cli.UpdateAll(slug) != nil {
 	//	return response.New(http.StatusInternalServerError, "failed to update all mods")
 	//}
 
-	return nil
+	return response.New(http.StatusInternalServerError, "not implemented")
 }
 
-// ModExists
+// ModExistsById
 // check if a mod exists in a pack
-func (ps *PackwizService) ModExists(slug, mod string) bool {
+func (ps *PackwizService) ModExistsById(modId uint) bool {
 	var exists bool
+
 	if err := ps.db.
 		Model(tables.Mod{}).
 		Select("1").
-		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Where(tables.Mod{ID: modId}).
 		Limit(1).
 		Find(&exists).
 		Error; err != nil {
@@ -400,13 +442,22 @@ func (ps *PackwizService) ModExists(slug, mod string) bool {
 	return exists
 }
 
-// RemoveMod
+func (ps *PackwizService) ModExistsBySlug(packSlug, modSlug string) bool {
+	var count int64
+	err := ps.db.Model(&tables.Mod{}).
+		Joins("JOIN packs ON mods.pack_id = packs.id").
+		Where("packs.slug = ? AND mods.slug = ?", packSlug, modSlug).
+		Count(&count).Error
+	return err == nil && count > 0
+}
+
+// RemoveModById
 // remove a given mod from a given pack
-func (ps *PackwizService) RemoveMod(slug, mod string) response.ServerError {
+func (ps *PackwizService) RemoveModById(modId uint) response.ServerError {
 
 	if err := ps.db.
 		Model(tables.Mod{}).
-		Delete(tables.Mod{PackSlug: slug, Slug: mod}).
+		Delete(tables.Mod{ID: modId}).
 		Error; err != nil {
 		return response.Wrap(err)
 	}
@@ -416,8 +467,8 @@ func (ps *PackwizService) RemoveMod(slug, mod string) response.ServerError {
 
 // UpdateMod
 // update a given mod from a given pack
-func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
-	modInfo, err := ps.GetMod(slug, mod)
+func (ps *PackwizService) UpdateMod(modId uint) response.ServerError {
+	modInfo, err := ps.GetMod(modId)
 	if err != nil {
 		return err
 	}
@@ -431,24 +482,24 @@ func (ps *PackwizService) UpdateMod(slug, mod string) response.ServerError {
 	//	return response.New(http.StatusInternalServerError, "failed to update mod")
 	//}
 
-	return nil
+	return response.New(http.StatusInternalServerError, "not implemented")
 }
 
 // GetMod
 // get a single mods data
-func (ps *PackwizService) GetMod(slug, name string) (tables.Mod, response.ServerError) {
+func (ps *PackwizService) GetMod(modId uint) (tables.Mod, response.ServerError) {
 	var mod tables.Mod
-	if err := ps.db.Where("pack_slug = ? AND name = ?", slug, name).First(&mod).Error; err != nil {
+	if err := ps.db.Where("id = ?", modId).First(&mod).Error; err != nil {
 		return mod, response.Wrap(err)
 	}
 
 	return mod, nil
 }
 
-func (ps *PackwizService) ChangeModSide(slug, mod string, side core.ModSide) response.ServerError {
+func (ps *PackwizService) ChangeModSide(modId uint, side core.ModSide) response.ServerError {
 	if err := ps.db.
 		Model(tables.Mod{}).
-		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Where(tables.Mod{ID: modId}).
 		Update("side", side).
 		Error; err != nil {
 		return response.Wrap(err)
@@ -457,10 +508,10 @@ func (ps *PackwizService) ChangeModSide(slug, mod string, side core.ModSide) res
 	return nil
 }
 
-func (ps *PackwizService) SetModPinnedValue(slug, mod string, value bool) response.ServerError {
+func (ps *PackwizService) SetModPinnedValue(modId uint, value bool) response.ServerError {
 	if err := ps.db.
 		Model(tables.Mod{}).
-		Where(tables.Mod{Slug: mod, PackSlug: slug}).
+		Where(tables.Mod{ID: modId}).
 		Update("pinned", value).
 		Error; err != nil {
 		return response.Wrap(err)
@@ -471,29 +522,34 @@ func (ps *PackwizService) SetModPinnedValue(slug, mod string, value bool) respon
 
 func (ps *PackwizService) GetPersonalLink(
 	user tables.User,
-	slug string,
+	packId uint,
 	scheme string,
 	host string,
 ) (url.URL, response.ServerError) {
 
 	var key string
-	if ps.IsPackPublic(slug) {
+	if ps.IsPackPublicById(packId) {
 		key = "public"
 	} else {
 		key = user.LinkToken
 	}
 
-	link, err := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/%s/pack.toml", scheme, host, key, slug))
+	pack, err := ps.GetPackById(packId)
 	if err != nil {
+		return url.URL{}, err
+	}
+
+	link, parseErr := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/%s/pack.toml", scheme, host, key, pack.Slug))
+	if parseErr != nil {
 		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
 	}
 
 	return *link, nil
 }
 
-func (ps *PackwizService) EditPack(slug string, request dto.EditPackRequest) response.ServerError {
+func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) response.ServerError {
 
-	pack, err := ps.GetPack(slug)
+	pack, err := ps.GetPackById(packId)
 	if err != nil {
 		return response.Wrap(err)
 	}

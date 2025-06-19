@@ -128,14 +128,14 @@ func NewRouter() *gin.Engine {
 						canViewPackGuard := middleware.PackPermissionGuard(types.PackPermissionView, db)
 						canEditPackGuard := middleware.PackPermissionGuard(types.PackPermissionEdit, db)
 
-						slugGroup := packGroup.Group(fmt.Sprintf(":%s", params.PackSlug))
-						slugGroup.Use(canViewPackGuard)
+						packIdGroup := packGroup.Group(fmt.Sprintf(":%s", params.PackId))
+						packIdGroup.Use(canViewPackGuard)
 						{
-							slugGroup.HEAD("", packwizController.PackHead)
-							slugGroup.GET("", packwizController.GetOnePack)
-							slugGroup.GET("link", packwizController.GetPersonalizedLink)
+							packIdGroup.HEAD("", packwizController.PackHead)
+							packIdGroup.GET("", packwizController.GetOnePack)
+							packIdGroup.GET("link", packwizController.GetPersonalizedLink)
 
-							editPackGroup := slugGroup.Group("")
+							editPackGroup := packIdGroup.Group("")
 							editPackGroup.Use(canEditPackGuard)
 							{
 								editPackGroup.DELETE("", packwizController.ArchivePack)
@@ -154,14 +154,14 @@ func NewRouter() *gin.Engine {
 								// ---------------------------------------------
 								editPackGroup.POST("mod", packwizController.AddMod)
 								editPackGroup.POST("mod/missing-dependencies", packwizController.ListMissingDependencies)
-								modGroup := editPackGroup.Group(fmt.Sprintf("mod/:%s", params.ModSlug))
+								modIdGroup := editPackGroup.Group(fmt.Sprintf("mod/:%s", params.ModId))
 								{
-									modGroup.GET("", packwizController.GetOneMod)
-									modGroup.DELETE("", packwizController.RemoveMod)
-									modGroup.PATCH("update", packwizController.UpdateMod)
-									modGroup.PATCH("side", packwizController.ChangeModSide)
-									modGroup.PATCH("pin", packwizController.PinMod)
-									modGroup.PATCH("unpin", packwizController.UnPinMod)
+									modIdGroup.GET("", packwizController.GetOneMod)
+									modIdGroup.DELETE("", packwizController.RemoveMod)
+									modIdGroup.PATCH("update", packwizController.UpdateMod)
+									modIdGroup.PATCH("side", packwizController.ChangeModSide)
+									modIdGroup.PATCH("pin", packwizController.PinMod)
+									modIdGroup.PATCH("unpin", packwizController.UnPinMod)
 								}
 							}
 						}

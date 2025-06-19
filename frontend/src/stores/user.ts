@@ -1,9 +1,11 @@
 import {defineStore} from 'pinia'
 
 
+export type ThemePref = 'dark' | 'light' | 'system'
+
 export const usePrefStore = defineStore('userPreferences', {
   state: () => ({
-    theme: 'dark' as 'dark' | 'light' | 'system',
+    theme: 'dark' as ThemePref,
 
     $userId: null as number | null,
   }),
@@ -27,7 +29,7 @@ export const usePrefStore = defineStore('userPreferences', {
       localStorage.removeItem(`user-prefs-${this.$userId}`)
       this.$reset()
     },
-    setTheme(theme: 'dark' | 'light' | 'system') {
+    setTheme(theme: ThemePref) {
       this.theme = theme
       this.savePreferences()
     }

@@ -42,9 +42,9 @@ func (u *UpdateInfo) Scan(value interface{}) error {
 }
 
 type Mod struct {
-	Id         uint         `gorm:"primarykey" json:"id"`
-	Slug       string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:2" json:"slug"`
-	PackSlug   string       `gorm:"uniqueIndex:idx_pack_mod_slug,priority:1" json:"packSlug"`
+	ID         uint         `gorm:"primaryKey" json:"id"`
+	Slug       string       `json:"slug"`
+	PackID     uint         `json:"packId"`
 	Name       string       `json:"name"`
 	FileName   string       `json:"fileName"`
 	Side       core.ModSide `json:"side"`

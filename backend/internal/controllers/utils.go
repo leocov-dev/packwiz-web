@@ -6,22 +6,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"net/http"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
 	"packwiz-web/internal/types/response"
 	"strconv"
 )
 
-func mustBindParam(c *gin.Context, name string) (string, response.ServerError) {
-	value := c.Param(name)
+func mustBindParam(c *gin.Context, name params.Param) (string, response.ServerError) {
+	value := c.Param(string(name))
 	if value == "" {
 		return "", response.New(http.StatusBadRequest, fmt.Sprintf("invalid %s", name))
 	}
 	return value, nil
 }
 
-func mustBindIdParam(c *gin.Context, name string) (uint, response.ServerError) {
-	raw, err := strconv.Atoi(c.Param(name))
+func mustBindIdParam(c *gin.Context, name params.Param) (uint, response.ServerError) {
+	raw, err := strconv.Atoi(c.Param(string(name)))
 	if err != nil || raw <= 0 {
 		return 0, response.New(http.StatusBadRequest, fmt.Sprintf("invalid %s", name))
 	}

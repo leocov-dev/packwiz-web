@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
@@ -79,14 +80,14 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 }
 
 func (pc *PackwizController) PackHead(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
 	c.Header("Content-Type", "application/json")
 
-	if pc.packwizSvc.PackExists(slug, true) {
+	if pc.packwizSvc.PackExists(packId, true) {
 		c.Status(http.StatusOK)
 	} else {
 		c.Status(http.StatusNotFound)
@@ -94,17 +95,18 @@ func (pc *PackwizController) PackHead(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetOnePack(c *gin.Context) {
+	log.Debug("GetOnePack")
 	user, err := mustBindCurrentUser(c)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, true) {
+	if pc.abortIfPackNotExist(c, packId, true) {
 		return
 	}
 
@@ -114,7 +116,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPackWithPerms(slug, user.ID)
+	pack, err := pc.packwizSvc.GetPackWithPerms(packId, user.ID)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -123,12 +125,12 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 }
 
 func (pc *PackwizController) AddMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
@@ -143,7 +145,7 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.AddMod(slug, request, user)
+	err = pc.packwizSvc.AddMod(packId, request, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -152,12 +154,12 @@ func (pc *PackwizController) AddMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) ListMissingDependencies(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
@@ -167,7 +169,7 @@ func (pc *PackwizController) ListMissingDependencies(c *gin.Context) {
 		return
 	}
 
-	missing, err := pc.packwizSvc.GetMissingModDependencies(slug, request)
+	missing, err := pc.packwizSvc.GetMissingModDependencies(packId, request)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -189,16 +191,16 @@ func (pc *PackwizController) ListMissingDependencies(c *gin.Context) {
 }
 
 func (pc *PackwizController) ArchivePack(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, true) {
+	if pc.abortIfPackNotExist(c, packId, true) {
 		return
 	}
 
-	err = pc.packwizSvc.ArchivePack(slug)
+	err = pc.packwizSvc.ArchivePack(packId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -207,16 +209,16 @@ func (pc *PackwizController) ArchivePack(c *gin.Context) {
 }
 
 func (pc *PackwizController) UnArchivePack(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, true) {
+	if pc.abortIfPackNotExist(c, packId, true) {
 		return
 	}
 
-	err = pc.packwizSvc.UnArchivePack(slug)
+	err = pc.packwizSvc.UnArchivePack(packId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -225,21 +227,21 @@ func (pc *PackwizController) UnArchivePack(c *gin.Context) {
 }
 
 func (pc *PackwizController) PublishPack(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
-	if pc.packwizSvc.IsPackPublished(slug) {
+	if pc.packwizSvc.IsPackPublished(packId) {
 		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already published"})
 		return
 	}
 
-	err = pc.packwizSvc.SetPackStatus(slug, types.PackStatusPublished)
+	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusPublished)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -248,21 +250,21 @@ func (pc *PackwizController) PublishPack(c *gin.Context) {
 }
 
 func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
-	if !pc.packwizSvc.IsPackPublished(slug) {
+	if !pc.packwizSvc.IsPackPublished(packId) {
 		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already a draft"})
 		return
 	}
 
-	err = pc.packwizSvc.SetPackStatus(slug, types.PackStatusDraft)
+	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusDraft)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -271,21 +273,21 @@ func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
 }
 
 func (pc *PackwizController) MakePublic(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
-	if pc.packwizSvc.IsPackPublic(slug) {
+	if pc.packwizSvc.IsPackPublicById(packId) {
 		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already public"})
 		return
 	}
 
-	err = pc.packwizSvc.MakePackPublic(slug)
+	err = pc.packwizSvc.MakePackPublic(packId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -294,21 +296,21 @@ func (pc *PackwizController) MakePublic(c *gin.Context) {
 }
 
 func (pc *PackwizController) MakePrivate(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
-	if !pc.packwizSvc.IsPackPublic(slug) {
+	if !pc.packwizSvc.IsPackPublicById(packId) {
 		c.JSON(http.StatusAccepted, gin.H{"msg": "pack is already private"})
 		return
 	}
 
-	err = pc.packwizSvc.MakePackPrivate(slug)
+	err = pc.packwizSvc.MakePackPrivate(packId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -317,12 +319,12 @@ func (pc *PackwizController) MakePrivate(c *gin.Context) {
 }
 
 func (pc *PackwizController) EditPackInfo(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
@@ -332,7 +334,7 @@ func (pc *PackwizController) EditPackInfo(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.EditPack(slug, request)
+	err = pc.packwizSvc.EditPack(packId, request)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -341,16 +343,16 @@ func (pc *PackwizController) EditPackInfo(c *gin.Context) {
 }
 
 func (pc *PackwizController) UpdateAll(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	if pc.abortIfPackNotExist(c, packId, false) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateAll(slug)
+	err = pc.packwizSvc.UpdateAll(packId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -359,21 +361,21 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetOneMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
-	modData, err := pc.packwizSvc.GetMod(slug, mod)
+	modData, err := pc.packwizSvc.GetMod(modId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -382,21 +384,21 @@ func (pc *PackwizController) GetOneMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) RemoveMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
-	err = pc.packwizSvc.RemoveMod(slug, mod)
+	err = pc.packwizSvc.RemoveModById(modId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -405,21 +407,21 @@ func (pc *PackwizController) RemoveMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) UpdateMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateMod(slug, mod)
+	err = pc.packwizSvc.UpdateMod(modId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -428,17 +430,17 @@ func (pc *PackwizController) UpdateMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) ChangeModSide(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
@@ -448,7 +450,7 @@ func (pc *PackwizController) ChangeModSide(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.ChangeModSide(slug, mod, request.Side)
+	err = pc.packwizSvc.ChangeModSide(modId, request.Side)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -457,21 +459,21 @@ func (pc *PackwizController) ChangeModSide(c *gin.Context) {
 }
 
 func (pc *PackwizController) PinMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
-	data, err := pc.packwizSvc.GetMod(slug, mod)
+	data, err := pc.packwizSvc.GetMod(modId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -481,7 +483,7 @@ func (pc *PackwizController) PinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetModPinnedValue(slug, mod, true)
+	err = pc.packwizSvc.SetModPinnedValue(modId, true)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -490,21 +492,21 @@ func (pc *PackwizController) PinMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) UnPinMod(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	mod, err := mustBindParam(c, "mod")
+	modId, err := mustBindIdParam(c, params.ModId)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	if pc.abortIfModNotExist(c, slug, mod) {
+	if pc.abortIfModNotExist(c, packId, modId) {
 		return
 	}
 
-	data, err := pc.packwizSvc.GetMod(slug, mod)
+	data, err := pc.packwizSvc.GetMod(modId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -514,7 +516,7 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetModPinnedValue(slug, mod, false)
+	err = pc.packwizSvc.SetModPinnedValue(modId, false)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -523,7 +525,7 @@ func (pc *PackwizController) UnPinMod(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
-	slug, err := mustBindParam(c, "slug")
+	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -533,7 +535,8 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 		return
 	}
 
-	if pc.abortIfPackNotExist(c, slug, false) {
+	pack, err := pc.packwizSvc.GetPackById(packId)
+	if pc.abortWithError(c, err) {
 		return
 	}
 
@@ -542,7 +545,7 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 		scheme = "https"
 	}
 
-	link, err := pc.packwizSvc.GetPersonalLink(user, slug, scheme, c.Request.Host)
+	link, err := pc.packwizSvc.GetPersonalLink(user, pack.ID, scheme, c.Request.Host)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -579,22 +582,22 @@ func (pc *PackwizController) abortWithError(c *gin.Context, err response.ServerE
 	return false
 }
 
-func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, slug string, includeDeleted bool) bool {
-	if !pc.packwizSvc.PackExists(slug, includeDeleted) {
-		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s not found", slug)})
+func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, packId uint, includeDeleted bool) bool {
+	if !pc.packwizSvc.PackExists(packId, includeDeleted) {
+		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d not found", packId)})
 		return true
 	}
 	return false
 }
 
-func (pc *PackwizController) abortIfModNotExist(c *gin.Context, slug string, mod string) bool {
-	if !pc.packwizSvc.PackExists(slug, false) {
-		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s not found", slug)})
+func (pc *PackwizController) abortIfModNotExist(c *gin.Context, packId, modId uint) bool {
+	if !pc.packwizSvc.PackExists(packId, false) {
+		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d not found", packId)})
 		return true
 	}
 
-	if !pc.packwizSvc.ModExists(slug, mod) {
-		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %s with mod %s not found", slug, mod)})
+	if !pc.packwizSvc.ModExistsById(modId) {
+		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d with mod %d not found", packId, modId)})
 		return true
 	}
 	return false

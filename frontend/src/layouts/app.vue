@@ -30,6 +30,7 @@ onUnmounted(() => {
       app
       class="d-flex"
       color="primary"
+      elevation="2"
     >
       <v-app-bar-nav-icon
         v-ripple="false"
@@ -42,12 +43,8 @@ onUnmounted(() => {
         class="ms-2"
       />
 
-      <v-container
-        class="pa-0 mr-2"
-        :max-width="userPillWidth"
-      >
-        <UserMenu :width="userPillWidth" />
-      </v-container>
+      <v-spacer />
+      <UserMenu />
     </v-app-bar>
 
     <v-navigation-drawer

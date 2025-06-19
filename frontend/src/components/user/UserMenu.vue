@@ -3,7 +3,7 @@ import {useAuthStore} from "@/stores/auth.ts";
 
 const authStore = useAuthStore()
 
-const {width = 100} = defineProps<{ width?: number }>()
+const {width = 350} = defineProps<{ width?: number }>()
 const showMenu = ref(false)
 
 </script>
@@ -17,12 +17,18 @@ const showMenu = ref(false)
     transition="scale-transition"
   >
     <template #activator="{ props }">
-      <v-chip
+      <v-btn
         v-bind="props"
         link
-        pill
+        rounded="pill"
+        size="large"
+        class="me-5"
+        variant="flat"
+        color="secondary"
+        elevation="4"
       >
         <v-avatar
+          class="ms-n5"
           start
           :color="authStore.user.isAdmin ? 'warning' : 'primary'"
         >
@@ -34,10 +40,10 @@ const showMenu = ref(false)
         >
           {{ authStore.user.username }}
         </v-responsive>
-      </v-chip>
+      </v-btn>
     </template>
 
-    <v-card width="300">
+    <v-card :width="width">
       <v-list bg-color="primary-darken-2">
         <v-list-item>
           <template #prepend>
@@ -51,7 +57,7 @@ const showMenu = ref(false)
 
           <v-list-item-title>{{ authStore.user.username }}</v-list-item-title>
 
-          <!--              <v-list-item-subtitle>{{authStore.user.email}}</v-list-item-subtitle>-->
+          <!--          <v-list-item-subtitle>{{ authStore.user.email }}</v-list-item-subtitle>-->
         </v-list-item>
       </v-list>
 
@@ -64,7 +70,11 @@ const showMenu = ref(false)
           <v-list-item-subtitle>User Profile</v-list-item-subtitle>
         </v-list-item>
 
-        <ThemeSwitch />
+        <v-list-item
+          prepend-icon="mdi-theme-light-dark"
+        >
+          <ThemeSwitch />
+        </v-list-item>
 
         <v-list-item
           prepend-icon="mdi-logout"

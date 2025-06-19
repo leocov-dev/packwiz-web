@@ -10,14 +10,14 @@ import {type Pack, type Mod} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
 import {fetchOneMod} from "@/services/mods.service.ts";
 
-const route = useRoute<'/packs/[slug].mod.[name]'>()
+const route = useRoute<'/packs/[packId].mod.[modId]'>()
 
 const {
   isLoading,
   data,
 } = buildDataLoader<{ pack: Pack, mod: Mod }>(async () => {
-  const pack = await fetchOnePack(route.params.slug, true)
-  const mod = await fetchOneMod(route.params.slug, route.params.name)
+  const pack = await fetchOnePack(Number(route.params.packId), true)
+  const mod = await fetchOneMod(Number(route.params.packId), Number(route.params.modId))
   return {pack, mod}
 })
 </script>

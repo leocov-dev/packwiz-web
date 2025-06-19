@@ -10,22 +10,17 @@ import 'vuetify/styles'
 
 // Composables
 import {createVuetify} from 'vuetify'
-import {md2} from 'vuetify/blueprints'
+import {md3} from 'vuetify/blueprints'
 import {ThemePackwiz} from "@/themes/theme-packwiz.ts";
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
-  blueprint: md2,
+  blueprint: md3,
   theme: {
     defaultTheme: 'dark',
-    variations: {
-      colors: ['primary', 'secondary'],
-      lighten: 1,
-      darken: 2,
-    },
     themes: {
-      ThemePackwizLight: ThemePackwiz.light,
-      ThemePackwizDark: ThemePackwiz.dark,
+      light: ThemePackwiz.light,
+      dark: ThemePackwiz.dark,
     }
   },
 })

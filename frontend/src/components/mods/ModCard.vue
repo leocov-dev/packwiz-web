@@ -2,7 +2,7 @@
 
 import type {Mod} from "@/interfaces/pack.ts";
 
-const {slug, mod} = defineProps<{ slug: string, mod: Mod }>()
+const {packId, mod} = defineProps<{ packId: number, mod: Mod }>()
 
 
 const modTypeIconMap: {[key: string]: string} = {
@@ -65,7 +65,7 @@ const openLink = () => {
         />
         <v-icon
           v-if="mod.side === 'both'"
-          v-tooltip="'both'"
+          v-tooltip="'server+client'"
           class="me-2"
           icon="mdi-circle-double"
         />
@@ -80,7 +80,7 @@ const openLink = () => {
           color="warning"
           variant="outlined"
           text="Edit"
-          :to="`${slug}/mod/${mod.name}`"
+          :to="`${packId}/mod/${mod.id}`"
         />
       </div>
     </div>

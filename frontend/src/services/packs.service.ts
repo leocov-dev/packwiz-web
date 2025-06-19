@@ -32,8 +32,8 @@ export async function fetchAllPacks(
 
 }
 
-export async function fetchOnePack(slug: string, skipMods: boolean = false): Promise<PackResponse> {
-  let url = `v1/packwiz/pack/${slug}`
+export async function fetchOnePack(packId: number, skipMods: boolean = false): Promise<PackResponse> {
+  let url = `v1/packwiz/pack/${packId}`
 
   const params = new URLSearchParams();
   if (skipMods) {
@@ -49,19 +49,19 @@ export async function fetchOnePack(slug: string, skipMods: boolean = false): Pro
 }
 
 
-export async function getPackPublicLink(slug: string): Promise<string> {
-  const response = await apiClient.get(`v1/packwiz/pack/${slug}/link`);
+export async function getPackPublicLink(packId: number): Promise<string> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/link`);
   return response.data['link']
 }
 
 
-export async function linkToClipboard(slug: string) {
-  const link = await getPackPublicLink(slug)
+export async function linkToClipboard(packId: number) {
+  const link = await getPackPublicLink(packId)
   await navigator.clipboard.writeText(link)
 }
 
-export async function openPublicLink(slug: string) {
-  const link = await getPackPublicLink(slug)
+export async function openPublicLink(packId: number) {
+  const link = await getPackPublicLink(packId)
   window.open(link, '_blank')
 }
 
@@ -69,30 +69,30 @@ export async function newPack(request: NewPackRequest) {
   return apiClient.post('v1/packwiz/pack', request)
 }
 
-export async function editPack(slug: string, request: EditPackRequest) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/edit`, request)
+export async function editPack(packId: number, request: EditPackRequest) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/edit`, request)
 }
 
-export async function archivePack(slug: string) {
-  return apiClient.delete(`v1/packwiz/pack/${slug}`)
+export async function archivePack(packId: number) {
+  return apiClient.delete(`v1/packwiz/pack/${packId}`)
 }
 
-export async function unArchivePack(slug: string) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/unarchive`)
+export async function unArchivePack(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/unarchive`)
 }
 
-export async function publishPack(slug: string) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/publish`)
+export async function publishPack(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/publish`)
 }
 
-export async function convertPackToDraft(slug: string) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/draft`)
+export async function convertPackToDraft(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/draft`)
 }
 
-export async function makePackPublic(slug: string) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/public`)
+export async function makePackPublic(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/public`)
 }
 
-export async function makePackPrivate(slug: string) {
-  return apiClient.patch(`v1/packwiz/pack/${slug}/private`)
+export async function makePackPrivate(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/private`)
 }

@@ -27,7 +27,7 @@ func (tc *SerializeController) RenderPackToml(c *gin.Context) {
 		return
 	}
 
-	pack, err := tc.pw.GetPack(packSlug)
+	pack, err := tc.pw.GetPackBySlug(packSlug)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -49,7 +49,7 @@ func (tc *SerializeController) RenderIndexToml(c *gin.Context) {
 		return
 	}
 
-	pack, err := tc.pw.GetPack(packSlug)
+	pack, err := tc.pw.GetPackBySlug(packSlug)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -75,7 +75,7 @@ func (tc *SerializeController) RenderModToml(c *gin.Context) {
 		return
 	}
 
-	pack, err := tc.pw.GetPack(packSlug)
+	pack, err := tc.pw.GetPackBySlug(packSlug)
 	if err != nil {
 		log.Warn("pack not found", packSlug, err)
 		c.Status(http.StatusNotFound)

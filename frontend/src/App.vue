@@ -1,6 +1,12 @@
 <script lang="ts" setup>
 import { useSnackbarStore } from '@/stores/snackbar';
 
+import { useAppTheme } from '@/composables/userTheme';
+
+const {  } = useAppTheme()
+
+
+
 const snackbar = useSnackbarStore();
 </script>
 

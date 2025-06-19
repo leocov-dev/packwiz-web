@@ -13,7 +13,7 @@ const snackbar = useSnackbarStore()
 
 
 const copyToClipboard = async () => {
-  await linkToClipboard(pack.slug)
+  await linkToClipboard(pack.id)
   snackbar.showSnackbar(
     'Link copied to clipboard',
     'default',
@@ -22,7 +22,7 @@ const copyToClipboard = async () => {
 }
 
 const openLink = () => {
-  openPublicLink(pack.slug)
+  openPublicLink(pack.id)
 }
 
 const actions: {
