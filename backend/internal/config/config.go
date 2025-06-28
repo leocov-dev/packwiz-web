@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
@@ -113,8 +112,6 @@ func init() {
 		PGDbName:       config.GetString(pgDbName),
 		PGPort:         config.GetInt(pgPort),
 	}
-
-	fmt.Println(C)
 
 	if C.AdminPassword == "" {
 		panic("ADMIN_PASSWORD env var not set")
