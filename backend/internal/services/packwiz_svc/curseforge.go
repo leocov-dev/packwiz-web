@@ -52,23 +52,23 @@ func curseforgeModInfoFromUrl(url string, pack core.Pack) (*sources.CfModInfo, *
 	return &modInfo, &fileInfo, nil
 }
 
-func addCurseforgeMod(url string, pack core.Pack) ([]*core.Mod, error) {
+func addCurseforgeMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) {
 
 	modInfoData, fileInfoData, err := curseforgeModInfoFromUrl(url, pack)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get mod info: %w", err)
+		return nil, nil, fmt.Errorf("failed to get mod info: %w", err)
 	}
 
 	mod, err := sources.CurseforgeNewMod(*modInfoData, *fileInfoData, false)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if mod == nil {
-		return nil, errors.New("failed to add mod")
+		return nil, nil, errors.New("failed to add mod")
 	}
 
 	missingDependencies, err := lookupCurseforgeDependencies(url, pack)
 
-	return append(missingDependencies, mod), nil
+	return mod, missingDependencies, nil
 }

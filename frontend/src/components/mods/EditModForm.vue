@@ -17,9 +17,9 @@ const submitForm = async () => {
   loading.value = true
 
   try {
-    // await addMod(pack.slug, request)
+    // await addMod(pack.id, request)
 
-    await router.push({path: `/packs/${pack.slug}`})
+    await router.push({path: `/packs/${pack.id}`})
   } catch (e) {
     error.value = true
     console.error(e)
@@ -30,7 +30,7 @@ const submitForm = async () => {
 }
 
 const cancelForm = async () => {
-  await router.push({path: `/packs/${pack.slug}`})
+  await router.push({path: `/packs/${pack.id}`})
 }
 </script>
 

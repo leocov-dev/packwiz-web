@@ -95,7 +95,7 @@ func (pc *PackwizController) PackHead(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetOnePack(c *gin.Context) {
-	log.Debug("GetOnePack")
+	log.Warn("GetOnePack")
 	user, err := mustBindCurrentUser(c)
 	if pc.abortWithError(c, err) {
 		return
@@ -107,12 +107,6 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 	}
 
 	if pc.abortIfPackNotExist(c, packId, true) {
-		return
-	}
-
-	var query dto.GetPackQuery
-	err = mustBindQuery(c, &query)
-	if pc.abortWithError(c, err) {
 		return
 	}
 

@@ -254,20 +254,21 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 
 	pack := dbPack.AsMeta()
 
-	var newMods []*core.Mod
+	var newMod *core.Mod
+	var dependencies []*core.Mod
 
 	if request.Modrinth != nil {
-		newMods, err = addModrinthMod(request.Modrinth.Url, pack)
+		newMod, dependencies, err = addModrinthMod(request.Modrinth.Url, pack)
 		if err != nil {
 			return response.Wrap(err)
 		}
 	} else if request.Curseforge != nil {
-		newMods, err = addCurseforgeMod(request.Curseforge.Url, pack)
+		newMod, dependencies, err = addCurseforgeMod(request.Curseforge.Url, pack)
 		if err != nil {
 			return response.Wrap(err)
 		}
 	} else if request.GitHub != nil {
-		newMods, err = addGithubMod(request.GitHub.Url, pack)
+		newMod, dependencies, err = addGithubMod(request.GitHub.Url, pack)
 		if err != nil {
 			return response.Wrap(err)
 		}
@@ -277,35 +278,25 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 
-		for _, mod := range newMods {
+		var dependencyIds []uint
 
-			source, update := tables.ExtractModSource(mod)
-			if source == "" {
-				return response.New(http.StatusBadRequest, fmt.Sprintf("invalid mod data found: %v", mod.Update))
+		for _, mod := range dependencies {
+
+			existingMod, existsErr := ps.GetModBySlug(dbPack.Slug, mod.Slug)
+			if existsErr == nil {
+				dependencyIds = append(dependencyIds, existingMod.ID)
+				log.Info(fmt.Sprintf("mod '%s' already exists in pack '%s'", mod.Slug, dbPack.Slug))
+				continue
 			}
 
-			if err := tx.Create(&tables.Mod{
-				Slug:     mod.Slug,
-				PackID:   dbPack.ID,
-				Name:     mod.Name,
-				FileName: mod.FileName,
-				Side:     mod.Side,
-				Pinned:   mod.Pin,
-				Type:     mod.ModType,
-				Download: tables.DownloadInfo{
-					URL:        mod.Download.URL,
-					Mode:       mod.Download.Mode,
-					Hash:       mod.Download.Hash,
-					HashFormat: mod.Download.HashFormat,
-				},
-				Source:    source,
-				Update:    update,
-				CreatedBy: user.ID,
-				UpdatedBy: user.ID,
-			}).Error; err != nil {
+			dbMod, err := createMod(mod, dbPack, user, tx, true, nil)
+			if err != nil {
 				return err
 			}
+			dependencyIds = append(dependencyIds, dbMod.ID)
 		}
+
+		_, err = createMod(newMod, dbPack, user, tx, false, dependencyIds)
 
 		return nil
 	}); err != nil {
@@ -313,6 +304,41 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 	}
 
 	return nil
+}
+
+func createMod(mod *core.Mod, dbPack tables.Pack, user tables.User, db *gorm.DB, isDependency bool, dependencyIds []uint) (*tables.Mod, error) {
+	source, update := tables.ExtractModSource(mod)
+	if source == "" {
+		return nil, response.New(http.StatusBadRequest, fmt.Sprintf("invalid mod data found: %v", mod.Update))
+	}
+
+	newMod := &tables.Mod{
+		Slug:     mod.Slug,
+		PackID:   dbPack.ID,
+		Name:     mod.Name,
+		FileName: mod.FileName,
+		Side:     mod.Side,
+		Pinned:   mod.Pin,
+		Type:     mod.ModType,
+		Download: tables.DownloadInfo{
+			URL:        mod.Download.URL,
+			Mode:       mod.Download.Mode,
+			Hash:       mod.Download.Hash,
+			HashFormat: mod.Download.HashFormat,
+		},
+		Source:        source,
+		Update:        update,
+		CreatedBy:     user.ID,
+		UpdatedBy:     user.ID,
+		IsDependency:  isDependency,
+		DependencyIds: dependencyIds,
+	}
+
+	if err := db.Create(newMod).Error; err != nil {
+		return nil, err
+	}
+
+	return newMod, nil
 }
 
 // ArchivePack
@@ -444,7 +470,8 @@ func (ps *PackwizService) ModExistsById(modId uint) bool {
 
 func (ps *PackwizService) ModExistsBySlug(packSlug, modSlug string) bool {
 	var count int64
-	err := ps.db.Model(&tables.Mod{}).
+	err := ps.db.
+		Model(&tables.Mod{}).
 		Joins("JOIN packs ON mods.pack_id = packs.id").
 		Where("packs.slug = ? AND mods.slug = ?", packSlug, modSlug).
 		Count(&count).Error
@@ -493,6 +520,18 @@ func (ps *PackwizService) GetMod(modId uint) (tables.Mod, response.ServerError) 
 		return mod, response.Wrap(err)
 	}
 
+	return mod, nil
+}
+
+func (ps *PackwizService) GetModBySlug(packSlug, modSlug string) (tables.Mod, response.ServerError) {
+	var mod tables.Mod
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Joins("JOIN packs ON mods.pack_id = packs.id").
+		Where("packs.slug = ? AND mods.slug = ?", packSlug, modSlug).
+		First(&mod).Error; err != nil {
+		return mod, response.Wrap(err)
+	}
 	return mod, nil
 }
 

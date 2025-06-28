@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/leocov-dev/packwiz-nxt/core"
+	"gorm.io/datatypes"
 	"time"
 )
 
@@ -42,24 +43,26 @@ func (u *UpdateInfo) Scan(value interface{}) error {
 }
 
 type Mod struct {
-	ID         uint         `gorm:"primaryKey" json:"id"`
-	Slug       string       `json:"slug"`
-	PackID     uint         `json:"packId"`
-	Name       string       `json:"name"`
-	FileName   string       `json:"fileName"`
-	Side       core.ModSide `json:"side"`
-	Pinned     bool         `json:"pinned"`
-	Download   DownloadInfo `gorm:"type:json"  json:"download"`
-	HashFormat string       `gorm:"default:sha256" json:"hashFormat"`
-	Alias      string       `json:"alias"`
-	Type       string       `gorm:"default:mods" json:"type"`
-	Source     string       `json:"source"`
-	Update     UpdateInfo   `gorm:"type:json"  json:"update"`
-	Preserve   bool         `gorm:"default:false" json:"preserve"`
-	CreatedAt  time.Time    `json:"createdAt"`
-	UpdatedAt  time.Time    `json:"updatedAt"`
-	CreatedBy  uint         `json:"createdBy"`
-	UpdatedBy  uint         `json:"updatedBy"`
+	ID            uint                      `gorm:"primaryKey" json:"id"`
+	Slug          string                    `json:"slug"`
+	PackID        uint                      `json:"packId"`
+	Name          string                    `json:"name"`
+	FileName      string                    `json:"fileName"`
+	Side          core.ModSide              `json:"side"`
+	Pinned        bool                      `json:"pinned"`
+	Download      DownloadInfo              `gorm:"type:json"  json:"download"`
+	HashFormat    string                    `gorm:"default:sha256" json:"hashFormat"`
+	Alias         string                    `json:"alias"`
+	Type          string                    `gorm:"default:mods" json:"type"`
+	Source        string                    `json:"source"`
+	Update        UpdateInfo                `gorm:"type:json"  json:"update"`
+	Preserve      bool                      `gorm:"default:false" json:"preserve"`
+	CreatedAt     time.Time                 `json:"createdAt"`
+	UpdatedAt     time.Time                 `json:"updatedAt"`
+	CreatedBy     uint                      `json:"createdBy"`
+	UpdatedBy     uint                      `json:"updatedBy"`
+	IsDependency  bool                      `gorm:"default:false" json:"isDependency"`
+	DependencyIds datatypes.JSONSlice[uint] `json:"dependencyIds"`
 }
 
 func (m Mod) AsMeta() *core.Mod {

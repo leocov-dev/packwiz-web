@@ -10,11 +10,27 @@ const {packId, mods, canEdit} = defineProps<{
 defineEmits(['add-mod'])
 
 const search = ref<string>('')
+
+const sortedMods = computed(() => {
+  const regularMods = mods.filter(mod => !mod.isDependency)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const dependencyMods = mods.filter(mod => mod.isDependency)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return [...regularMods, ...dependencyMods];
+})
+
+const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
+  if (!mod.isDependency) return false;
+  return index === 0 || !items[index - 1].isDependency;
+};
+
 </script>
 
 <template>
   <v-data-iterator
-    :items="mods"
+    :items="sortedMods"
     :search="search"
     items-per-page="0"
   >
@@ -47,8 +63,9 @@ const search = ref<string>('')
     <template #default="{items}">
       <v-list>
         <v-list-item
-          v-for="item in items"
+          v-for="(item, index) in items"
           :key="item.raw.name"
+          :class="{'first-dependency': isFirstDependency(item.raw, items.map(i => i.raw), index)}"
         >
           <ModCard
             :pack-id="packId"
@@ -59,3 +76,9 @@ const search = ref<string>('')
     </template>
   </v-data-iterator>
 </template>
+
+<style scoped>
+.first-dependency {
+  margin-top: 24px !important;
+}
+</style>

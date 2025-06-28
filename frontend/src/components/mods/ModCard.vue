@@ -13,9 +13,9 @@ const modTypeIconMap: {[key: string]: string} = {
 }
 
 
-const openLink = () => {
+// const openLink = () => {
   // window.open(mod.sourceLink, '_blank')
-}
+// }
 
 </script>
 
@@ -70,6 +70,14 @@ const openLink = () => {
           icon="mdi-circle-double"
         />
         <v-icon
+          v-if="mod.isDependency"
+          v-tooltip="'Is A Dependency'"
+          class="me-2"
+          icon="mdi-graph"
+          color="primary"
+        />
+        <v-icon
+          v-if="!mod.isDependency"
           v-tooltip="mod.pinned ? 'pinned' : 'unpinned'"
           class="me-2"
           :icon="mod.pinned ? 'mdi-pin' : 'mdi-pin-off-outline'"
@@ -81,6 +89,7 @@ const openLink = () => {
           variant="outlined"
           text="Edit"
           :to="`${packId}/mod/${mod.id}`"
+          :disabled="mod.isDependency"
         />
       </div>
     </div>

@@ -16,7 +16,7 @@ const {
   isLoading,
   data: pack,
 } = buildDataLoader<Pack>(async () => {
-  return fetchOnePack(route.params.packId)
+  return fetchOnePack(Number(route.params.packId))
 })
 </script>
 

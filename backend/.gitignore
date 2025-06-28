@@ -3,3 +3,5 @@ bin/
 .go-version
 
 /public/frontend/
+
+.env

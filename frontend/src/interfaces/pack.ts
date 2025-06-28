@@ -64,6 +64,8 @@ export class Mod {
   createdAt!: string;
   updatedBy!: number;
   updatedAt!: string;
+  isDependency!: boolean;
+  dependencyIds?: number[];
 }
 
 

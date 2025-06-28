@@ -4,9 +4,6 @@ import UserMenu from "@/components/user/UserMenu.vue";
 
 const rail = ref(false)
 
-const userPillWidth = 100
-
-
 const updateRail = () => {
   rail.value = window.innerWidth < 800
 }

@@ -11,6 +11,7 @@ const editing = ref(false)
 const error = ref(false)
 
 const data = ref({
+  id: pack.id,
   slug: pack.slug,
   name: pack.name,
   packVersion: pack.version,
@@ -55,10 +56,10 @@ const submitForm = async () => {
   const request = buildRequest()
 
   try {
-    await editPack(pack.slug, request)
+    await editPack(pack.id, request)
 
     await sleep(1500)
-    await router.push({path: `/packs/${pack.slug}`})
+    await router.push({path: `/packs/${pack.id}`})
 
   } catch (e) {
     error.value = true
@@ -70,7 +71,7 @@ const submitForm = async () => {
 }
 
 const cancelForm = async () => {
-  await router.push({path: `/packs/${pack.slug}`})
+  await router.push({path: `/packs/${pack.id}`})
 }
 
 </script>

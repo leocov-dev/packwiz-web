@@ -185,7 +185,7 @@ const makePrivate = async () => {
           v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
           prepend-icon="mdi-pencil"
           text="Edit"
-          :to="`/packs/${pack.slug}/edit`"
+          :to="`/packs/${pack.id}/edit`"
         />
 
         <div

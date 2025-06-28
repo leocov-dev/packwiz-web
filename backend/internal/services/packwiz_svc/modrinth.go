@@ -57,22 +57,22 @@ func modrinthProjectAndVersion(url string, pack core.Pack) (*modrinth.Project, *
 	return project, version, nil
 }
 
-func addModrinthMod(url string, pack core.Pack) ([]*core.Mod, error) {
+func addModrinthMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) {
 	project, version, err := modrinthProjectAndVersion(url, pack)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mainMod, err := sources.ModrinthNewMod(project, version, "", pack.GetCompatibleLoaders(), "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if mainMod == nil {
-		return nil, errors.New("failed to add mod")
+		return nil, nil, errors.New("failed to add mod")
 	}
 
 	missingDependencies, err := lookupModrinthDependencies(url, pack)
 
-	return append(missingDependencies, mainMod), nil
+	return mainMod, missingDependencies, nil
 }

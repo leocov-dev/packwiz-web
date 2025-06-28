@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
@@ -55,7 +56,15 @@ func init() {
 
 	config := viper.New()
 
+	config.SetConfigFile(".env")
+	config.SetConfigType("env")
+	config.AddConfigPath(".")
+	config.AddConfigPath(filepath.Dir(exePath))
+
+	_ = config.ReadInConfig()
+
 	config.SetEnvPrefix("PWW")
+	config.AutomaticEnv()
 
 	config.BindEnv(envMode)
 	config.SetDefault(envMode, "production")
@@ -104,6 +113,8 @@ func init() {
 		PGDbName:       config.GetString(pgDbName),
 		PGPort:         config.GetInt(pgPort),
 	}
+
+	fmt.Println(C)
 
 	if C.AdminPassword == "" {
 		panic("ADMIN_PASSWORD env var not set")

@@ -44,7 +44,7 @@ const checkForDependencies = async () => {
   if (request === undefined) {
     return
   }
-  const deps = await listMissingDependencies(pack.slug, request)
+  const deps = await listMissingDependencies(pack.id, request)
 
   dependencies.value = deps.missing
 }
@@ -89,9 +89,9 @@ const submitForm = async () => {
   }
 
   try {
-    await addMod(pack.slug, request)
+    await addMod(pack.id, request)
 
-    await router.push({path: `/packs/${pack.slug}`})
+    await router.push({path: `/packs/${pack.id}`})
   } catch (e) {
     error.value = true
 
@@ -109,7 +109,7 @@ const submitForm = async () => {
 }
 
 const cancelForm = async () => {
-  await router.push({path: `/packs/${pack.slug}`})
+  await router.push({path: `/packs/${pack.id}`})
 }
 
 

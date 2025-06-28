@@ -54,18 +54,18 @@ func NewRouter() *gin.Engine {
 	// -------------------------------------------------------------------------
 	api := router.Group("api")
 	api.Use(middleware.SessionStore())
-	api.Use(middleware.ApiAudit(db))
+	//api.Use(middleware.ApiAudit(db))
 	{
 		// ---------------------------------------------------------------------
 		v1 := api.Group("v1")
 		{
 			healthController := controllers.NewHealthController()
-			v1.GET("healthcheck", healthController.Status)
+			v1.GET("healthcheck", healthController.Status, middleware.SkipAudit)
 
 			authController := controllers.NewAuthController(db)
 
 			v1.POST("login", middleware.RateLimiter(), meta.Tag(meta.CategoryLogin), authController.Login)
-			v1.POST("logout", authController.Logout)
+			v1.POST("logout", authController.Logout, middleware.SkipAudit)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
@@ -75,16 +75,10 @@ func NewRouter() *gin.Engine {
 
 				// -------------------------------------------------------------
 				// current user
-				userGroup := protectedGroup.Group("user")
+				userGroup := protectedGroup.Group("user", middleware.SkipAudit)
 				{
-					userGroup.GET("", userController.GetCurrentUser, middleware.SkipAudit)
-					userGroup.POST("password",
-						func(c *gin.Context) {
-							if err := userController.ChangePassword; err != nil {
-
-								return
-							}
-						})
+					userGroup.GET("", userController.GetCurrentUser)
+					userGroup.POST("password", userController.ChangePassword)
 					userGroup.POST("update", userController.UpdateUser)
 					userGroup.POST("invalidate-sessions", userController.InvalidateCurrentUserSessions)
 				}
