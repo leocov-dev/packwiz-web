@@ -61,10 +61,6 @@ func connect() {
 	})
 }
 
-func init() {
-	connect()
-}
-
 const (
 	maxRetries = 50
 	retryDelay = 3 * time.Second

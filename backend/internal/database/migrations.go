@@ -15,9 +15,9 @@ import (
 //go:embed migrations/*.sql
 var migrationFS embed.FS
 
-// createMigrateInstance creates a new migrate instance with all the necessary setup
+// createMigrateInstance creates a new Migrate instance with all the necessary setup
 func createMigrateInstance() (*migrate.Migrate, error) {
-	sqlDB, err := db.DB()
+	sqlDB, err := GetClient().DB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get underlying sql.DB: %v", err)
 	}
