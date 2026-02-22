@@ -5,12 +5,12 @@ import type {UserProfileFormData} from "@/components/user/UserProfile.vue";
 
 
 export async function userLogin(username: string, password: string): Promise<User> {
-  return apiClient.postForm('v1/login', {username, password})
+  return apiClient.postForm('v1/auth/login', {username, password})
 }
 
 
 export async function userLogout(): Promise<void> {
-  return apiClient.post('v1/logout')
+  return apiClient.post('v1/auth/logout')
 }
 
 

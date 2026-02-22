@@ -7,9 +7,8 @@ import (
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/middleware"
-	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/params"
-	"packwiz-web/internal/types"
+	"packwiz-web/internal/routes"
 	"packwiz-web/public"
 	"time"
 )
@@ -52,9 +51,7 @@ func NewRouter() *gin.Engine {
 	}
 
 	// -------------------------------------------------------------------------
-	api := router.Group("api")
-	api.Use(middleware.SessionStore())
-	//api.Use(middleware.ApiAudit(db))
+	api := router.Group("api", middleware.SessionStore(), middleware.ApiAudit(db))
 	{
 		// ---------------------------------------------------------------------
 		v1 := api.Group("v1")
@@ -62,106 +59,21 @@ func NewRouter() *gin.Engine {
 			healthController := controllers.NewHealthController()
 			v1.GET("healthcheck", healthController.Status, middleware.SkipAudit)
 
-			authController := controllers.NewAuthController(db)
-
-			v1.POST("login", middleware.RateLimiter(), meta.Tag(meta.CategoryLogin), authController.Login)
-			v1.POST("logout", authController.Logout, middleware.SkipAudit)
+			routes.RegisterAuthRoutes(v1, db)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
 			{
+				routes.RegisterUserRoutes(protectedGroup, db, middleware.SkipAudit)
 
-				userController := controllers.NewUserController(db)
+				routes.RegisterAdminRoutes(protectedGroup, db)
 
-				// -------------------------------------------------------------
-				// current user
-				userGroup := protectedGroup.Group("user", middleware.SkipAudit)
-				{
-					userGroup.GET("", userController.GetCurrentUser)
-					userGroup.POST("password", userController.ChangePassword)
-					userGroup.POST("update", userController.UpdateUser)
-					userGroup.POST("invalidate-sessions", userController.InvalidateCurrentUserSessions)
-				}
+				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 
 				// -------------------------------------------------------------
-				adminGroup := protectedGroup.Group("admin")
-				{
-					adminGroup.GET("users", userController.GetUsersPaginated)
-				}
+				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db)
 
-				// ---
-				staticDataGroup := protectedGroup.Group("static-data", middleware.SkipAudit)
-				{
-					staticDataController := controllers.NewStaticDataController()
-
-					staticDataGroup.GET("", staticDataController.GetStaticData)
-				}
-
-				// -------------------------------------------------------------
-				packwizGroup := protectedGroup.Group("packwiz")
-				{
-					// ---------------------------------------------------------
-					loadersController := controllers.NewLoadersController()
-
-					packwizGroup.GET("loaders", loadersController.GetLoaderVersions, middleware.SkipAudit)
-
-					// ---------------------------------------------------------
-					importController := controllers.NewImportController(db)
-
-					packwizGroup.GET("upload", importController.UploadPackwizArchive)
-
-					// ---------------------------------------------------------
-					packwizController := controllers.NewPackwizController(db)
-
-					packGroup := packwizGroup.Group("pack")
-					{
-						packGroup.GET("", packwizController.GetAllPacks)
-						packGroup.POST("", packwizController.NewPack)
-
-						// -----------------------------------------------------
-						canViewPackGuard := middleware.PackPermissionGuard(types.PackPermissionView, db)
-						canEditPackGuard := middleware.PackPermissionGuard(types.PackPermissionEdit, db)
-
-						packIdGroup := packGroup.Group(fmt.Sprintf(":%s", params.PackId))
-						packIdGroup.Use(canViewPackGuard)
-						{
-							packIdGroup.HEAD("", packwizController.PackHead)
-							packIdGroup.GET("", packwizController.GetOnePack)
-							packIdGroup.GET("link", packwizController.GetPersonalizedLink)
-
-							editPackGroup := packIdGroup.Group("")
-							editPackGroup.Use(canEditPackGuard)
-							{
-								editPackGroup.DELETE("", packwizController.ArchivePack)
-								editPackGroup.PATCH("unarchive", packwizController.UnArchivePack)
-								editPackGroup.PATCH("publish", packwizController.PublishPack)
-								editPackGroup.PATCH("draft", packwizController.ConvertToDraft)
-								editPackGroup.PATCH("public", packwizController.MakePublic)
-								editPackGroup.PATCH("private", packwizController.MakePrivate)
-								editPackGroup.PATCH("edit", packwizController.EditPackInfo)
-								editPackGroup.PATCH("update-all", packwizController.UpdateAll)
-								editPackGroup.GET("users", packwizController.GetPackUsers)
-								editPackGroup.POST("users", packwizController.AddPackUser)
-								editPackGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), packwizController.RemovePackUser)
-								editPackGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), packwizController.EditUserAccess)
-
-								// ---------------------------------------------
-								editPackGroup.POST("mod", packwizController.AddMod)
-								editPackGroup.POST("mod/missing-dependencies", packwizController.ListMissingDependencies)
-								modIdGroup := editPackGroup.Group(fmt.Sprintf("mod/:%s", params.ModId))
-								{
-									modIdGroup.GET("", packwizController.GetOneMod)
-									modIdGroup.DELETE("", packwizController.RemoveMod)
-									modIdGroup.PATCH("update", packwizController.UpdateMod)
-									modIdGroup.PATCH("side", packwizController.ChangeModSide)
-									modIdGroup.PATCH("pin", packwizController.PinMod)
-									modIdGroup.PATCH("unpin", packwizController.UnPinMod)
-								}
-							}
-						}
-
-					}
-				}
+				routes.RegisterPackRoutes(packwizGroup, db)
 			}
 		}
 	}

@@ -71,7 +71,7 @@ const modTypeIconMap: {[key: string]: string} = {
         />
         <v-icon
           v-if="mod.isDependency"
-          v-tooltip="'Is A Dependency'"
+          v-tooltip="'Dependency'"
           class="me-2"
           icon="mdi-graph"
           color="primary"

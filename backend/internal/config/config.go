@@ -92,10 +92,10 @@ func init() {
 	config.BindEnv(curseforgeApiKey)
 	config.BindEnv(githubApiKey)
 
-	if cfApiKey := os.Getenv(curseforgeApiKey); cfApiKey != "" {
+	if cfApiKey := config.GetString(curseforgeApiKey); cfApiKey != "" {
 		libConfig.SetCurseforgeApiKey(cfApiKey)
 	}
-	if ghApiKey := os.Getenv(githubApiKey); ghApiKey != "" {
+	if ghApiKey := config.GetString(githubApiKey); ghApiKey != "" {
 		libConfig.SetGitHubApiKey(ghApiKey)
 	}
 

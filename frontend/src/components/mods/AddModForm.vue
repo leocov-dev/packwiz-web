@@ -71,6 +71,7 @@ const buildRequest = (): AddModRequest | undefined => {
   }
 
   error.value = true
+  errorMsg.value = `Invalid mod source: ${data.value.modSource}`
   console.error(`Invalid mod source: ${data.value.modSource}`)
 }
 
@@ -83,8 +84,6 @@ const submitForm = async () => {
   if (request === undefined) {
     error.value = true
     loading.value = false
-    errorMsg.value = `Invalid mod source: ${data.value.modSource}`
-    console.warn(errorMsg.value)
     return
   }
 
@@ -116,6 +115,7 @@ const cancelForm = async () => {
 watch(
   () => data.value.modUrl,
   async (newUrl: string) => {
+    dependencies.value = []
     error.value = false
     loading.value = true
     try {
@@ -133,20 +133,21 @@ watch(
   <div
     class="ma-6"
   >
-    <v-alert
-      v-if="error"
-      class="mb-6"
-      :text="'Error: ' + (errorMsg || 'failed to add new mod...')"
-      type="error"
-      icon="mdi-alert"
-      closable
-    />
     <v-card>
       <v-card-title>
         <h1 class="me-5">
           {{ pack.name || pack.slug }}
         </h1>
       </v-card-title>
+
+      <v-alert
+        v-if="error"
+        class="mb-6 ms-6 me-6"
+        :text="'Error: ' + (errorMsg || 'failed to add new mod...')"
+        type="error"
+        icon="mdi-alert"
+        closable
+      />
 
       <v-card-subtitle>
         <h3>Add New Mod</h3>
@@ -158,6 +159,7 @@ watch(
         @submit.prevent="submitForm"
       >
         <v-select
+          v-show="false"
           v-model="data.modSource"
           :items="['Curseforge', 'Modrinth', 'GitHub']"
           label="Mod Source"
@@ -168,6 +170,7 @@ watch(
           v-model="data.modUrl"
           label="Mod URL"
           :rules="[rules.urlRequired]"
+          clearable
         />
 
         <MissingDependencies
