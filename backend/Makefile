@@ -1,4 +1,4 @@
-BIN_TARGET := $(CURDIR)/bin/backend
+BIN_TARGET := bin/backend
 GOFMT_FILES?=$$(find . -type f -name '*.go')
 
 default: help
