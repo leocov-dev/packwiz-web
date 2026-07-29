@@ -2,6 +2,8 @@ module packwiz-web
 
 go 1.25.0
 
+toolchain go1.25.12
+
 require (
 	codeberg.org/jmansfield/go-modrinth v0.6.0
 	github.com/brianvoe/gofakeit/v7 v7.15.0
