@@ -2,7 +2,6 @@ package dto
 
 import (
 	"github.com/go-playground/validator/v10"
-	"packwiz-web/internal/log"
 )
 
 type ListUsersQuery struct {
@@ -14,7 +13,5 @@ type ListUsersQuery struct {
 }
 
 func (f *ListUsersQuery) Validate() error {
-	log.Info(f)
-
 	return validator.New(validator.WithRequiredStructEnabled()).Struct(f)
 }

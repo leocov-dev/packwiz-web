@@ -70,5 +70,5 @@ func addCurseforgeMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error
 
 	missingDependencies, err := lookupCurseforgeDependencies(url, pack)
 
-	return mod, missingDependencies, nil
+	return mod, missingDependencies, err
 }

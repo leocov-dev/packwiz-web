@@ -119,4 +119,11 @@ func init() {
 	if len(C.AdminPassword) < 16 {
 		panic("ADMIN_PASSWORD must be at least 16 characters")
 	}
+
+	if len(C.SessionSecret) == 0 {
+		panic("SESSION_SECRET env var not set")
+	}
+	if len(C.SessionSecret) < 16 {
+		panic("SESSION_SECRET must be at least 16 characters")
+	}
 }

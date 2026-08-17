@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	modeOptions    = []string{"debug"}
+	modeOptions    = []string{"users"}
 	fmtModeOptions = strings.Join(modeOptions, " | ")
 
 	bootstrap = &cobra.Command{

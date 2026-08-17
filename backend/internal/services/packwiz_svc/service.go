@@ -296,7 +296,9 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 			dependencyIds = append(dependencyIds, dbMod.ID)
 		}
 
-		_, err = createMod(newMod, dbPack, user, tx, false, dependencyIds)
+		if _, err := createMod(newMod, dbPack, user, tx, false, dependencyIds); err != nil {
+			return err
+		}
 
 		return nil
 	}); err != nil {
@@ -347,6 +349,8 @@ func (ps *PackwizService) ArchivePack(packId uint) response.ServerError {
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(
 			&tables.Pack{ID: packId},
+		).Select(
+			"IsPublic", "Status", "DeletedAt",
 		).Updates(
 			&tables.Pack{
 				IsPublic: false,
@@ -425,7 +429,7 @@ func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcce
 	if err := ps.db.
 		Model(tables.Pack{}).
 		Where(tables.Pack{ID: packId}).
-		Update("acceptableGameVersions", request.Versions).
+		Update("acceptable_game_versions", request.Versions).
 		Error; err != nil {
 		return response.Wrap(err)
 	}
@@ -597,8 +601,13 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		pack.Name = request.Name
 	}
 
-	pack.Description = request.Description
-	pack.AcceptableGameVersions = request.AcceptableVersions
+	if request.Description != "" {
+		pack.Description = request.Description
+	}
+
+	if len(request.AcceptableVersions) > 0 {
+		pack.AcceptableGameVersions = request.AcceptableVersions
+	}
 
 	if err := ps.db.Save(pack).Error; err != nil {
 		return response.Wrap(err)

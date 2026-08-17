@@ -1,8 +1,10 @@
 package dto
 
 import (
+	"errors"
 	"github.com/go-playground/validator/v10"
 	"github.com/leocov-dev/packwiz-nxt/core"
+	"packwiz-web/internal/interfaces"
 )
 
 type AddModrinth struct {
@@ -61,29 +63,45 @@ func (r AddGitHub) IsSet() bool {
 type AddModRequest struct {
 	Modrinth   *AddModrinth   `json:"modrinth"`
 	Curseforge *AddCurseforge `json:"curseforge"`
-	GitHub     *AddCurseforge `json:"github"`
+	GitHub     *AddGitHub     `json:"github"`
 }
 
 // Validate
 // assert that the AddModRequest is valid
 func (r AddModRequest) Validate() error {
-	return validator.New(validator.WithRequiredStructEnabled()).Struct(r)
-	//errorGroup := interfaces.NewErrorGroup()
-	//
-	//modrinthErr := r.Modrinth.Validate()
-	//curseforgeErr := r.Curseforge.Validate()
-	//
-	//modrinthValid := modrinthErr == nil
-	//curseforgeValid := curseforgeErr == nil
-	//
-	//if !(modrinthValid || curseforgeValid) || (modrinthValid && curseforgeValid) {
-	//	errorGroup.Add(errors.New("only one of modrinth or curseforge can be specified"))
-	//}
-	//
-	//if errorGroup.IsEmpty() {
-	//	return nil
-	//}
-	//return errorGroup
+	errorGroup := interfaces.NewErrorGroup()
+
+	setCount := 0
+
+	if r.Modrinth != nil {
+		if r.Modrinth.IsSet() {
+			setCount++
+		}
+		errorGroup.Add(r.Modrinth.Validate())
+	}
+
+	if r.Curseforge != nil {
+		if r.Curseforge.IsSet() {
+			setCount++
+		}
+		errorGroup.Add(r.Curseforge.Validate())
+	}
+
+	if r.GitHub != nil {
+		if r.GitHub.IsSet() {
+			setCount++
+		}
+		errorGroup.Add(r.GitHub.Validate())
+	}
+
+	if setCount != 1 {
+		errorGroup.Add(errors.New("exactly one of modrinth, curseforge, or github must be specified"))
+	}
+
+	if errorGroup.IsEmpty() {
+		return nil
+	}
+	return errorGroup
 }
 
 type ModDependency struct {

@@ -74,5 +74,5 @@ func addModrinthMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) 
 
 	missingDependencies, err := lookupModrinthDependencies(url, pack)
 
-	return mainMod, missingDependencies, nil
+	return mainMod, missingDependencies, err
 }

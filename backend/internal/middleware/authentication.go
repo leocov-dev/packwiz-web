@@ -37,6 +37,7 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 			ClearSession(c)
 			log.Warn("session key mismatch")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "session is invalid, log in again"})
+			return
 		}
 
 		c.Set("user", user)

@@ -66,7 +66,7 @@ func NewRouter() *gin.Engine {
 			{
 				routes.RegisterUserRoutes(protectedGroup, db, middleware.SkipAudit)
 
-				routes.RegisterAdminRoutes(protectedGroup, db)
+				routes.RegisterAdminRoutes(protectedGroup, db, middleware.AdminGuard(db))
 
 				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 

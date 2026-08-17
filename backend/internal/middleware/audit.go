@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
 )
@@ -47,6 +48,7 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 				if _, ok := formCopy["password"]; ok {
 					formCopy["password"] = []string{"********"}
 				}
+				actionParams["form"] = formCopy
 			}
 		}
 
@@ -58,7 +60,9 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 
 		// api auth middleware is bound after this one so this needs to be after
 		// the call to c.Next()
-		if action := c.GetString("auditAction"); action != "" {
+		if tag, ok := c.Get("meta.category"); ok {
+			auditRecord.Action = string(tag.(meta.TagCategory))
+		} else if action := c.GetString("auditAction"); action != "" {
 			auditRecord.Action = action
 		} else {
 			auditRecord.Action = c.Request.Method + " " + c.FullPath()

@@ -31,3 +31,16 @@ func PackPermissionGuard(minPermission types.PackPermission, db *gorm.DB) gin.Ha
 		c.Next()
 	}
 }
+
+func AdminGuard(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := c.MustGet("user").(tables.User)
+
+		if !user.IsAdmin {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+
+		c.Next()
+	}
+}

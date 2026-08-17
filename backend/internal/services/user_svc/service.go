@@ -175,6 +175,14 @@ func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int6
 			query.Where("is_admin = ?", false)
 		}
 
+		if request.NameSearch != "" {
+			query.Where("full_name ILIKE ?", "%"+request.NameSearch+"%")
+		}
+
+		if request.EmailSearch != "" {
+			query.Where("email ILIKE ?", "%"+request.EmailSearch+"%")
+		}
+
 		if err := query.Count(&total).Error; err != nil {
 			return err
 		}

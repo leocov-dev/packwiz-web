@@ -9,7 +9,7 @@ import (
 func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	adminController := controllers.NewAdminController(db)
 
-	adminGroup := router.Group("admin")
+	adminGroup := router.Group("admin", handlers...)
 	{
 		adminGroup.GET("users", adminController.GetUsersPaginated)
 	}
