@@ -27,6 +27,10 @@ const rules = {
 }
 
 const parseUrl = (url: string) => {
+  if (!url) {
+    data.value.modSource = ""
+    return
+  }
   if (url.includes("curseforge.com")) {
     data.value.modSource = "Curseforge"
   } else if (url.includes("modrinth.com")) {
@@ -38,7 +42,7 @@ const parseUrl = (url: string) => {
   }
 }
 
-const checkForDependencies = async () => {
+const checkForDependencies = async (seq: number) => {
   const request = buildRequest()
 
   if (request === undefined) {
@@ -46,7 +50,9 @@ const checkForDependencies = async () => {
   }
   const deps = await listMissingDependencies(pack.id, request)
 
-  dependencies.value = deps.missing
+  if (seq === requestSeq) {
+    dependencies.value = deps.missing
+  }
 }
 
 const buildRequest = (): AddModRequest | undefined => {
@@ -112,18 +118,38 @@ const cancelForm = async () => {
 }
 
 
+let debounceTimer: ReturnType<typeof setTimeout> | undefined
+let requestSeq = 0
+
 watch(
   () => data.value.modUrl,
-  async (newUrl: string) => {
+  (newUrl: string | null) => {
     dependencies.value = []
     error.value = false
-    loading.value = true
-    try {
-      parseUrl(newUrl)
-      await checkForDependencies()
-    } finally {
-      loading.value = false
+
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
     }
+
+    if (!newUrl) {
+      data.value.modSource = ""
+      loading.value = false
+      return
+    }
+
+    loading.value = true
+    const seq = ++requestSeq
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        parseUrl(newUrl)
+        await checkForDependencies(seq)
+      } finally {
+        if (seq === requestSeq) {
+          loading.value = false
+        }
+      }
+    }, 400)
   },
 )
 

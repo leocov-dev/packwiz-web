@@ -6,6 +6,10 @@ const {density} = defineProps<{density?: 'default' | 'comfortable' | 'compact' }
 
 const rawSearch = ref(model.value)
 
+watch(() => model.value, (v) => {
+  rawSearch.value = v
+})
+
 const onSearch = () => {
   model.value = rawSearch.value
 }

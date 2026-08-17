@@ -5,7 +5,8 @@ import type {UserProfileFormData} from "@/components/user/UserProfile.vue";
 
 
 export async function userLogin(username: string, password: string): Promise<User> {
-  return apiClient.postForm('v1/auth/login', {username, password})
+  const response = await apiClient.postForm('v1/auth/login', {username, password})
+  return plainToInstance(User, response.data)
 }
 
 

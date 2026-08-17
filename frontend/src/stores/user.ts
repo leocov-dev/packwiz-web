@@ -16,8 +16,13 @@ export const usePrefStore = defineStore('userPreferences', {
       const savedPrefs = localStorage.getItem(`user-prefs-${userId}`)
 
       if (savedPrefs) {
-        const parsed = JSON.parse(savedPrefs)
-        this.$patch(parsed)
+        try {
+          const parsed = JSON.parse(savedPrefs)
+          this.$patch(parsed)
+        } catch (e) {
+          console.warn(`Corrupted preferences for user ${userId}, resetting`, e)
+          localStorage.removeItem(`user-prefs-${userId}`)
+        }
       }
     },
     savePreferences() {

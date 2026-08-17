@@ -64,7 +64,7 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
       <v-list>
         <v-list-item
           v-for="(item, index) in items"
-          :key="item.raw.name"
+          :key="item.raw.id"
           :class="{'first-dependency': isFirstDependency(item.raw, items.map(i => i.raw), index)}"
         >
           <ModCard

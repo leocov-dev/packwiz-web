@@ -25,11 +25,11 @@ const openLink = () => {
   openPublicLink(pack.id)
 }
 
-const actions: {
+const actions = computed<{
   icon: string,
   action: () => void | Promise<void>,
   tooltip: string,
-}[] = [
+}[]>(() => [
   {
     icon: 'mdi-clipboard-text-multiple-outline',
     action: copyToClipboard,
@@ -40,7 +40,7 @@ const actions: {
     action: openLink,
     tooltip: pack.isPublic ? "Open public link" : "Open personalized link",
   }
-]
+])
 </script>
 
 <template>

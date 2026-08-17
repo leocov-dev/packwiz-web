@@ -43,3 +43,7 @@ export interface AddModRequest {
     url: string;
   }
 }
+
+export interface ChangeModSideRequest {
+  side: "client" | "server" | "both";
+}

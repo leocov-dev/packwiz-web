@@ -1,4 +1,4 @@
-import {AllPacksResponse, PackResponse} from "@/interfaces/pack";
+import {AllPacksResponse, Pack, PackResponse} from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
 import type {EditPackRequest, NewPackRequest} from "@/interfaces/requests.ts";
@@ -65,8 +65,9 @@ export async function openPublicLink(packId: number) {
   window.open(link, '_blank')
 }
 
-export async function newPack(request: NewPackRequest) {
-  return apiClient.post('v1/packwiz/pack', request)
+export async function newPack(request: NewPackRequest): Promise<Pack> {
+  const response = await apiClient.post('v1/packwiz/pack', request)
+  return plainToInstance(Pack, response.data)
 }
 
 export async function editPack(packId: number, request: EditPackRequest) {

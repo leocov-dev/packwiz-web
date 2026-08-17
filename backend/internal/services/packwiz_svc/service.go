@@ -439,19 +439,56 @@ func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcce
 
 // UpdateAll
 // update all the mods in a pack, skipping pinned mods
-func (ps *PackwizService) UpdateAll(packId uint) response.ServerError {
+func (ps *PackwizService) UpdateAll(packId uint, user tables.User) response.ServerError {
 
-	_, err := ps.GetPackById(packId)
+	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
 		return err
 	}
 
-	// TODO: expose update in lib
-	//if packwiz_cli.UpdateAll(slug) != nil {
-	//	return response.New(http.StatusInternalServerError, "failed to update all mods")
-	//}
+	pack := dbPack.AsMeta()
 
-	return response.New(http.StatusInternalServerError, "not implemented")
+	if updateErr := core.UpdateAllMods(nil, pack); updateErr != nil {
+		return response.Wrap(updateErr)
+	}
+
+	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+		for _, dbMod := range dbPack.Mods {
+			updatedMod, ok := pack.Mods[dbMod.Slug]
+			if !ok {
+				continue
+			}
+			if err := applyModUpdate(tx, dbMod.ID, updatedMod, user); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); txErr != nil {
+		return response.Wrap(txErr)
+	}
+
+	return nil
+}
+
+// applyModUpdate
+// persist the fields of an updated core.Mod back onto its corresponding tables.Mod row
+func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.User) error {
+	source, update := tables.ExtractModSource(updated)
+
+	return tx.Model(&tables.Mod{ID: dbModID}).Select(
+		"FileName", "Download", "Source", "Update", "UpdatedBy",
+	).Updates(tables.Mod{
+		FileName: updated.FileName,
+		Download: tables.DownloadInfo{
+			URL:        updated.Download.URL,
+			Mode:       updated.Download.Mode,
+			Hash:       updated.Download.Hash,
+			HashFormat: updated.Download.HashFormat,
+		},
+		Source:    source,
+		Update:    update,
+		UpdatedBy: user.ID,
+	}).Error
 }
 
 // ModExistsById
@@ -498,7 +535,7 @@ func (ps *PackwizService) RemoveModById(modId uint) response.ServerError {
 
 // UpdateMod
 // update a given mod from a given pack
-func (ps *PackwizService) UpdateMod(modId uint) response.ServerError {
+func (ps *PackwizService) UpdateMod(modId uint, user tables.User) response.ServerError {
 	modInfo, err := ps.GetMod(modId)
 	if err != nil {
 		return err
@@ -508,12 +545,29 @@ func (ps *PackwizService) UpdateMod(modId uint) response.ServerError {
 		return response.New(http.StatusBadRequest, "cannot update pinned mod")
 	}
 
-	// TODO: expose in lib
-	//if packwiz_cli.UpdateOne(slug, mod) != nil {
-	//	return response.New(http.StatusInternalServerError, "failed to update mod")
-	//}
+	dbPack, err := ps.GetPackById(modInfo.PackID)
+	if err != nil {
+		return err
+	}
 
-	return response.New(http.StatusInternalServerError, "not implemented")
+	pack := dbPack.AsMeta()
+
+	mod, ok := pack.Mods[modInfo.Slug]
+	if !ok {
+		return response.New(http.StatusNotFound, fmt.Sprintf("mod '%s' not found in pack", modInfo.Slug))
+	}
+
+	if updateErr := core.UpdateSingleMod(nil, pack, mod); updateErr != nil {
+		return response.Wrap(updateErr)
+	}
+
+	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+		return applyModUpdate(tx, modInfo.ID, mod, user)
+	}); txErr != nil {
+		return response.Wrap(txErr)
+	}
+
+	return nil
 }
 
 // GetMod
@@ -588,6 +642,110 @@ func (ps *PackwizService) GetPersonalLink(
 	}
 
 	return *link, nil
+}
+
+// PackUserInfo
+// a user's access information for a given pack
+type PackUserInfo struct {
+	UserID     uint                 `json:"userId"`
+	Username   string               `json:"username"`
+	FullName   string               `json:"fullName"`
+	Email      string               `json:"email"`
+	Permission types.PackPermission `json:"permission"`
+	CreatedAt  time.Time            `json:"createdAt"`
+}
+
+// ListPackUsers
+// list all users with access to a pack
+func (ps *PackwizService) ListPackUsers(packId uint) ([]PackUserInfo, response.ServerError) {
+	var results []PackUserInfo
+
+	if err := ps.db.Model(&tables.PackUsers{}).
+		Select(
+			"pack_users.user_id, users.username, users.full_name, users.email, pack_users.permission, pack_users.created_at",
+		).
+		Joins("JOIN users ON users.id = pack_users.user_id").
+		Where("pack_users.pack_id = ?", packId).
+		Order("users.username asc").
+		Scan(&results).Error; err != nil {
+		return nil, response.New(http.StatusInternalServerError, "failed to query db for pack users")
+	}
+
+	return results, nil
+}
+
+// GrantPackUser
+// grant a user access to a pack
+func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.PackPermission) response.ServerError {
+	if _, err := ps.GetPackById(packId); err != nil {
+		return err
+	}
+
+	var userExists bool
+	if err := ps.db.Model(&tables.User{}).
+		Select("1").
+		Where("id = ?", userId).
+		Limit(1).
+		Find(&userExists).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to query db for user")
+	}
+	if !userExists {
+		return response.New(http.StatusNotFound, fmt.Sprintf("user '%d' not found", userId))
+	}
+
+	var alreadyExists bool
+	if err := ps.db.Model(&tables.PackUsers{}).
+		Select("1").
+		Where("pack_id = ? AND user_id = ?", packId, userId).
+		Limit(1).
+		Find(&alreadyExists).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to query db for pack user")
+	}
+	if alreadyExists {
+		return response.New(http.StatusConflict, "user already has access to this pack, use edit instead")
+	}
+
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Create(&tables.PackUsers{
+			PackID:     packId,
+			UserID:     userId,
+			Permission: permission,
+		}).Error
+	}); err != nil {
+		return response.Wrap(err)
+	}
+
+	return nil
+}
+
+// RevokePackUser
+// revoke a user's access to a pack
+func (ps *PackwizService) RevokePackUser(packId, userId uint) response.ServerError {
+	result := ps.db.Where("pack_id = ? AND user_id = ?", packId, userId).Delete(&tables.PackUsers{})
+	if result.Error != nil {
+		return response.Wrap(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return response.New(http.StatusNotFound, "user does not have access to this pack")
+	}
+
+	return nil
+}
+
+// ChangePackUserPermission
+// change a user's permission level for a pack
+func (ps *PackwizService) ChangePackUserPermission(packId, userId uint, permission types.PackPermission) response.ServerError {
+	result := ps.db.Model(&tables.PackUsers{}).
+		Where("pack_id = ? AND user_id = ?", packId, userId).
+		Update("permission", permission)
+	if result.Error != nil {
+		return response.Wrap(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return response.New(http.StatusNotFound, "user does not have access to this pack")
+	}
+
+	return nil
 }
 
 func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) response.ServerError {

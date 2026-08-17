@@ -111,8 +111,8 @@ watch(
     <template #default="{ items }">
       <v-row class="ma-2">
         <v-col
-          v-for="(item, i) in items"
-          :key="i"
+          v-for="item in items"
+          :key="item.raw.id"
           cols="12"
           md="4"
           sm="12"

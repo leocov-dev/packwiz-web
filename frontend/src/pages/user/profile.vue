@@ -13,13 +13,14 @@ import {AxiosError} from "axios";
 const authStore = useAuthStore()
 const snackbarStore = useSnackbarStore()
 
-const user = authStore.user
+const user = computed(() => authStore.user)
 
 const onUpdate = async (userData: UserProfileFormData) => {
-  if (!user) return
+  if (!user.value) return
 
   try {
     await updateCurrentUser(userData)
+    await authStore.refreshUser()
   } catch (e) {
     let msg = "Unknown error"
     if (e instanceof AxiosError) {

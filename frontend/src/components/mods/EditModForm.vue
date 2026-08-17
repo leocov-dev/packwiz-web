@@ -1,32 +1,75 @@
 <script setup lang="ts">
 import {type Pack, type Mod} from "@/interfaces/pack.ts";
+import {changeModSide, pinMod, unpinMod, updateModFromSource} from "@/services/mods.service.ts";
+import axios from "axios";
 
 const {pack, mod} = defineProps<{ pack: Pack, mod: Mod }>()
 
 const router = useRouter()
 
 const error = ref(false)
+const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
 
-
-
+const data = ref({
+  side: mod.side,
+  pinned: mod.pinned,
+})
 
 const submitForm = async () => {
   error.value = false
   loading.value = true
 
   try {
-    // await addMod(pack.id, request)
+    if (data.value.side !== mod.side) {
+      await changeModSide(pack.id, mod.id, {side: data.value.side})
+    }
+
+    if (data.value.pinned !== mod.pinned) {
+      if (data.value.pinned) {
+        await pinMod(pack.id, mod.id)
+      } else {
+        await unpinMod(pack.id, mod.id)
+      }
+    }
 
     await router.push({path: `/packs/${pack.id}`})
   } catch (e) {
     error.value = true
-    console.error(e)
+
+    if (axios.isAxiosError(e)) {
+      errorMsg.value = e.response?.data?.error || "Failed to update mod"
+    } else {
+      errorMsg.value = String(e)
+    }
+
+    console.error(errorMsg.value)
   } finally {
     loading.value = false
   }
+}
 
+const updateFromSource = async () => {
+  error.value = false
+  loading.value = true
+
+  try {
+    await updateModFromSource(pack.id, mod.id)
+    await router.push({path: `/packs/${pack.id}`})
+  } catch (e) {
+    error.value = true
+
+    if (axios.isAxiosError(e)) {
+      errorMsg.value = e.response?.data?.error || "Failed to update mod from source"
+    } else {
+      errorMsg.value = String(e)
+    }
+
+    console.error(errorMsg.value)
+  } finally {
+    loading.value = false
+  }
 }
 
 const cancelForm = async () => {
@@ -41,7 +84,7 @@ const cancelForm = async () => {
     <v-alert
       v-if="error"
       class="mb-6"
-      text="Error editing mod..."
+      :text="'Error: ' + (errorMsg || 'failed to edit mod...')"
       type="error"
       icon="mdi-alert"
       closable
@@ -65,19 +108,45 @@ const cancelForm = async () => {
         class="ma-6"
         @submit.prevent="submitForm"
       >
-        <div class="d-flex justify-end">
+        <v-select
+          v-model="data.side"
+          :items="[
+            {title: 'Client', value: 'client'},
+            {title: 'Server', value: 'server'},
+            {title: 'Client + Server', value: 'both'},
+          ]"
+          label="Side"
+        />
+
+        <v-switch
+          v-model="data.pinned"
+          label="Pinned (don't auto-update)"
+          color="primary"
+          hide-details
+        />
+
+        <div class="d-flex justify-space-between mt-6">
           <v-btn
-            text="Cancel"
+            text="Update from source"
+            variant="outlined"
             :disabled="loading"
-            class="me-6"
-            @click="cancelForm"
+            @click="updateFromSource"
           />
-          <v-btn
-            text="Add Mod"
-            color="primary"
-            type="submit"
-            :disabled="loading || !isValid"
-          />
+
+          <div class="d-flex justify-end">
+            <v-btn
+              text="Cancel"
+              :disabled="loading"
+              class="me-6"
+              @click="cancelForm"
+            />
+            <v-btn
+              text="Save"
+              color="primary"
+              type="submit"
+              :disabled="loading"
+            />
+          </div>
         </div>
       </v-form>
 

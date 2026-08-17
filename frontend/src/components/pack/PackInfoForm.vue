@@ -24,9 +24,10 @@ const data = defineModel<PackInfoFormData>('data', {required: true})
 const loading = defineModel<boolean>('loading', {required: true})
 const emit = defineEmits(["submit-data", "cancel-op"])
 
-const {title, acceptText} = defineProps({
+const {title, acceptText, slugLocked} = defineProps({
   title: {type: String, required: true},
   acceptText: {type: String, required: true},
+  slugLocked: {type: Boolean, default: false},
 })
 
 const isValid = ref(false)
@@ -51,6 +52,7 @@ const isValid = ref(false)
           <SlugAndName
             v-model:slug="data.slug"
             v-model:name="data.name"
+            :slug-locked="slugLocked"
           />
         </v-col>
         <v-col class="v-col-md-3 v-col-sm-4">

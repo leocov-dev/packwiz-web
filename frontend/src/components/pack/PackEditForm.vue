@@ -93,6 +93,7 @@ const cancelForm = async () => {
       v-model:loading="editing"
       title="Edit Pack"
       accept-text="Save"
+      slug-locked
       @submit-data="submitForm"
       @cancel-op="cancelForm"
     />

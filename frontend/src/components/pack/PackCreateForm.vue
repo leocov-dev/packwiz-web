@@ -45,10 +45,10 @@ const submitForm = async () => {
   const request = buildRequest()
 
   try {
-    await newPack(request)
+    const pack = await newPack(request)
 
     await sleep(1500)
-    await router.push({path: `/packs/${request.slug}`})
+    await router.push({path: `/packs/${pack.id}`})
 
   } catch (e) {
     error.value = true

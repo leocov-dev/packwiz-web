@@ -38,7 +38,7 @@ func ApiAudit(db *gorm.DB) gin.HandlerFunc {
 		if c.Request.Header.Get("Content-Type") == "application/json" {
 			var bodyJson map[string]interface{}
 			if err := c.ShouldBindBodyWithJSON(&bodyJson); err == nil {
-				actionParams["body"] = bodyJson
+				actionParams["body"] = utils.RedactSensitiveValues(bodyJson)
 			}
 		}
 

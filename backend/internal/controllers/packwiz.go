@@ -280,7 +280,12 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateAll(packId)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.UpdateAll(packId, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -318,19 +323,85 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 }
 
 func (pc *PackwizController) GetPackUsers(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	users, err := pc.packwizSvc.ListPackUsers(packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if users == nil {
+		users = make([]packwiz_svc.PackUserInfo, 0)
+	}
+
+	dataOK(c, gin.H{"users": users})
 }
 
 func (pc *PackwizController) AddPackUser(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.AddPackUserRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.GrantPackUser(packId, request.UserID, request.Permission)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) RemovePackUser(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	userId, err := mustBindIdParam(c, params.UserID)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.RevokePackUser(packId, userId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 func (pc *PackwizController) EditUserAccess(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"msg": "not implemented"})
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	userId, err := mustBindIdParam(c, params.UserID)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.EditUserAccessRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.ChangePackUserPermission(packId, userId, request.Permission)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
 }
 
 // -----------------------------------------------------------------------------

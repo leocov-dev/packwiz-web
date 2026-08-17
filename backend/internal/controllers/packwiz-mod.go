@@ -147,7 +147,12 @@ func (pc *PackwizModController) UpdateMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateMod(modId)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.UpdateMod(modId, user)
 	if pc.abortWithError(c, err) {
 		return
 	}

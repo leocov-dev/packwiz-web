@@ -58,13 +58,18 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
       try {
         console.debug('Checking user...')
         this.user = await getCurrentUser()
+      } catch {
+        this.user = null
+        return
+      }
 
+      try {
         await initializeCacheStore()
 
         const userPrefs = usePrefStore()
         userPrefs.loadPreferences(this.user.id)
-      } catch {
-        this.user = null
+      } catch (e) {
+        console.warn('Failed to initialize cache/preferences', e)
       }
     },
     async refreshUser() {

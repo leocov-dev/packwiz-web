@@ -8,6 +8,8 @@ export interface UserListModel {
 </script>
 
 <script setup lang="ts">
+import type {PackResponse} from "@/interfaces/pack.ts";
+
 const model = defineModel({required: true, type: Object as () => UserListModel})
 
 const filterConfig: FiltersConfig = {
@@ -20,7 +22,8 @@ const filterConfig: FiltersConfig = {
 }
 
 const isLoading = ref(false)
-const data = ref([])
+// TODO: this component is unwired (renders PackCard for users) - kept as-is, out of scope
+const data = ref<PackResponse[]>([])
 const reload = () => {}
 
 watch(
@@ -84,8 +87,8 @@ watch(
     <template #default="{ items }">
       <v-row class="ma-2">
         <v-col
-          v-for="(item, i) in items"
-          :key="i"
+          v-for="item in items"
+          :key="item.raw.id"
           cols="12"
           md="4"
           sm="12"
