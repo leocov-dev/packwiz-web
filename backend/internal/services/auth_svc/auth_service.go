@@ -43,5 +43,13 @@ func (as *AuthService) Login(form dto.LoginForm) (tables.User, response.ServerEr
 		return tables.User{}, response.New(http.StatusBadRequest, "Invalid username or password")
 	}
 
+	if !user.IsActive {
+		log.Warn(
+			"login failed",
+			"username", form.Username,
+			"account deactivated")
+		return tables.User{}, response.New(http.StatusBadRequest, "Invalid username or password")
+	}
+
 	return user, nil
 }

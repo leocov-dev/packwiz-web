@@ -12,6 +12,12 @@ func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handle
 	adminGroup := router.Group("admin", handlers...)
 	{
 		adminGroup.GET("users", adminController.GetUsersPaginated)
+		adminGroup.POST("users", adminController.CreateUser)
+		adminGroup.GET("users/:userId", adminController.GetUserById)
+		adminGroup.PATCH("users/:userId", adminController.UpdateUser)
+		adminGroup.PATCH("users/:userId/deactivate", adminController.DeactivateUser)
+		adminGroup.PATCH("users/:userId/reactivate", adminController.ReactivateUser)
+		adminGroup.GET("audits", adminController.GetAuditsPaginated)
 	}
 
 	return adminGroup

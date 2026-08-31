@@ -1,67 +1,110 @@
-<script lang="ts">
-import {type FiltersConfig, type Filters} from "@/components/FiltersMenu.vue";
-
-export interface UserListModel {
-  search: string,
-  filters: Filters,
-}
-</script>
-
 <script setup lang="ts">
-import type {PackResponse} from "@/interfaces/pack.ts";
+import {fetchUsersPaginated} from "@/services/user.service.ts";
+import {buildDataLoader} from "@/composables/data-loader.ts";
+import {useRouter} from "vue-router";
+import type {User} from "@/interfaces/user.ts";
 
-const model = defineModel({required: true, type: Object as () => UserListModel})
+const router = useRouter()
 
-const filterConfig: FiltersConfig = {
-  "active": {
-    title: "Show Active"
-  },
-  "deactivated": {
-    title: "Show Deactivated"
-  }
+const nameSearch = ref('')
+const emailSearch = ref('')
+const userType = ref('')
+
+const page = ref(1)
+const itemsPerPage = ref(20)
+
+const userTypeItems = [
+  {title: 'All users', value: ''},
+  {title: 'Admin', value: 'admin'},
+  {title: 'User', value: 'user'},
+]
+
+const headers = [
+  {title: 'Username', key: 'username'},
+  {title: 'Full name', key: 'fullName'},
+  {title: 'Email', key: 'email'},
+  {title: 'Admin', key: 'isAdmin'},
+  {title: 'Status', key: 'isActive'},
+  {title: 'Created', key: 'createdAt'},
+]
+
+const {
+  isLoading,
+  data,
+  reload,
+} = buildDataLoader(async () => {
+  return fetchUsersPaginated(page.value, itemsPerPage.value, nameSearch.value, emailSearch.value, userType.value)
+})
+
+const users = computed(() => data.value?.results || [])
+const total = computed(() => data.value?.pagination.total || 0)
+
+const onUpdateOptions = (options: { page: number, itemsPerPage: number }) => {
+  page.value = options.page
+  itemsPerPage.value = options.itemsPerPage
+  reload()
 }
 
-const isLoading = ref(false)
-// TODO: this component is unwired (renders PackCard for users) - kept as-is, out of scope
-const data = ref<PackResponse[]>([])
-const reload = () => {}
+watch([nameSearch, emailSearch, userType], () => {
+  page.value = 1
+  reload()
+})
 
-watch(
-  model,
-  () => {
-    reload()
-  },
-  {deep: true},
-)
+const onRowClick = (_: Event, {item}: { item: User }) => {
+  router.push(`/admin/users/${item.id}`)
+}
 </script>
 
 <template>
-  <v-data-iterator
+  <v-data-table-server
+    :headers="headers"
+    :items="users"
+    :items-length="total"
+    :items-per-page="itemsPerPage"
+    :page="page"
     :loading="isLoading"
-    :items="data"
-    items-per-page="10"
+    class="pww-clickable-rows"
+    @update:options="onUpdateOptions"
+    @click:row="onRowClick"
   >
-    <template #header>
-      <v-toolbar class="ps-5 pe-5 pt-2 pb-2">
+    <template #top>
+      <v-toolbar
+        class="ps-5 pe-5 pt-2 pb-2 d-flex flex-wrap"
+        elevation="4"
+      >
         <SearchBar
-          v-model="model.search"
-          max-width="400"
-          class="me-auto"
+          v-model="nameSearch"
+          max-width="260"
+          class="me-3"
           density="comfortable"
         />
-
+        <v-text-field
+          v-model="emailSearch"
+          max-width="260"
+          class="me-3"
+          density="comfortable"
+          placeholder="Search by email"
+          prepend-inner-icon="mdi-email"
+          variant="solo"
+          clearable
+          hide-details
+          @keyup.enter="reload"
+          @click:clear="() => { emailSearch = ''; reload() }"
+        />
+        <v-select
+          v-model="userType"
+          :items="userTypeItems"
+          max-width="180"
+          class="me-auto"
+          density="comfortable"
+          variant="solo"
+          hide-details
+        />
         <v-btn
           text="New User"
-          to="/users/new"
-          link
-          color="primary"
-          variant="flat"
+          prepend-icon="mdi-plus"
           class="me-3"
-        />
-
-        <FiltersMenu
-          v-model="model.filters"
-          :config="filterConfig"
+          @click="router.push('/admin/users/new')"
         />
         <v-btn
           icon="mdi-refresh"
@@ -70,32 +113,28 @@ watch(
       </v-toolbar>
     </template>
 
-    <template #loader>
-      <v-row class="ma-2">
-        <v-col
-          v-for="n in 5"
-          :key="n"
-          cols="12"
-          md="4"
-          sm="12"
-        >
-          <v-skeleton-loader type="heading, paragraph, actions" />
-        </v-col>
-      </v-row>
+    <template #item.isAdmin="{ item }">
+      <v-chip
+        :color="item.isAdmin ? 'primary' : undefined"
+        :text="item.isAdmin ? 'Admin' : 'User'"
+        size="small"
+      />
     </template>
 
-    <template #default="{ items }">
-      <v-row class="ma-2">
-        <v-col
-          v-for="item in items"
-          :key="item.raw.id"
-          cols="12"
-          md="4"
-          sm="12"
-        >
-          <PackCard :pack="item.raw" />
-        </v-col>
-      </v-row>
+    <template #item.isActive="{ item }">
+      <v-chip
+        :color="item.isActive ? 'success' : 'error'"
+        :text="item.isActive ? 'Active' : 'Deactivated'"
+        size="small"
+      />
+    </template>
+
+    <template #item.createdAt="{ item }">
+      {{ new Date(item.createdAt).toLocaleDateString() }}
+    </template>
+
+    <template #loading>
+      <v-skeleton-loader type="table-row@5" />
     </template>
 
     <template #no-data>
@@ -103,5 +142,10 @@ watch(
         No results.
       </div>
     </template>
-  </v-data-iterator>
+  </v-data-table-server>
 </template>
+
+<style scoped lang="sass">
+.pww-clickable-rows :deep(tbody tr)
+  cursor: pointer
+</style>

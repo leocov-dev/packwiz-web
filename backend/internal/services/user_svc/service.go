@@ -158,6 +158,88 @@ func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) respo
 	return nil
 }
 
+func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, response.ServerError) {
+	if strings.ToLower(request.Username) == "admin" {
+		return tables.User{}, response.New(http.StatusBadRequest, "all forms of 'admin' username are reserved")
+	}
+
+	password := strings.TrimSpace(request.Password)
+	if !s.CheckPasswordComplexity(password) {
+		return tables.User{}, response.New(
+			http.StatusBadRequest,
+			"Password must contain at least one letter and one number",
+		)
+	}
+
+	var existing int64
+	if err := s.db.Model(&tables.User{}).
+		Where("username = ? OR email = ?", request.Username, request.Email).
+		Count(&existing).Error; err != nil {
+		return tables.User{}, response.New(http.StatusInternalServerError, "failed to check for existing user")
+	}
+	if existing > 0 {
+		return tables.User{}, response.New(http.StatusConflict, "username or email already in use")
+	}
+
+	hashed, err := utils.HashPassword(password)
+	if err != nil {
+		return tables.User{}, response.New(http.StatusInternalServerError, "Failed to hash password")
+	}
+
+	user := tables.User{
+		Username:  request.Username,
+		FullName:  request.FullName,
+		Email:     request.Email,
+		Password:  hashed,
+		IsAdmin:   request.IsAdmin,
+		IsActive:  true,
+		LinkToken: utils.GenerateLinkToken(16),
+	}
+
+	if err := s.db.Create(&user).Error; err != nil {
+		return tables.User{}, response.New(http.StatusInternalServerError, "failed to create db user")
+	}
+
+	return user, nil
+}
+
+func (s *UserService) DeactivateUser(actingUser tables.User, targetUserId uint) response.ServerError {
+	target, err := s.FindById(targetUserId)
+	if err != nil {
+		return response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", targetUserId))
+	}
+
+	if target.Username == "admin" {
+		return response.New(http.StatusBadRequest, "the default admin account cannot be deactivated")
+	}
+
+	if actingUser.ID == targetUserId {
+		return response.New(http.StatusBadRequest, "cannot deactivate your own account")
+	}
+
+	if err := s.db.Model(&tables.User{}).
+		Where("id = ?", targetUserId).
+		Update("is_active", false).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to deactivate user")
+	}
+
+	return s.InvalidateUserSessions(targetUserId)
+}
+
+func (s *UserService) ReactivateUser(targetUserId uint) response.ServerError {
+	if _, err := s.FindById(targetUserId); err != nil {
+		return response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", targetUserId))
+	}
+
+	if err := s.db.Model(&tables.User{}).
+		Where("id = ?", targetUserId).
+		Update("is_active", true).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to reactivate user")
+	}
+
+	return nil
+}
+
 func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int64, response.ServerError) {
 	var users []tables.User
 	var total int64

@@ -4,9 +4,9 @@ meta:
 </route>
 
 <script setup lang="ts">
-
+import AuditList from "@/components/audit/AuditList.vue";
 </script>
 
 <template>
-  <UnderConstruction />
+  <AuditList />
 </template>

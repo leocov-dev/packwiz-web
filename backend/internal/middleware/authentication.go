@@ -40,6 +40,13 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		if !user.IsActive {
+			ClearSession(c)
+			log.Warn("user account is deactivated")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "account is deactivated"})
+			return
+		}
+
 		c.Set("user", user)
 
 		c.Next()

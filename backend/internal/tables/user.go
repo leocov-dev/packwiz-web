@@ -16,6 +16,7 @@ type User struct {
 	Email      string         `gorm:"unique" json:"email"`
 	Password   string         `json:"-"`
 	IsAdmin    bool           `json:"isAdmin"`
+	IsActive   bool           `gorm:"default:true" json:"isActive"`
 	LinkToken  string         `gorm:"unique" json:"-"`
 	SessionKey string         `json:"-"`
 }
