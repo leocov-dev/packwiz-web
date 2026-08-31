@@ -54,42 +54,15 @@ end-to-end check next time the local stack is reachable, especially the
 - 🟡 Commented-out "open source link" button in
   `frontend/src/components/mods/ModCard.vue:16-18, 34-43`.
 
-### Packwiz file import
-- 🟡 Backend `internal/services/importer/reconcile_dir.go` is 100% commented-out,
-  stale, and references APIs that no longer exist in this form (would not compile if
-  uncommented). No corresponding frontend UI at all. Decide: finish or delete.
-- See also the packwiz-nxt import capabilities below — the stale reconciler predates
-  what the library can now do directly.
-
 ### Available in packwiz-nxt but not exposed anywhere in packwiz-web
 The backend only touches a thin slice of `packwiz-nxt`: add-mod resolution
 (modrinth/curseforge/github by URL) and missing-dependency lookup. The library
-itself is a full library-ified fork of the original `packwiz` CLI (`init`, `list`,
-`pin`/`unpin`, `refresh`, `rehash`, `remove`, `update`, `migrate minecraft`/
-`migrate loader`, `settings acceptable-versions`, `modrinth {install,export}`,
-`curseforge {install,export,import,detect}`, `github install`, `url add`) and
-supports considerably more than what's wired up. None of the below has any backend
+itself is a full library-ified fork of the original `packwiz` CLI and supports
+considerably more than what's wired up. (Whole-modpack import/export — `.mrpack`,
+CurseForge zip import/export, the stale `reconcile_dir.go` importer — is
+explicitly out of scope; not tracked here.) None of the below has any backend
 route or frontend UI today:
 
-- 🟠 **Export to `.mrpack` (Modrinth pack format).**
-  `sources.BuildModrinthManifest` (`sources/mr-export.go:56`) +
-  `sources.CanBeIncludedDirectly` (`sources/mr-export.go:30`). No export capability
-  of any kind exists in packwiz-web currently.
-- 🟠 **Export to CurseForge modpack zip.** `sources.ParseExportData`
-  (`sources/cf-updater.go:423`) + `internal/commands/cmdcurseforge/packinterop.WriteManifestFromPack`
-  — builds `manifest.json` + `modlist.html` + overrides.
-- 🟠 **Import a whole CurseForge modpack.** `sources.CurseforgeImportPack`
-  (`sources/cf-import.go:19`) — resolves every CF mod reference from a
-  `manifest.json`/`minecraftinstance.json`, a zip, or a URL to one, into a
-  `core.Pack`. Handles zip/dir/URL/Windows-Curse-instance source detection. This is
-  a complete, ready-to-call replacement for the stale `reconcile_dir.go` importer
-  above.
-- 🟡 **Bulk-detect mods from a folder of jars.** `sources.CurseforgeDetectMods(dir)`
-  (`sources/cf-detect.go:47`) — hashes `.jar`/`.litemod` files with CurseForge's
-  murmur2 fingerprint and matches them against the CF API. Could back a "drop in an
-  existing mods folder, tell me what's in it" import flow.
-  - Note: no `.mrpack` *import* exists in the library (export only) — would need
-    building even at the library layer if wanted.
 - 🟡 **Add a mod from a direct download URL (non-provider "external" mod).** The
   CLI's `url add` command builds a `core.ModToml` with `Download.Mode = core.ModeURL`
   by hashing the file via `fileio.CreateDownloadSession`
@@ -117,10 +90,10 @@ route or frontend UI today:
   filtering (`cmd/list.go`) that aren't replicated in any packwiz-web listing/filter
   endpoint — the frontend's mod list has no side-based filter at all currently.
 
-**Takeaway**: export/import (`.mrpack`, CurseForge zip, whole-pack CF import) is
-the largest remaining gap — complete, ready-to-call library features with zero
-footprint anywhere in packwiz-web today. Mod removal and Modrinth search have
-shipped; see git history of this file.
+**Takeaway**: mod removal and Modrinth search have shipped; see git history of
+this file. What's left below (external-URL mods, bulk rehash, optional mods,
+Quilt substitution, side-filtered listing) is all low-priority polish, not
+core gaps.
 
 ### Minor / scale
 - 🟡 No pagination in `PackList.vue`/`ModsList.vue` (`items-per-page="0"`, load-all)
@@ -154,6 +127,4 @@ shipped; see git history of this file.
 
 1. Verify the batch of recently-shipped work end-to-end against a real Postgres
    (see Outstanding verification gap above) — especially the `IsActive` migration.
-2. Decide scope on: packwiz export/import (ready-to-call packwiz-nxt library
-   functions, see above) — larger feature builds, not quick fixes.
-3. Everything else in Medium/Low as time allows.
+2. Everything else in Medium/Low as time allows.
