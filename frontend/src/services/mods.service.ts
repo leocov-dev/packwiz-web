@@ -1,6 +1,6 @@
 import {apiClient} from "@/services/api.service.ts";
 import type {AddModRequest, ChangeModSideRequest} from "@/interfaces/requests.ts";
-import {Mod, ModDependenciesResponse} from "@/interfaces/pack.ts";
+import {Mod, ModDependenciesResponse, ModSearchResponse} from "@/interfaces/pack.ts";
 import {plainToInstance} from "class-transformer";
 
 export async function fetchOneMod(packId: number, modId: number): Promise<Mod> {
@@ -36,4 +36,13 @@ export async function updateModFromSource(packId: number, modId: number) {
 
 export async function removeMod(packId: number, modId: number) {
   return apiClient.delete(`v1/packwiz/pack/${packId}/mod/${modId}`)
+}
+
+export async function searchModrinthMods(packId: number, query: string, versions?: string[]): Promise<ModSearchResponse> {
+  const params = new URLSearchParams({q: query})
+  for (const v of versions || []) {
+    params.append('versions', v)
+  }
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/search?${params.toString()}`)
+  return plainToInstance(ModSearchResponse, response.data)
 }

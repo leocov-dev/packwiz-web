@@ -4,9 +4,12 @@ import (
 	"codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+
 	"github.com/leocov-dev/packwiz-nxt/core"
 	"github.com/leocov-dev/packwiz-nxt/sources"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 )
 
 func lookupModrinthDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
@@ -75,4 +78,39 @@ func addModrinthMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) 
 	missingDependencies, err := lookupModrinthDependencies(url, pack)
 
 	return mainMod, missingDependencies, err
+}
+
+// strPtr
+// nil-safe dereference for the modrinth client's *string fields
+func strPtr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// SearchModrinthProjects
+// searches Modrinth by name/keyword, optionally filtered to compatible game versions,
+// for the "search for a mod" picker in the add-mod flow
+func (ps *PackwizService) SearchModrinthProjects(query string, versions []string) ([]dto.ModSearchResult, response.ServerError) {
+	projects, err := sources.ModrinthSearchForProjects(query, versions)
+	if err != nil {
+		if err.Error() == "no projects found" {
+			return []dto.ModSearchResult{}, nil
+		}
+		return nil, response.Wrap(err)
+	}
+
+	results := make([]dto.ModSearchResult, 0, len(projects))
+	for _, project := range projects {
+		results = append(results, dto.ModSearchResult{
+			Slug:        strPtr(project.Slug),
+			Title:       strPtr(project.Title),
+			Description: strPtr(project.Description),
+			IconUrl:     strPtr(project.IconURL),
+			ProjectId:   strPtr(project.ID),
+		})
+	}
+
+	return results, nil
 }

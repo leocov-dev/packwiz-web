@@ -86,6 +86,30 @@ func (pc *PackwizModController) ListMissingDependencies(c *gin.Context) {
 	dataOK(c, gin.H{"missing": data})
 }
 
+func (pc *PackwizModController) SearchModrinthMods(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	var query dto.SearchModsQuery
+	err = mustBindQuery(c, &query)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	results, err := pc.packwizSvc.SearchModrinthProjects(query.Query, query.Versions)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, gin.H{"results": results})
+}
+
 func (pc *PackwizModController) GetOneMod(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {

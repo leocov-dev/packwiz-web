@@ -95,14 +95,18 @@ route or frontend UI today:
   existing mods folder, tell me what's in it" import flow.
   - Note: no `.mrpack` *import* exists in the library (export only) — would need
     building even at the library layer if wanted.
-- 🟠 **Search Modrinth by name/keyword.** `sources.ModrinthSearchForProjects(query, versions)`
-  (`sources/mr-api.go:50`) — full-text project search filtered by MC version.
-  Today's add-mod flow only accepts a direct URL paste
-  (`modrinthProjectAndVersion`/`curseforgeModInfoFromUrl`/`addGithubMod` all take a
-  `url` string) — there is no "search for a mod by name" anywhere in the product,
-  even though Modrinth search is already available in the library. (No equivalent
-  free-text CurseForge search function was found — only slug/URL/ID lookups via
-  `sources.CurseforgeModInfoFromSlug`.)
+- ✅ **Search Modrinth by name/keyword — shipped 2026-08-31.** New
+  `PackwizService.SearchModrinthProjects` (`packwiz_svc/modrinth.go`) wraps
+  `sources.ModrinthSearchForProjects`, mapped to a `dto.ModSearchResult` DTO
+  rather than leaking the third-party Modrinth type. New
+  `GET pack/:packId/mod/search` route/controller
+  (`SearchModrinthMods` in `packwiz-mod.go`), inheriting the edit-permission
+  guard. Frontend: `AddModForm.vue` gained a "Paste URL"/"Search Modrinth"
+  toggle — selecting a search result populates the same `modUrl` field the
+  existing URL-paste flow already consumes, so add/dependency-check/submit
+  logic is unchanged. No CurseForge equivalent exists in the library (only
+  slug/URL/ID lookups via `sources.CurseforgeModInfoFromSlug`), so CF search
+  remains out of scope.
 - 🟡 **Add a mod from a direct download URL (non-provider "external" mod).** The
   CLI's `url add` command builds a `core.ModToml` with `Download.Mode = core.ModeURL`
   by hashing the file via `fileio.CreateDownloadSession`

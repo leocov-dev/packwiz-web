@@ -84,6 +84,20 @@ export class ModDependenciesResponse {
 }
 
 
+export class ModSearchResult {
+  slug!: string;
+  title!: string;
+  description!: string;
+  iconUrl!: string;
+  projectId!: string;
+}
+
+export class ModSearchResponse {
+  @Type(() => ModSearchResult)
+  results?: ModSearchResult[];
+}
+
+
 export class PackCollaborator {
   userId!: number;
   username!: string;

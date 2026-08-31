@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {type Pack} from "@/interfaces/pack.ts";
-import {addMod, listMissingDependencies} from "@/services/mods.service.ts";
+import {addMod, listMissingDependencies, searchModrinthMods} from "@/services/mods.service.ts";
 import type {AddModRequest} from "@/interfaces/requests.ts";
-import type {ModDependency} from "@/interfaces/pack.ts"
+import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import axios from "axios";
 
@@ -15,6 +15,12 @@ const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
 const dependencies = ref<ModDependency[]>([])
+
+const mode = ref<"url" | "search">("url")
+const searchQuery = ref("")
+const searchResults = ref<ModSearchResult[]>([])
+const searchLoading = ref(false)
+const selectedProjectSlug = ref("")
 
 const data = ref({
   modSource: "",
@@ -117,9 +123,46 @@ const cancelForm = async () => {
   await router.push({path: `/packs/${pack.id}`})
 }
 
+const selectSearchResult = (result: ModSearchResult) => {
+  selectedProjectSlug.value = result.slug
+  data.value.modUrl = `https://modrinth.com/mod/${result.slug}`
+}
+
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let requestSeq = 0
+
+let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
+let searchRequestSeq = 0
+
+watch(searchQuery, (newQuery: string) => {
+  searchResults.value = []
+
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+
+  if (!newQuery || newQuery.length < 2) {
+    searchLoading.value = false
+    return
+  }
+
+  searchLoading.value = true
+  const seq = ++searchRequestSeq
+
+  searchDebounceTimer = setTimeout(async () => {
+    try {
+      const response = await searchModrinthMods(pack.id, newQuery, pack.mcVersion ? [pack.mcVersion] : undefined)
+      if (seq === searchRequestSeq) {
+        searchResults.value = response.results || []
+      }
+    } finally {
+      if (seq === searchRequestSeq) {
+        searchLoading.value = false
+      }
+    }
+  }, 400)
+})
 
 watch(
   () => data.value.modUrl,
@@ -192,12 +235,64 @@ watch(
           :rules="[rules.sourceRequired]"
         />
 
+        <v-btn-toggle
+          v-model="mode"
+          class="mb-4"
+          mandatory
+          density="comfortable"
+          variant="outlined"
+        >
+          <v-btn
+            value="url"
+            text="Paste URL"
+          />
+          <v-btn
+            value="search"
+            text="Search Modrinth"
+          />
+        </v-btn-toggle>
+
         <v-text-field
+          v-if="mode === 'url'"
           v-model="data.modUrl"
           label="Mod URL"
           :rules="[rules.urlRequired]"
           clearable
         />
+
+        <div v-else>
+          <v-text-field
+            v-model="searchQuery"
+            label="Search Modrinth"
+            prepend-inner-icon="mdi-magnify"
+            :loading="searchLoading"
+            clearable
+          />
+
+          <v-list v-if="searchResults.length > 0">
+            <v-list-item
+              v-for="result in searchResults"
+              :key="result.projectId"
+              :active="result.slug === selectedProjectSlug"
+              @click="selectSearchResult(result)"
+            >
+              <template #prepend>
+                <v-avatar
+                  v-if="result.iconUrl"
+                  :image="result.iconUrl"
+                />
+                <v-icon
+                  v-else
+                  icon="mdi-puzzle-outline"
+                />
+              </template>
+              <v-list-item-title>{{ result.title }}</v-list-item-title>
+              <v-list-item-subtitle class="text-truncate">
+                {{ result.description }}
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </div>
 
         <MissingDependencies
           v-if="(dependencies || []).length > 0"
@@ -216,7 +311,7 @@ watch(
             text="Add Mod"
             color="primary"
             type="submit"
-            :disabled="loading || !isValid"
+            :disabled="loading || !isValid || (mode === 'search' && !data.modUrl)"
           />
         </div>
       </v-form>
