@@ -9,11 +9,11 @@ build: fmt
 
 # start the server in development mode (will run build first)
 start-dev: build
-	PWW_MODE=development $(BIN_TARGET)
+	PWW_MODE=development $(BIN_TARGET) start
 
 # start the server in production mode (will run build first)
 start-prod: build
-	$(BIN_TARGET)
+	$(BIN_TARGET) start
 
 # run all tests
 test:
