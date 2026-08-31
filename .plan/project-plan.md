@@ -14,20 +14,6 @@ change — remove the item (or fold into a brief note if useful context), and ad
 the Suggested priority order below. Don't let this doc drift out of sync with the
 actual code state.
 
-## Outstanding verification gap
-
-A large batch of backend + frontend work (MC/loader migration, admin user
-lifecycle including the `IsActive` migration, audit log, pack-collaborator
-management, Update All) has **not been live-verified in a browser or against a
-real Postgres** in this environment — Docker Desktop here couldn't bind-mount
-`/Users/leo/src` or forward the local Postgres port
-(`localdev/docker-compose.yml`'s `55432:5432` unreachable from host, though
-`docker exec pg_isready` succeeds inside the container). Worth a real
-end-to-end check next time the local stack is reachable, especially the
-`000003_add_user_is_active` migration.
-
----
-
 ## Features (missing or unimplemented)
 
 ### Modpack updating
@@ -125,6 +111,5 @@ core gaps.
 
 ## Suggested priority order
 
-1. Verify the batch of recently-shipped work end-to-end against a real Postgres
-   (see Outstanding verification gap above) — especially the `IsActive` migration.
-2. Everything else in Medium/Low as time allows.
+Everything remaining is Medium/Low polish — tackle as time allows, no urgent
+item outstanding.
