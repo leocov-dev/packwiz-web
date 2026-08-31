@@ -43,11 +43,6 @@ end-to-end check next time the local stack is reachable, especially the
   Intentionally deferred, not a bug.
 
 ### Mod management
-- ✅ **Mod removal/delete UI shipped 2026-08-31.** `ModCard.vue` gained a
-  delete button (confirm dialog, error banner) calling the already-implemented
-  `DELETE v1/packwiz/pack/:packId/mod/:modId` endpoint; both Edit and Delete
-  are now gated on the `canEdit` prop, which is newly threaded through from
-  `ModsList.vue` (previously ungated).
 - 🟡 **`RemoveModById` doesn't clean up stale `DependencyIds` references.**
   Deleting a mod that other mods depend on leaves their `DependencyIds`
   arrays pointing at a nonexistent mod row
@@ -95,18 +90,6 @@ route or frontend UI today:
   existing mods folder, tell me what's in it" import flow.
   - Note: no `.mrpack` *import* exists in the library (export only) — would need
     building even at the library layer if wanted.
-- ✅ **Search Modrinth by name/keyword — shipped 2026-08-31.** New
-  `PackwizService.SearchModrinthProjects` (`packwiz_svc/modrinth.go`) wraps
-  `sources.ModrinthSearchForProjects`, mapped to a `dto.ModSearchResult` DTO
-  rather than leaking the third-party Modrinth type. New
-  `GET pack/:packId/mod/search` route/controller
-  (`SearchModrinthMods` in `packwiz-mod.go`), inheriting the edit-permission
-  guard. Frontend: `AddModForm.vue` gained a "Paste URL"/"Search Modrinth"
-  toggle — selecting a search result populates the same `modUrl` field the
-  existing URL-paste flow already consumes, so add/dependency-check/submit
-  logic is unchanged. No CurseForge equivalent exists in the library (only
-  slug/URL/ID lookups via `sources.CurseforgeModInfoFromSlug`), so CF search
-  remains out of scope.
 - 🟡 **Add a mod from a direct download URL (non-provider "external" mod).** The
   CLI's `url add` command builds a `core.ModToml` with `Download.Mode = core.ModeURL`
   by hashing the file via `fileio.CreateDownloadSession`
@@ -134,10 +117,10 @@ route or frontend UI today:
   filtering (`cmd/list.go`) that aren't replicated in any packwiz-web listing/filter
   endpoint — the frontend's mod list has no side-based filter at all currently.
 
-**Takeaway**: mod removal and the packwiz-nxt-backed features (export, import,
-search, external-URL mods, rehash, optional mods) are the largest remaining gaps —
-complete, ready-to-call library features with zero footprint anywhere in
-packwiz-web today.
+**Takeaway**: export/import (`.mrpack`, CurseForge zip, whole-pack CF import) is
+the largest remaining gap — complete, ready-to-call library features with zero
+footprint anywhere in packwiz-web today. Mod removal and Modrinth search have
+shipped; see git history of this file.
 
 ### Minor / scale
 - 🟡 No pagination in `PackList.vue`/`ModsList.vue` (`items-per-page="0"`, load-all)
@@ -171,7 +154,6 @@ packwiz-web today.
 
 1. Verify the batch of recently-shipped work end-to-end against a real Postgres
    (see Outstanding verification gap above) — especially the `IsActive` migration.
-2. Mod removal/delete UI.
-3. Decide scope on: packwiz export/import (ready-to-call packwiz-nxt library
+2. Decide scope on: packwiz export/import (ready-to-call packwiz-nxt library
    functions, see above) — larger feature builds, not quick fixes.
-4. Everything else in Medium/Low as time allows.
+3. Everything else in Medium/Low as time allows.
