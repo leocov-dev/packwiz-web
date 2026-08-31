@@ -10,9 +10,11 @@ import {
   makePackPrivate,
   makePackPublic,
   publishPack,
-  unArchivePack
+  unArchivePack,
+  updateAllMods
 } from "@/services/packs.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
+import PackMigrateDialog from "@/components/pack/PackMigrateDialog.vue";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -24,6 +26,10 @@ const showArchiveDialog = ref(false)
 const showUnArchiveDialog = ref(false)
 const showPublicDialog = ref(false)
 const showPrivateDialog = ref(false)
+const showUpdateAllDialog = ref(false)
+const showMigrateDialog = ref(false)
+
+const updateAllLoading = ref(false)
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -94,6 +100,17 @@ const makePrivate = async () => {
   await makePackPrivate(pack.id)
   router.go(0)
 }
+
+const updateAll = async () => {
+  updateAllLoading.value = true
+  try {
+    await updateAllMods(pack.id)
+    router.go(0)
+  } finally {
+    updateAllLoading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -140,6 +157,19 @@ const makePrivate = async () => {
       text="Are you sure you want to make this pack private?
       Only assigned users will be able to access it."
       @accepted="makePrivate"
+    />
+    <ConfirmationDialog
+      v-model="showUpdateAllDialog"
+      title="Confirm Update All Mods"
+      text="Are you sure you want to update all mods to their latest versions?
+      Pinned mods will be skipped."
+      @accepted="updateAll"
+    />
+    <PackMigrateDialog
+      v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+      v-model="showMigrateDialog"
+      :pack="pack"
+      @migrated="router.go(0)"
     />
 
     <v-card>
@@ -192,6 +222,22 @@ const makePrivate = async () => {
           prepend-icon="mdi-account-multiple"
           text="Collaborators"
           :to="`/packs/${pack.id}/collaborators`"
+        />
+
+        <v-btn
+          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+          prepend-icon="mdi-update"
+          text="Update All"
+          :loading="updateAllLoading"
+          :disabled="updateAllLoading"
+          @click="showUpdateAllDialog = true"
+        />
+
+        <v-btn
+          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+          prepend-icon="mdi-arrow-up-bold-hexagon-outline"
+          text="Migrate"
+          @click="showMigrateDialog = true"
         />
 
         <div

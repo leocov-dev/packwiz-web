@@ -32,6 +32,14 @@ export interface EditPackRequest {
   acceptableVersions?: string[]
 }
 
+export interface MigratePackRequest {
+  minecraft: MinecraftDef;
+  loader: LoaderDef;
+  updateMods: boolean;
+  useRecommended: boolean;
+  acceptableVersions?: string[];
+}
+
 export interface AddModRequest {
   curseforge?: {
     url: string;

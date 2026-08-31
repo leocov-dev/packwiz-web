@@ -293,6 +293,35 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 	isOK(c)
 }
 
+func (pc *PackwizController) MigratePack(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.MigratePackRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.Migrate(packId, request, user)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
+}
+
 func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {

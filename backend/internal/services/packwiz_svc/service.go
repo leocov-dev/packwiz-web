@@ -2,9 +2,12 @@ package packwiz_svc
 
 import (
 	"fmt"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
@@ -787,8 +790,32 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		pack.Name = request.Name
 	}
 
+	if request.Version != "" {
+		pack.Version = request.Version
+	}
+
 	if request.Description != "" {
 		pack.Description = request.Description
+	}
+
+	mcVersion, mcErr := resolveMinecraftVersion(request.MinecraftDef, false)
+	if mcErr != nil {
+		return mcErr
+	}
+	if mcVersion != "" {
+		pack.MCVersion = mcVersion
+	}
+
+	if loaderName := strings.ToLower(request.LoaderDef.Name); loaderName != "" {
+		pack.Loader = loaderName
+	}
+
+	loaderVersion, lvErr := resolveLoaderVersion(pack.Loader, pack.MCVersion, request.LoaderDef, false)
+	if lvErr != nil {
+		return lvErr
+	}
+	if loaderVersion != "" {
+		pack.LoaderVersion = loaderVersion
 	}
 
 	if len(request.AcceptableVersions) > 0 {
@@ -797,6 +824,181 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 
 	if err := ps.db.Save(pack).Error; err != nil {
 		return response.Wrap(err)
+	}
+
+	return nil
+}
+
+// resolveMinecraftVersion
+// turns a MinecraftDef into a concrete Minecraft version string. Returns "" (no
+// error) when the def carries no version/latest/snapshot, signaling "leave
+// unchanged" for partial-update callers such as EditPack. Latest/snapshot always
+// require a live fetch of the Mojang version manifest to resolve; validateExplicit
+// additionally validates a literal Version against that manifest (skipped for
+// EditPack to avoid a network round-trip on every plain metadata edit, since that
+// path predates real version validation; used for Migrate, which is a deliberate,
+// infrequent action where validation is worth the cost).
+func resolveMinecraftVersion(def dto.MinecraftDef, validateExplicit bool) (string, response.ServerError) {
+	if !def.Latest && !def.Snapshot && def.Version == "" {
+		return "", nil
+	}
+
+	if !def.Latest && !def.Snapshot && !validateExplicit {
+		return def.Version, nil
+	}
+
+	mcv, err := core.GetMinecraftVersions()
+	if err != nil {
+		return "", response.Wrap(err)
+	}
+
+	switch {
+	case def.Snapshot:
+		return mcv.LatestSnapshot, nil
+	case def.Latest:
+		return mcv.Latest, nil
+	default:
+		if !mcv.CheckValid(def.Version) {
+			return "", response.New(http.StatusBadRequest, fmt.Sprintf("'%s' is not a valid minecraft version", def.Version))
+		}
+		return def.Version, nil
+	}
+}
+
+// resolveLoaderVersion
+// turns a LoaderDef (plus useRecommended, meaningful for forge only) into a
+// concrete loader version for the given loader name and Minecraft version.
+// Returns "" (no error) when the def carries no version/latest and useRecommended
+// is false, signaling "leave unchanged" for partial-update callers such as
+// EditPack.
+func resolveLoaderVersion(loaderName, mcVersion string, def dto.LoaderDef, useRecommended bool) (string, response.ServerError) {
+	if !def.Latest && !useRecommended && def.Version == "" {
+		return "", nil
+	}
+
+	loaderComp, ok := core.ModLoaders[loaderName]
+	if !ok {
+		return "", response.New(http.StatusBadRequest, fmt.Sprintf("unknown loader '%s'", loaderName))
+	}
+
+	versions, latest, err := loaderComp.VersionListGetter(mcVersion)
+	if err != nil {
+		return "", response.Wrap(err)
+	}
+
+	switch {
+	case loaderName == "forge" && useRecommended:
+		recommended, recErr := core.GetForgeRecommended(mcVersion)
+		if recErr != nil {
+			return "", response.Wrap(recErr)
+		}
+		if recommended != "" {
+			return recommended, nil
+		}
+		return latest, nil
+	case def.Latest || useRecommended:
+		return latest, nil
+	default:
+		// liteloader has exactly one version per Minecraft version and isn't
+		// represented in its own version list, so it's exempt from containment
+		// validation (matches packwiz-nxt's CLI migrate behavior).
+		if loaderName != "liteloader" && !slices.Contains(versions, def.Version) {
+			return "", response.New(http.StatusBadRequest, fmt.Sprintf("'%s' is not a valid %s version for minecraft '%s'", def.Version, loaderName, mcVersion))
+		}
+		return def.Version, nil
+	}
+}
+
+// Migrate
+// validates and applies a new Minecraft version / loader combination to a pack,
+// optionally cascading a mod re-check (core.UpdateAllMods) against the new target
+// versions, mirroring packwiz-nxt's CLI `migrate minecraft`/`migrate loader` flow.
+func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, user tables.User) response.ServerError {
+
+	dbPack, err := ps.GetPackById(packId)
+	if err != nil {
+		return err
+	}
+
+	mcVersion, mcErr := resolveMinecraftVersion(request.MinecraftDef, true)
+	if mcErr != nil {
+		return mcErr
+	}
+	if mcVersion == "" {
+		return response.New(http.StatusBadRequest, "minecraft version or latest/snapshot flag is required")
+	}
+
+	loaderName := strings.ToLower(request.LoaderDef.Name)
+	if loaderName == "" {
+		loaderName = dbPack.Loader
+	}
+
+	loaderVersion, lvErr := resolveLoaderVersion(loaderName, mcVersion, request.LoaderDef, request.UseRecommended)
+	if lvErr != nil {
+		return lvErr
+	}
+	if loaderVersion == "" {
+		return response.New(http.StatusBadRequest, "loader version, latest, or recommended flag is required")
+	}
+
+	unchanged := mcVersion == dbPack.MCVersion &&
+		loaderName == dbPack.Loader &&
+		loaderVersion == dbPack.LoaderVersion &&
+		len(request.AcceptableVersions) == 0
+
+	if unchanged {
+		return nil
+	}
+
+	pack := dbPack.AsMeta()
+	pack.Versions = map[string]string{
+		"minecraft": mcVersion,
+		loaderName:  loaderVersion,
+	}
+
+	if len(request.AcceptableVersions) > 0 {
+		pack.SetAcceptableGameVersions(request.AcceptableVersions)
+	}
+
+	if request.UpdateMods {
+		if updateErr := core.UpdateAllMods(nil, pack); updateErr != nil {
+			return response.Wrap(updateErr)
+		}
+	}
+
+	acceptableVersions, avErr := pack.GetAcceptableGameVersions()
+	if avErr != nil {
+		return response.Wrap(avErr)
+	}
+
+	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&tables.Pack{ID: packId}).Select(
+			"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
+		).Updates(tables.Pack{
+			MCVersion:              mcVersion,
+			Loader:                 loaderName,
+			LoaderVersion:          loaderVersion,
+			AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
+			UpdatedBy:              user.ID,
+		}).Error; err != nil {
+			return err
+		}
+
+		if request.UpdateMods {
+			for _, dbMod := range dbPack.Mods {
+				updatedMod, ok := pack.Mods[dbMod.Slug]
+				if !ok {
+					continue
+				}
+				if err := applyModUpdate(tx, dbMod.ID, updatedMod, user); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}); txErr != nil {
+		return response.Wrap(txErr)
 	}
 
 	return nil

@@ -38,6 +38,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handler
 				editPackGroup.PATCH("private", packwizController.MakePrivate)
 				editPackGroup.PATCH("edit", packwizController.EditPackInfo)
 				editPackGroup.PATCH("update-all", packwizController.UpdateAll)
+				editPackGroup.PATCH("migrate", packwizController.MigratePack)
 				editPackGroup.GET("users", packwizController.GetPackUsers)
 				editPackGroup.GET("users/search", packwizController.SearchPackUsers)
 				editPackGroup.POST("users", packwizController.AddPackUser)

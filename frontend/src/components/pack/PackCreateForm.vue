@@ -3,6 +3,10 @@ import PackInfoForm from "@/components/pack/PackInfoForm.vue";
 import type {NewPackRequest} from "@/interfaces/requests.ts";
 import {newPack} from "@/services/packs.service.ts";
 import {sleep} from "@/services/utils.ts";
+import {LATEST_SENTINEL, LATEST_SNAPSHOT_SENTINEL} from "@/components/forms/MinecraftVersion.vue";
+import {useCacheStore} from "@/stores/cache.ts";
+
+const cacheStore = useCacheStore()
 
 const creating = ref(false)
 const error = ref(false)
@@ -25,16 +29,24 @@ const router = useRouter()
 const buildRequest: () => NewPackRequest = () => {
   const form = data.value
 
-  const nonVersion = ["Latest", "LatestSnapshot"]
+  // NewPackRequest has no latest/snapshot flags (unlike EditPackRequest/
+  // MigratePackRequest), so the "Latest"/"Latest Snapshot" sentinels have to be
+  // resolved to a concrete version here instead of being sent through as-is.
+  let minecraftVersion = form.minecraftVersion || ""
+  if (minecraftVersion === LATEST_SENTINEL) {
+    minecraftVersion = cacheStore.minecraftLatest
+  } else if (minecraftVersion === LATEST_SNAPSHOT_SENTINEL) {
+    minecraftVersion = cacheStore.minecraftSnapshot
+  }
 
   return {
     slug: form.slug,
     name: form.name,
     version: form.packVersion,
     description: form.description,
-    minecraftVersion: nonVersion.includes(form.minecraftVersion || "") ? "" : form.minecraftVersion || "",
+    minecraftVersion,
     loaderName: (form.loader.name || "").toLowerCase(),
-    loaderVersion: form.loader.version === "Latest" ? "" : form.loader.version,
+    loaderVersion: form.loader.version || "",
     acceptableVersions: form.acceptableVersions,
   }
 }

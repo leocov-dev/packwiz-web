@@ -8,7 +8,7 @@ import {
 } from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
-import type {EditPackRequest, NewPackRequest} from "@/interfaces/requests.ts";
+import type {EditPackRequest, MigratePackRequest, NewPackRequest} from "@/interfaces/requests.ts";
 
 
 export async function fetchAllPacks(
@@ -103,6 +103,14 @@ export async function makePackPublic(packId: number) {
 
 export async function makePackPrivate(packId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/private`)
+}
+
+export async function updateAllMods(packId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/update-all`)
+}
+
+export async function migratePack(packId: number, request: MigratePackRequest) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/migrate`, request)
 }
 
 export async function getPackCollaborators(packId: number): Promise<PackCollaboratorsResponse> {

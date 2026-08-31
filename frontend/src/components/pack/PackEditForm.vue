@@ -4,6 +4,7 @@ import type {EditPackRequest} from "@/interfaces/requests.ts";
 import {sleep} from "@/services/utils.ts";
 import {type Pack} from "@/interfaces/pack.ts";
 import {editPack} from "@/services/packs.service.ts";
+import {LATEST_SENTINEL, LATEST_SNAPSHOT_SENTINEL} from "@/components/forms/MinecraftVersion.vue";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -29,22 +30,22 @@ const router = useRouter()
 const buildRequest: () => EditPackRequest = () => {
   const form = data.value
 
-  const nonVersion = ["Latest", "LatestSnapshot"]
+  const isLatest = form.minecraftVersion === LATEST_SENTINEL
+  const isSnapshot = form.minecraftVersion === LATEST_SNAPSHOT_SENTINEL
 
   return {
-    slug: form.slug,
     name: form.name,
     version: form.packVersion,
     description: form.description,
     minecraft: {
-      version: nonVersion.includes(form.minecraftVersion || "") ? "" : form.minecraftVersion || "",
-      latest: form.minecraftVersion === "Latest",
-      snapshot: form.minecraftVersion === "Latest Snapshot",
+      version: (isLatest || isSnapshot) ? "" : form.minecraftVersion || "",
+      latest: isLatest,
+      snapshot: isSnapshot,
     },
     loader: {
       name: (form.loader.name || "").toLowerCase(),
-      version: form.loader.version === "Latest" ? "" : form.loader.version,
-      latest: form.loader.version === "Latest",
+      version: form.loader.version || "",
+      latest: false,
     },
     acceptableVersions: form.acceptableVersions,
   }
