@@ -71,15 +71,20 @@ core gaps.
 
 ---
 
-## Test coverage (gap, not a bug)
-- No test runner configured anywhere in `frontend/` (`package.json` has no
-  vitest/jest/cypress/playwright) and zero `*.spec.*`/`*.test.*` files in the repo.
-  Notable given non-trivial client logic (URL-source parsing in `AddModForm.vue`,
-  filter/query-string sync, auth guard logic).
+## Test coverage
+- ✅ **Vitest wired up 2026-08-31**, with unit tests on the riskiest pure
+  logic: URL-source parsing/request-building (`src/lib/mod-source.ts`,
+  extracted from `AddModForm.vue`), pack filter/query-string sync
+  (`src/lib/pack-filters.ts`, extracted from `pages/packs/index.vue`),
+  `reduceFilters` (already pure, in `FiltersMenu.vue`), and the router auth
+  guard (extracted to `src/router/auth-guard.ts`, mocked via `vi.mock`).
+  24 tests total. No component/E2E coverage — that remains a gap if ever
+  needed, but wasn't the ask here.
 
 ---
 
 ## Suggested priority order
 
-Everything remaining is Medium/Low polish — tackle as time allows, no urgent
+Everything remaining is low-priority polish, deferred deliberately (5
+net-new packwiz-nxt library features not currently planned) — no urgent
 item outstanding.

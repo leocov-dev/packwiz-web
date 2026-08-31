@@ -4,6 +4,7 @@ import {addMod, listMissingDependencies, searchModrinthMods} from "@/services/mo
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, type ModSource} from "@/lib/mod-source.ts";
 import axios from "axios";
 
 const {pack} = defineProps<{ pack: Pack }>()
@@ -33,19 +34,7 @@ const rules = {
 }
 
 const parseUrl = (url: string) => {
-  if (!url) {
-    data.value.modSource = ""
-    return
-  }
-  if (url.includes("curseforge.com")) {
-    data.value.modSource = "Curseforge"
-  } else if (url.includes("modrinth.com")) {
-    data.value.modSource = "Modrinth"
-  } else if (url.includes("github.com")) {
-    data.value.modSource = "Github"
-  } else {
-    data.value.modSource = ""
-  }
+  data.value.modSource = parseModSourceUrl(url)
 }
 
 const checkForDependencies = async (seq: number) => {
@@ -62,29 +51,15 @@ const checkForDependencies = async (seq: number) => {
 }
 
 const buildRequest = (): AddModRequest | undefined => {
-  if (data.value.modSource === "Curseforge") {
-    return {
-      curseforge: {
-        url: data.value.modUrl,
-      }
-    }
-  } else if (data.value.modSource === "Modrinth") {
-    return {
-      modrinth: {
-        url: data.value.modUrl,
-      }
-    }
-  } else if (data.value.modSource === "Github") {
-    return {
-      github: {
-        url: data.value.modUrl,
-      }
-    }
+  const result = buildModRequest(data.value.modSource as ModSource, data.value.modUrl)
+
+  if ("request" in result) {
+    return result.request
   }
 
   error.value = true
-  errorMsg.value = `Invalid mod source: ${data.value.modSource}`
-  console.error(`Invalid mod source: ${data.value.modSource}`)
+  errorMsg.value = result.error
+  console.error(result.error)
 }
 
 const submitForm = async () => {

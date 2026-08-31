@@ -2,8 +2,8 @@ import {createRouter, createWebHistory} from 'vue-router'
 import {routes} from 'vue-router/auto-routes'
 // @ts-expect-error [TS2307]
 import {setupLayouts} from 'virtual:vue-layouts'
-import {useAuthStore} from "@/stores/auth";
-import type {NavigationGuardNext, RouteLocationNormalizedGeneric, RouteLocationNormalizedLoaded} from "vue-router";
+import {authGuard} from "@/router/auth-guard.ts";
+import type {RouteLocationNormalizedGeneric} from "vue-router";
 
 
 const router = createRouter({
@@ -11,21 +11,7 @@ const router = createRouter({
   routes: setupLayouts(routes),
 })
 
-router.beforeEach(async (to: RouteLocationNormalizedGeneric, from: RouteLocationNormalizedLoaded, next: NavigationGuardNext): Promise<void> => {
-  const authStore = useAuthStore()
-  await authStore.checkAuth(false)
-
-  if (to.meta.noAuth || authStore.isAuthenticated) {
-    next()
-  } else {
-    next({
-        path: '/auth/login',
-        query: { redirect: to.fullPath },
-      }
-    )
-  }
-
-})
+router.beforeEach(authGuard)
 
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
