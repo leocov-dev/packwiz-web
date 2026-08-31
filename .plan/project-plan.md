@@ -79,10 +79,6 @@ this file. What's left below (external-URL mods, bulk rehash, optional mods,
 Quilt substitution, side-filtered listing) is all low-priority polish, not
 core gaps.
 
-### Minor / scale
-- 🟡 No pagination in `PackList.vue`/`ModsList.vue` (`items-per-page="0"`, load-all)
-  — may be fine at current scale, revisit if pack/mod counts grow.
-
 ---
 
 ## Fixes (bugs in existing functionality)
