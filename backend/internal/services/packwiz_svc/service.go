@@ -674,6 +674,34 @@ func (ps *PackwizService) ListPackUsers(packId uint) ([]PackUserInfo, response.S
 	return results, nil
 }
 
+// PackUserSearchResult
+// a minimal user shape for the "add collaborator" search picker
+type PackUserSearchResult struct {
+	UserID   uint   `json:"userId"`
+	Username string `json:"username"`
+	FullName string `json:"fullName"`
+	Email    string `json:"email"`
+}
+
+// SearchPackUsers
+// search for users by username/full name/email who do not already have access to a pack
+func (ps *PackwizService) SearchPackUsers(packId uint, query string) ([]PackUserSearchResult, response.ServerError) {
+	var results []PackUserSearchResult
+
+	like := "%" + query + "%"
+	if err := ps.db.Model(&tables.User{}).
+		Select("users.id as user_id, users.username, users.full_name, users.email").
+		Where("users.username ILIKE ? OR users.full_name ILIKE ? OR users.email ILIKE ?", like, like, like).
+		Where("users.id NOT IN (SELECT user_id FROM pack_users WHERE pack_id = ?)", packId).
+		Order("users.username asc").
+		Limit(20).
+		Scan(&results).Error; err != nil {
+		return nil, response.New(http.StatusInternalServerError, "failed to query db for users")
+	}
+
+	return results, nil
+}
+
 // GrantPackUser
 // grant a user access to a pack
 func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.PackPermission) response.ServerError {

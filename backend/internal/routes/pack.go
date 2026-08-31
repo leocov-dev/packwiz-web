@@ -39,6 +39,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handler
 				editPackGroup.PATCH("edit", packwizController.EditPackInfo)
 				editPackGroup.PATCH("update-all", packwizController.UpdateAll)
 				editPackGroup.GET("users", packwizController.GetPackUsers)
+				editPackGroup.GET("users/search", packwizController.SearchPackUsers)
 				editPackGroup.POST("users", packwizController.AddPackUser)
 				editPackGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), packwizController.RemovePackUser)
 				editPackGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), packwizController.EditUserAccess)

@@ -49,3 +49,11 @@ func (f *EditUserAccessRequest) Validate() error {
 
 	return nil
 }
+
+type SearchPackUsersQuery struct {
+	Query string `form:"q" validate:"required,min=2"`
+}
+
+func (f *SearchPackUsersQuery) Validate() error {
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(f)
+}

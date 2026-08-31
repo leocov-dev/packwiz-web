@@ -1,4 +1,11 @@
-import {AllPacksResponse, Pack, PackResponse} from "@/interfaces/pack";
+import {
+  AllPacksResponse,
+  Pack,
+  PackCollaboratorsResponse,
+  PackPermission,
+  PackResponse,
+  UserSearchResponse
+} from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
 import type {EditPackRequest, NewPackRequest} from "@/interfaces/requests.ts";
@@ -96,4 +103,27 @@ export async function makePackPublic(packId: number) {
 
 export async function makePackPrivate(packId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/private`)
+}
+
+export async function getPackCollaborators(packId: number): Promise<PackCollaboratorsResponse> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/users`);
+  return plainToInstance(PackCollaboratorsResponse, response.data)
+}
+
+export async function searchUsersForPack(packId: number, query: string): Promise<UserSearchResponse> {
+  const params = new URLSearchParams({q: query});
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/users/search?${params.toString()}`);
+  return plainToInstance(UserSearchResponse, response.data)
+}
+
+export async function addPackCollaborator(packId: number, userId: number, permission: PackPermission) {
+  return apiClient.post(`v1/packwiz/pack/${packId}/users`, {userId, permission})
+}
+
+export async function updateCollaboratorPermission(packId: number, userId: number, permission: PackPermission) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/users/${userId}`, {permission})
+}
+
+export async function removeCollaborator(packId: number, userId: number) {
+  return apiClient.delete(`v1/packwiz/pack/${packId}/users/${userId}`)
 }

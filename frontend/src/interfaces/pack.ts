@@ -82,3 +82,30 @@ export class ModDependency {
 export class ModDependenciesResponse {
   missing!: ModDependency[]
 }
+
+
+export class PackCollaborator {
+  userId!: number;
+  username!: string;
+  fullName!: string;
+  email!: string;
+  permission!: PackPermission;
+  createdAt!: string;
+}
+
+export class PackCollaboratorsResponse {
+  @Type(() => PackCollaborator)
+  users?: PackCollaborator[];
+}
+
+export class UserSearchResult {
+  userId!: number;
+  username!: string;
+  fullName!: string;
+  email!: string;
+}
+
+export class UserSearchResponse {
+  @Type(() => UserSearchResult)
+  users?: UserSearchResult[];
+}

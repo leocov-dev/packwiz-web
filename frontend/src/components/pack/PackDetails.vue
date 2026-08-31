@@ -94,7 +94,6 @@ const makePrivate = async () => {
   await makePackPrivate(pack.id)
   router.go(0)
 }
-
 </script>
 
 <template>
@@ -186,6 +185,13 @@ const makePrivate = async () => {
           prepend-icon="mdi-pencil"
           text="Edit"
           :to="`/packs/${pack.id}/edit`"
+        />
+
+        <v-btn
+          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+          prepend-icon="mdi-account-multiple"
+          text="Collaborators"
+          :to="`/packs/${pack.id}/collaborators`"
         />
 
         <div

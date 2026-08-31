@@ -340,6 +340,30 @@ func (pc *PackwizController) GetPackUsers(c *gin.Context) {
 	dataOK(c, gin.H{"users": users})
 }
 
+func (pc *PackwizController) SearchPackUsers(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.SearchPackUsersQuery
+	err = mustBindQuery(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	users, err := pc.packwizSvc.SearchPackUsers(packId, request.Query)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if users == nil {
+		users = make([]packwiz_svc.PackUserSearchResult, 0)
+	}
+
+	dataOK(c, gin.H{"users": users})
+}
+
 func (pc *PackwizController) AddPackUser(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
