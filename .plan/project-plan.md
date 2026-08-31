@@ -28,16 +28,6 @@ actual code state.
   not a clean boolean flag) — would need a backend dry-run/check endpoint.
   Intentionally deferred, not a bug.
 
-### Mod management
-- 🟡 **`RemoveModById` doesn't clean up stale `DependencyIds` references.**
-  Deleting a mod that other mods depend on leaves their `DependencyIds`
-  arrays pointing at a nonexistent mod row
-  (`backend/internal/services/packwiz_svc/service.go:525`,
-  `backend/internal/tables/mod.go`'s `DependencyIds` field). Pre-existing gap,
-  not introduced by the removal UI. Needs a product decision: cascade-delete
-  dependents, block deletion of a depended-upon mod, or filter stale IDs at
-  read time.
-
 ### Available in packwiz-nxt but not exposed anywhere in packwiz-web
 The backend only touches a thin slice of `packwiz-nxt`: add-mod resolution
 (modrinth/curseforge/github by URL) and missing-dependency lookup. The library

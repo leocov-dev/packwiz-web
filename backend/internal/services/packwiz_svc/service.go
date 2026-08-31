@@ -156,6 +156,28 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 	return nil
 }
+
+// filterValidDependencyIds trims each mod's DependencyIds to only reference
+// mod IDs present in the given slice (i.e. other mods in the same pack).
+// Mutates and returns the input slice. Guards against stale references left
+// behind when a mod a dependency pointed at is later removed.
+func filterValidDependencyIds(mods []tables.Mod) []tables.Mod {
+	valid := make(map[uint]bool, len(mods))
+	for _, m := range mods {
+		valid[m.ID] = true
+	}
+	for i := range mods {
+		filtered := make([]uint, 0, len(mods[i].DependencyIds))
+		for _, id := range mods[i].DependencyIds {
+			if valid[id] {
+				filtered = append(filtered, id)
+			}
+		}
+		mods[i].DependencyIds = filtered
+	}
+	return mods
+}
+
 func (ps *PackwizService) GetPackById(packId uint) (tables.Pack, response.ServerError) {
 	var result tables.Pack
 
@@ -170,6 +192,8 @@ func (ps *PackwizService) GetPackById(packId uint) (tables.Pack, response.Server
 	if err := query.Unscoped().First(&result).Error; err != nil {
 		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%d' not found", packId))
 	}
+
+	result.Mods = filterValidDependencyIds(result.Mods)
 
 	return result, nil
 }
@@ -187,6 +211,8 @@ func (ps *PackwizService) GetPackBySlug(slug string) (tables.Pack, response.Serv
 	if err := query.Unscoped().First(&result).Error; err != nil {
 		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%s' not found", slug))
 	}
+
+	result.Mods = filterValidDependencyIds(result.Mods)
 
 	return result, nil
 }
@@ -210,6 +236,8 @@ func (ps *PackwizService) GetPackWithPerms(packId, userId uint) (dto.PackRespons
 	if err := query.Unscoped().First(&result).Error; err != nil {
 		return result, response.New(http.StatusNotFound, fmt.Sprintf("pack '%d' not found", packId))
 	}
+
+	result.Mods = filterValidDependencyIds(result.Mods)
 
 	return result, nil
 }
@@ -581,7 +609,43 @@ func (ps *PackwizService) GetMod(modId uint) (tables.Mod, response.ServerError) 
 		return mod, response.Wrap(err)
 	}
 
+	if err := ps.filterModDependencyIds(&mod); err != nil {
+		return mod, response.Wrap(err)
+	}
+
 	return mod, nil
+}
+
+// filterModDependencyIds trims mod.DependencyIds to only reference mod IDs
+// that still exist, for the single-mod case where sibling mods aren't
+// already loaded (see filterValidDependencyIds for the in-memory variant
+// used when a pack's full Mods slice is available).
+func (ps *PackwizService) filterModDependencyIds(mod *tables.Mod) error {
+	if len(mod.DependencyIds) == 0 {
+		return nil
+	}
+
+	var existing []uint
+	if err := ps.db.Model(&tables.Mod{}).
+		Where("id IN ?", []uint(mod.DependencyIds)).
+		Pluck("id", &existing).Error; err != nil {
+		return err
+	}
+
+	valid := make(map[uint]bool, len(existing))
+	for _, id := range existing {
+		valid[id] = true
+	}
+
+	filtered := make([]uint, 0, len(mod.DependencyIds))
+	for _, id := range mod.DependencyIds {
+		if valid[id] {
+			filtered = append(filtered, id)
+		}
+	}
+	mod.DependencyIds = filtered
+
+	return nil
 }
 
 func (ps *PackwizService) GetModBySlug(packSlug, modSlug string) (tables.Mod, response.ServerError) {
