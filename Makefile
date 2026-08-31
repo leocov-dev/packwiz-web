@@ -15,9 +15,24 @@ build-all: build-fe build-be
 build-image:
 	docker build -t packwiz-web .
 
-# run both the frontend and backend in development mode
-start-dev:
-	cd backend && make start-dev&
+# dev env vars for the local postgres started by dev-db-up
+DEV_ENV := PWW_MODE=development \
+	PWW_PG_PORT=55432 \
+	PWW_PG_PASSWORD=insecure-db-password \
+	PWW_SESSION_SECRET=insecure-session-secret \
+	PWW_ADMIN_PASSWORD=insecure-admin-pass-change-me
+
+# start local postgres for development (docker)
+dev-db-up:
+	docker compose -f localdev/docker-compose.yml up -d --wait
+
+# stop local dev postgres
+dev-db-down:
+	docker compose -f localdev/docker-compose.yml down
+
+# run both the frontend and backend in development mode (auto-starts local postgres)
+start-dev: dev-db-up
+	cd backend && $(DEV_ENV) make start-dev&
 	cd frontend && npm run dev
 
 # print help information

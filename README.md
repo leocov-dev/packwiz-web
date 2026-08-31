@@ -85,13 +85,13 @@ All API actions are logged in an audit log table.
 # Build the frontend and backend with:
 make build-all
 
-# set or export the minimum env vars
-PWW_MODE="development"
-PWW_PG_PASSWORD="yourdbpass"
-
-# Run in development mode
+# Run in development mode (Docker must be installed and running)
 make start-dev
 ```
+
+`make start-dev` automatically starts a local Postgres via Docker (see
+[localdev](localdev)) and runs the backend and frontend in development mode.
+Run `make dev-db-down` to stop the local database when you're done.
 
 See readme files for [frontend](frontend/README.md) and [backend](backend/README.md) for specific details about each.
 
