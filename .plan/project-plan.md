@@ -71,18 +71,6 @@ core gaps.
 
 ---
 
-## Test coverage
-- ✅ **Vitest wired up 2026-08-31**, with unit tests on the riskiest pure
-  logic: URL-source parsing/request-building (`src/lib/mod-source.ts`,
-  extracted from `AddModForm.vue`), pack filter/query-string sync
-  (`src/lib/pack-filters.ts`, extracted from `pages/packs/index.vue`),
-  `reduceFilters` (already pure, in `FiltersMenu.vue`), and the router auth
-  guard (extracted to `src/router/auth-guard.ts`, mocked via `vi.mock`).
-  24 tests total. No component/E2E coverage — that remains a gap if ever
-  needed, but wasn't the ask here.
-
----
-
 ## Suggested priority order
 
 Everything remaining is low-priority polish, deferred deliberately (5
