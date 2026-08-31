@@ -81,13 +81,6 @@ core gaps.
 
 ---
 
-## Fixes (bugs in existing functionality)
-
-### Frontend
-- 🟡 `frontend/README.md` is empty — no frontend-specific setup/dev instructions.
-
----
-
 ## Test coverage (gap, not a bug)
 - No test runner configured anywhere in `frontend/` (`package.json` has no
   vitest/jest/cypress/playwright) and zero `*.spec.*`/`*.test.*` files in the repo.
