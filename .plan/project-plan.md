@@ -43,8 +43,19 @@ end-to-end check next time the local stack is reachable, especially the
   Intentionally deferred, not a bug.
 
 ### Mod management
-- 🟠 **No mod removal/delete UI or backend call wired from the frontend.**
-  `ModCard.vue` only has an Edit button.
+- ✅ **Mod removal/delete UI shipped 2026-08-31.** `ModCard.vue` gained a
+  delete button (confirm dialog, error banner) calling the already-implemented
+  `DELETE v1/packwiz/pack/:packId/mod/:modId` endpoint; both Edit and Delete
+  are now gated on the `canEdit` prop, which is newly threaded through from
+  `ModsList.vue` (previously ungated).
+- 🟡 **`RemoveModById` doesn't clean up stale `DependencyIds` references.**
+  Deleting a mod that other mods depend on leaves their `DependencyIds`
+  arrays pointing at a nonexistent mod row
+  (`backend/internal/services/packwiz_svc/service.go:525`,
+  `backend/internal/tables/mod.go`'s `DependencyIds` field). Pre-existing gap,
+  not introduced by the removal UI. Needs a product decision: cascade-delete
+  dependents, block deletion of a depended-upon mod, or filter stale IDs at
+  read time.
 - 🟡 Commented-out "open source link" button in
   `frontend/src/components/mods/ModCard.vue:16-18, 34-43`.
 

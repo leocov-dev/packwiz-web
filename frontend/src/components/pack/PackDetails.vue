@@ -325,6 +325,7 @@ const updateAll = async () => {
       :mods="pack.mods || []"
       :can-edit="pack.currentUserPermission >= PackPermission.EDIT && !pack.isArchived"
       @add-mod="onAddMod"
+      @reload="$emit('reload')"
     />
   </div>
 </template>

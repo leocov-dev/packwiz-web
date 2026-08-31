@@ -7,7 +7,7 @@ const {packId, mods, canEdit} = defineProps<{
   canEdit: boolean,
 }>()
 
-defineEmits(['add-mod'])
+defineEmits(['add-mod', 'reload'])
 
 const search = ref<string>('')
 
@@ -70,6 +70,8 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           <ModCard
             :pack-id="packId"
             :mod="item.raw"
+            :can-edit="canEdit"
+            @reload="$emit('reload')"
           />
         </v-list-item>
       </v-list>

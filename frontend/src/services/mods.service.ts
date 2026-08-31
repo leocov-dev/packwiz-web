@@ -33,3 +33,7 @@ export async function unpinMod(packId: number, modId: number) {
 export async function updateModFromSource(packId: number, modId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/update`)
 }
+
+export async function removeMod(packId: number, modId: number) {
+  return apiClient.delete(`v1/packwiz/pack/${packId}/mod/${modId}`)
+}
