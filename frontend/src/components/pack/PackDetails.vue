@@ -197,12 +197,12 @@ const updateAll = async () => {
           class="ms-3"
           :pack="pack"
         />
-        <!--        <v-btn-->
-        <!--          icon="mdi-refresh"-->
-        <!--          variant="text"-->
-        <!--          color="disabled"-->
-        <!--          @click="$emit('reload')"-->
-        <!--        />-->
+        <v-btn
+          icon="mdi-refresh"
+          variant="text"
+          color="disabled"
+          @click="$emit('reload')"
+        />
       </v-card-title>
 
       <v-divider />

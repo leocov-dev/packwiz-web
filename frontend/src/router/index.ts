@@ -16,10 +16,8 @@ router.beforeEach(async (to: RouteLocationNormalizedGeneric, from: RouteLocation
   await authStore.checkAuth(false)
 
   if (to.meta.noAuth || authStore.isAuthenticated) {
-    console.debug('route guard auth check passed -> ', to.fullPath)
     next()
   } else {
-    console.debug('route guard auth check failed, redirecting to login')
     next({
         path: '/auth/login',
         query: { redirect: to.fullPath },

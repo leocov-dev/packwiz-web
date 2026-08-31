@@ -37,8 +37,6 @@ actual code state.
   not introduced by the removal UI. Needs a product decision: cascade-delete
   dependents, block deletion of a depended-upon mod, or filter stale IDs at
   read time.
-- 🟡 Commented-out "open source link" button in
-  `frontend/src/components/mods/ModCard.vue:16-18, 34-43`.
 
 ### Available in packwiz-nxt but not exposed anywhere in packwiz-web
 The backend only touches a thin slice of `packwiz-nxt`: add-mod resolution
@@ -90,13 +88,6 @@ core gaps.
 ## Fixes (bugs in existing functionality)
 
 ### Frontend
-- 🟡 `frontend/src/components/forms/MinecraftVersion.vue:11` — TODO: "Latest"/"Latest
-  Snapshot" formatted version strings aren't valid to submit to the backend as-is;
-  `PackEditForm.vue` special-cases stripping them back out.
-- 🟡 Commented-out manual refresh button in
-  `frontend/src/components/pack/PackDetails.vue:171-176`.
-- 🟡 Debug-level `console.debug` calls left in `frontend/src/router/index.ts:19,22`
-  and `frontend/src/stores/auth.ts:54,59`.
 - 🟡 `frontend/README.md` is empty — no frontend-specific setup/dev instructions.
 
 ---

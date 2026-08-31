@@ -51,12 +51,10 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
   actions: {
     async checkAuth(force = false) {
       if (!force && this.isAuthenticated) {
-        console.debug('User is cached')
         return
       }
 
       try {
-        console.debug('Checking user...')
         this.user = await getCurrentUser()
       } catch {
         this.user = null

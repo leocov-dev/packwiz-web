@@ -43,11 +43,6 @@ const onRemove = async () => {
   }
 }
 
-
-// const openLink = () => {
-  // window.open(mod.sourceLink, '_blank')
-// }
-
 </script>
 
 <template>
@@ -81,16 +76,6 @@ const onRemove = async () => {
       <div>
         {{ mod.name }}
       </div>
-      <!--      <v-btn-->
-      <!--        v-if="mod.sourceLink"-->
-      <!--        class="ms-2"-->
-      <!--        link-->
-      <!--        density="comfortable"-->
-      <!--        color="default"-->
-      <!--        variant="plain"-->
-      <!--        icon="mdi-open-in-new"-->
-      <!--        @click="openLink"-->
-      <!--      />-->
 
       <v-spacer />
 
