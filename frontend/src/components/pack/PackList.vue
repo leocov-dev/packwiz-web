@@ -52,13 +52,16 @@ watch(
   {deep: true},
 )
 
+const page = ref(1)
+
 </script>
 
 <template>
   <v-data-iterator
+    v-model:page="page"
     :loading="isLoading"
     :items="data"
-    items-per-page="0"
+    items-per-page="12"
   >
     <template #header>
       <v-toolbar
@@ -128,6 +131,18 @@ watch(
     <template #no-data>
       <div class="d-flex justify-center ma-10">
         No results.
+      </div>
+    </template>
+
+    <template #footer="{ pageCount }">
+      <div
+        v-if="pageCount > 1"
+        class="d-flex justify-center pa-4"
+      >
+        <v-pagination
+          v-model="page"
+          :length="pageCount"
+        />
       </div>
     </template>
   </v-data-iterator>

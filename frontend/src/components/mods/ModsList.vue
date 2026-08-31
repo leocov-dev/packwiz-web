@@ -32,7 +32,7 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
   <v-data-iterator
     :items="sortedMods"
     :search="search"
-    items-per-page="0"
+    items-per-page="20"
   >
     <template #header>
       <v-toolbar class="d-flex flex-wrap">
@@ -75,6 +75,29 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           />
         </v-list-item>
       </v-list>
+    </template>
+
+    <template #footer="{ page, pageCount, prevPage, nextPage }">
+      <div
+        v-if="pageCount > 1"
+        class="d-flex align-center justify-center pa-4"
+      >
+        <v-btn
+          icon="mdi-chevron-left"
+          variant="text"
+          density="comfortable"
+          :disabled="page === 1"
+          @click="prevPage"
+        />
+        <span class="mx-4">Page {{ page }} of {{ pageCount }}</span>
+        <v-btn
+          icon="mdi-chevron-right"
+          variant="text"
+          density="comfortable"
+          :disabled="page === pageCount"
+          @click="nextPage"
+        />
+      </div>
     </template>
   </v-data-iterator>
 </template>
