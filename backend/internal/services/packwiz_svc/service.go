@@ -2,6 +2,7 @@ package packwiz_svc
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/leocov-dev/packwiz-nxt/core"
 	"github.com/leocov-dev/packwiz-nxt/fileio"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
+	"packwiz-web/internal/jobs"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -22,11 +26,16 @@ import (
 
 type PackwizService struct {
 	db *gorm.DB
+	// riverClient is used to enqueue background jobs (e.g. MigrateModsArgs).
+	// It's nil for PackwizService instances constructed as a job resolver
+	// (internal/jobs.MigrateModsResolver) - those never need to enqueue.
+	riverClient *river.Client[*sql.Tx]
 }
 
-func NewPackwizService(db *gorm.DB) *PackwizService {
+func NewPackwizService(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizService {
 	return &PackwizService{
-		db,
+		db:          db,
+		riverClient: riverClient,
 	}
 }
 
@@ -1107,19 +1116,22 @@ func resolveMigrationTarget(dbPack tables.Pack, request dto.MigratePackRequest) 
 }
 
 // Migrate
-// validates and applies a new Minecraft version / loader combination to a pack,
-// optionally cascading a mod re-check (core.UpdateAllMods) against the new target
-// versions, mirroring packwiz-nxt's CLI `migrate minecraft`/`migrate loader` flow.
-func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, user tables.User) response.ServerError {
+// validates and applies a new Minecraft version / loader combination to a
+// pack, persisting the version change immediately. If request.UpdateMods is
+// set, mod re-resolution is not done inline (it makes one sequential
+// external HTTP call per mod) - instead a MigrateModsArgs job is enqueued to
+// do that work in the background, mirroring packwiz-nxt's CLI `migrate
+// minecraft`/`migrate loader` flow but decoupled from the request lifecycle.
+func (ps *PackwizService) Migrate(ctx context.Context, packId uint, request dto.MigratePackRequest, user tables.User) (dto.MigrateResponse, response.ServerError) {
 
 	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
-		return err
+		return dto.MigrateResponse{}, err
 	}
 
 	target, tErr := resolveMigrationTarget(dbPack, request)
 	if tErr != nil {
-		return tErr
+		return dto.MigrateResponse{}, tErr
 	}
 
 	unchanged := target.MCVersion == dbPack.MCVersion &&
@@ -1128,53 +1140,194 @@ func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, u
 		len(request.AcceptableVersions) == 0
 
 	if unchanged {
-		return nil
+		return dto.MigrateResponse{}, nil
 	}
 
-	pack := target.Pack
-
-	if request.UpdateMods {
-		if updateErr := core.UpdateAllMods(nil, pack); updateErr != nil {
-			return response.Wrap(updateErr)
-		}
-	}
-
-	acceptableVersions, avErr := pack.GetAcceptableGameVersions()
+	acceptableVersions, avErr := target.Pack.GetAcceptableGameVersions()
 	if avErr != nil {
-		return response.Wrap(avErr)
+		return dto.MigrateResponse{}, response.Wrap(avErr)
 	}
 
-	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&tables.Pack{ID: packId}).Select(
-			"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
-		).Updates(tables.Pack{
-			MCVersion:              target.MCVersion,
-			Loader:                 target.LoaderName,
-			LoaderVersion:          target.LoaderVersion,
-			AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
-			UpdatedBy:              user.ID,
-		}).Error; err != nil {
-			return err
-		}
+	if err := ps.db.Model(&tables.Pack{ID: packId}).Select(
+		"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
+	).Updates(tables.Pack{
+		MCVersion:              target.MCVersion,
+		Loader:                 target.LoaderName,
+		LoaderVersion:          target.LoaderVersion,
+		AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
+		UpdatedBy:              user.ID,
+	}).Error; err != nil {
+		return dto.MigrateResponse{}, response.Wrap(err)
+	}
 
-		if request.UpdateMods {
-			for _, dbMod := range dbPack.Mods {
-				updatedMod, ok := pack.Mods[dbMod.Slug]
-				if !ok {
-					continue
-				}
-				if err := applyModUpdate(tx, dbMod.ID, updatedMod, user); err != nil {
+	if !request.UpdateMods {
+		return dto.MigrateResponse{}, nil
+	}
+
+	if ps.riverClient == nil {
+		return dto.MigrateResponse{}, response.New(http.StatusInternalServerError, "background jobs are not available")
+	}
+
+	result, insertErr := ps.riverClient.Insert(ctx, jobs.MigrateModsArgs{
+		PackID:             packId,
+		MCVersion:          target.MCVersion,
+		LoaderName:         target.LoaderName,
+		LoaderVersion:      target.LoaderVersion,
+		AcceptableVersions: request.AcceptableVersions,
+		UserID:             user.ID,
+	}, nil)
+	if insertErr != nil {
+		// the version bump above already committed; a failed enqueue just
+		// means mods won't be auto-updated, not a reason to fail the request.
+		log.Error("failed to enqueue migrate_mods job:", insertErr)
+		return dto.MigrateResponse{ModsQueued: false}, nil
+	}
+
+	jobId := result.Job.ID
+	return dto.MigrateResponse{ModsQueued: true, JobId: &jobId}, nil
+}
+
+// ResolveMigratedMods implements jobs.MigrateModsResolver. It re-checks a
+// pack's mods (already migrated to a new MC/loader target by Migrate)
+// against that target using core.CheckAllMods - resilient per-mod, unlike
+// core.UpdateAllMods - applies updates for mods that pass, and records a
+// per-mod result row for every mod so the migrate job status endpoint can
+// report outcomes.
+func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.MigrateModsArgs, jobId int64) error {
+	dbPack, err := ps.GetPackById(args.PackID)
+	if err != nil {
+		return err
+	}
+
+	pack := dbPack.AsMeta()
+
+	results, checkErr := core.CheckAllMods(nil, pack)
+	if checkErr != nil {
+		return checkErr
+	}
+
+	bySlug := make(map[string]tables.Mod, len(dbPack.Mods))
+	for _, m := range dbPack.Mods {
+		bySlug[m.Slug] = m
+	}
+
+	type updateBatch struct {
+		results []core.UpdateCheckResult
+	}
+	batches := make(map[string]*updateBatch)
+	for _, r := range results {
+		if r.Err != nil || !r.UpdateAvailable || r.Mod.Pin {
+			continue
+		}
+		b, ok := batches[r.Source]
+		if !ok {
+			b = &updateBatch{}
+			batches[r.Source] = b
+		}
+		b.results = append(b.results, r)
+	}
+
+	// sourceErrors carries a batch-level failure back to individual mods in
+	// that batch, since Updater.DoUpdate reports one error for the whole
+	// batch rather than per mod.
+	sourceErrors := make(map[string]error)
+	for source, batch := range batches {
+		updater, ok := core.GetUpdater(source)
+		if !ok {
+			sourceErrors[source] = fmt.Errorf("no updater registered for source: %s", source)
+			continue
+		}
+		mods := make([]*core.Mod, len(batch.results))
+		cachedState := make([]interface{}, len(batch.results))
+		for i, r := range batch.results {
+			mods[i] = r.Mod
+			cachedState[i] = r.CachedState
+		}
+		if doErr := updater.DoUpdate(mods, cachedState); doErr != nil {
+			sourceErrors[source] = doErr
+		}
+	}
+
+	return ps.db.Transaction(func(tx *gorm.DB) error {
+		for _, r := range results {
+			dbMod, ok := bySlug[r.Mod.Slug]
+			if !ok {
+				continue
+			}
+
+			resultRow := tables.ModMigrationResult{
+				JobId:  jobId,
+				PackID: args.PackID,
+				ModId:  dbMod.ID,
+				Slug:   r.Mod.Slug,
+				Name:   r.Mod.Name,
+				Pinned: r.Mod.Pin,
+			}
+
+			switch {
+			case r.Err != nil:
+				resultRow.Incompatible = true
+				resultRow.Error = r.Err.Error()
+			case !r.UpdateAvailable || r.Mod.Pin:
+				resultRow.UpdateAvailable = r.UpdateAvailable
+				resultRow.UpdateString = r.UpdateString
+			case sourceErrors[r.Source] != nil:
+				resultRow.Incompatible = true
+				resultRow.Error = sourceErrors[r.Source].Error()
+			default:
+				resultRow.UpdateAvailable = true
+				resultRow.UpdateString = r.UpdateString
+				if err := applyModUpdate(tx, dbMod.ID, r.Mod, tables.User{ID: args.UserID}); err != nil {
 					return err
 				}
 			}
-		}
 
+			if err := tx.Create(&resultRow).Error; err != nil {
+				return err
+			}
+		}
 		return nil
-	}); txErr != nil {
-		return response.Wrap(txErr)
+	})
+}
+
+// GetMigrateJobStatus reports a MigrateModsArgs job's lifecycle state, plus
+// its per-mod results once it has completed.
+func (ps *PackwizService) GetMigrateJobStatus(ctx context.Context, jobId int64) (dto.MigrateJobStatusResponse, response.ServerError) {
+	if ps.riverClient == nil {
+		return dto.MigrateJobStatusResponse{}, response.New(http.StatusInternalServerError, "background jobs are not available")
 	}
 
-	return nil
+	jobRow, err := ps.riverClient.JobGet(ctx, jobId)
+	if err != nil {
+		return dto.MigrateJobStatusResponse{}, response.Wrap(err)
+	}
+
+	out := dto.MigrateJobStatusResponse{State: string(jobRow.State)}
+
+	if jobRow.State != rivertype.JobStateCompleted {
+		return out, nil
+	}
+
+	var rows []tables.ModMigrationResult
+	if err := ps.db.Where("job_id = ?", jobId).Find(&rows).Error; err != nil {
+		return dto.MigrateJobStatusResponse{}, response.Wrap(err)
+	}
+
+	out.Mods = make([]dto.MigrateDryRunMod, 0, len(rows))
+	for _, row := range rows {
+		out.Mods = append(out.Mods, dto.MigrateDryRunMod{
+			ModId:           row.ModId,
+			Slug:            row.Slug,
+			Name:            row.Name,
+			Pinned:          row.Pinned,
+			UpdateAvailable: row.UpdateAvailable,
+			UpdateString:    row.UpdateString,
+			Incompatible:    row.Incompatible,
+			Error:           row.Error,
+		})
+	}
+
+	return out, nil
 }
 
 // MigrateDryRun

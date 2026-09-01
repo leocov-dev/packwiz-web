@@ -1,6 +1,8 @@
 import {
   AllPacksResponse,
   MigrateDryRunResponse,
+  MigrateJobStatusResponse,
+  MigrateResponse,
   Pack,
   PackCollaboratorsResponse,
   PackPermission,
@@ -114,13 +116,19 @@ export async function rehashAllMods(packId: number, request: RehashRequest) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/rehash`, request)
 }
 
-export async function migratePack(packId: number, request: MigratePackRequest) {
-  return apiClient.patch(`v1/packwiz/pack/${packId}/migrate`, request)
+export async function migratePack(packId: number, request: MigratePackRequest): Promise<MigrateResponse> {
+  const response = await apiClient.patch(`v1/packwiz/pack/${packId}/migrate`, request)
+  return plainToInstance(MigrateResponse, response.data)
 }
 
 export async function migrateDryRun(packId: number, request: MigratePackRequest): Promise<MigrateDryRunResponse> {
   const response = await apiClient.post(`v1/packwiz/pack/${packId}/migrate/dry-run`, request)
   return plainToInstance(MigrateDryRunResponse, response.data)
+}
+
+export async function getMigrateJobStatus(packId: number, jobId: number): Promise<MigrateJobStatusResponse> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/migrate/job/${jobId}`)
+  return plainToInstance(MigrateJobStatusResponse, response.data)
 }
 
 export async function getPackCollaborators(packId: number): Promise<PackCollaboratorsResponse> {

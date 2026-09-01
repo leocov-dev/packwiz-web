@@ -17,7 +17,7 @@ type PackwizModController struct {
 }
 
 func NewPackwizModController(db *gorm.DB) *PackwizModController {
-	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db)}
+	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db, nil)}
 }
 
 func (pc *PackwizModController) AddMod(c *gin.Context) {

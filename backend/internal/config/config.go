@@ -12,17 +12,18 @@ import (
 )
 
 type Config struct {
-	Name           string
-	Version        string
-	Mode           string
-	AdminPassword  string
-	TrustedProxies []string
-	SessionSecret  []byte
-	PGHost         string
-	PGUser         string
-	PGPassword     string
-	PGPort         int
-	PGDbName       string
+	Name              string
+	Version           string
+	Mode              string
+	AdminPassword     string
+	TrustedProxies    []string
+	SessionSecret     []byte
+	PGHost            string
+	PGUser            string
+	PGPassword        string
+	PGPort            int
+	PGDbName          string
+	JobWorkerPoolSize int
 }
 
 var (
@@ -31,17 +32,18 @@ var (
 )
 
 const (
-	envMode          = "MODE"
-	envAdminPassword = "ADMIN_PASSWORD"
-	envProxies       = "TRUSTED_PROXIES"
-	pgDbName         = "PG_DBNAME"
-	pgHost           = "PG_HOST"
-	pgPort           = "PG_PORT"
-	pgUser           = "PG_USER"
-	pgPassword       = "PG_PASSWORD"
-	envSessionSecret = "SESSION_SECRET"
-	curseforgeApiKey = "CF_API_KEY"
-	githubApiKey     = "GH_API_KEY"
+	envMode           = "MODE"
+	envAdminPassword  = "ADMIN_PASSWORD"
+	envProxies        = "TRUSTED_PROXIES"
+	pgDbName          = "PG_DBNAME"
+	pgHost            = "PG_HOST"
+	pgPort            = "PG_PORT"
+	pgUser            = "PG_USER"
+	pgPassword        = "PG_PASSWORD"
+	envSessionSecret  = "SESSION_SECRET"
+	curseforgeApiKey  = "CF_API_KEY"
+	githubApiKey      = "GH_API_KEY"
+	jobWorkerPoolSize = "JOB_WORKER_POOL_SIZE"
 )
 
 func SetVersionTag(tag string) {
@@ -101,6 +103,9 @@ func init() {
 	config.BindEnv(curseforgeApiKey)
 	config.BindEnv(githubApiKey)
 
+	config.BindEnv(jobWorkerPoolSize)
+	config.SetDefault(jobWorkerPoolSize, 10)
+
 	if cfApiKey := config.GetString(curseforgeApiKey); cfApiKey != "" {
 		libConfig.SetCurseforgeApiKey(cfApiKey)
 	}
@@ -109,17 +114,18 @@ func init() {
 	}
 
 	C = Config{
-		Name:           filepath.Base(exePath),
-		Version:        versionTag,
-		Mode:           config.GetString(envMode),
-		AdminPassword:  config.GetString(envAdminPassword),
-		TrustedProxies: strings.Fields(config.GetString(envProxies)),
-		SessionSecret:  []byte(config.GetString(envSessionSecret)),
-		PGHost:         config.GetString(pgHost),
-		PGUser:         config.GetString(pgUser),
-		PGPassword:     config.GetString(pgPassword),
-		PGDbName:       config.GetString(pgDbName),
-		PGPort:         config.GetInt(pgPort),
+		Name:              filepath.Base(exePath),
+		Version:           versionTag,
+		Mode:              config.GetString(envMode),
+		AdminPassword:     config.GetString(envAdminPassword),
+		TrustedProxies:    strings.Fields(config.GetString(envProxies)),
+		SessionSecret:     []byte(config.GetString(envSessionSecret)),
+		PGHost:            config.GetString(pgHost),
+		PGUser:            config.GetString(pgUser),
+		PGPassword:        config.GetString(pgPassword),
+		PGDbName:          config.GetString(pgDbName),
+		PGPort:            config.GetInt(pgPort),
+		JobWorkerPoolSize: config.GetInt(jobWorkerPoolSize),
 	}
 
 	if C.AdminPassword == "" {

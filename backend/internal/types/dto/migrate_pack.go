@@ -36,3 +36,19 @@ type MigrateDryRunMod struct {
 	Incompatible bool   `json:"incompatible"`
 	Error        string `json:"error,omitempty"`
 }
+
+// MigrateResponse is returned by Migrate. The MC/loader/version change has
+// already been persisted by the time this is returned; ModsQueued/JobId
+// report whether mod re-resolution was additionally kicked off as a
+// background job (see internal/jobs.MigrateModsArgs).
+type MigrateResponse struct {
+	ModsQueued bool   `json:"modsQueued"`
+	JobId      *int64 `json:"jobId,omitempty"`
+}
+
+// MigrateJobStatusResponse reports the lifecycle state of a MigrateModsArgs
+// job, plus its per-mod results once completed.
+type MigrateJobStatusResponse struct {
+	State string             `json:"state"`
+	Mods  []MigrateDryRunMod `json:"mods,omitempty"`
+}

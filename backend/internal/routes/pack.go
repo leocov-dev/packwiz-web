@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/riverqueue/river"
 	"gorm.io/gorm"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
@@ -10,8 +12,8 @@ import (
 	"packwiz-web/internal/types"
 )
 
-func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
-	packwizController := controllers.NewPackwizController(db)
+func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], handlers ...gin.HandlerFunc) *gin.RouterGroup {
+	packwizController := controllers.NewPackwizController(db, riverClient)
 
 	packGroup := router.Group("pack", handlers...)
 	{
@@ -41,6 +43,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handler
 				editPackGroup.PATCH("rehash", packwizController.RehashAll)
 				editPackGroup.PATCH("migrate", packwizController.MigratePack)
 				editPackGroup.POST("migrate/dry-run", packwizController.MigrateDryRun)
+				editPackGroup.GET(fmt.Sprintf("migrate/job/:%s", params.JobId), packwizController.MigrateJobStatus)
 				editPackGroup.GET("users", packwizController.GetPackUsers)
 				editPackGroup.GET("users/search", packwizController.SearchPackUsers)
 				editPackGroup.POST("users", packwizController.AddPackUser)

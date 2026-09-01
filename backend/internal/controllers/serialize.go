@@ -16,7 +16,7 @@ type SerializeController struct {
 
 func NewTomlController(db *gorm.DB) SerializeController {
 	return SerializeController{
-		pw: packwiz_svc.NewPackwizService(db),
+		pw: packwiz_svc.NewPackwizService(db, nil),
 	}
 }
 

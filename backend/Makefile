@@ -7,13 +7,21 @@ default: help
 build: fmt
 	go build -o $(BIN_TARGET)
 
-# start the server in development mode (will run build first, migrating the database)
+# start the server in development mode (will run build first, migrating the database, worker in-process)
 start-dev: build
-	PWW_MODE=development $(BIN_TARGET) start --migrate
+	PWW_MODE=development $(BIN_TARGET) start --migrate --worker
 
 # start the server in production mode (will run build first)
 start-prod: build
 	$(BIN_TARGET) start
+
+# run the background job worker in development mode (will run build first)
+worker-dev: build
+	PWW_MODE=development $(BIN_TARGET) worker
+
+# run the background job worker in production mode (will run build first)
+worker-prod: build
+	$(BIN_TARGET) worker
 
 # run all tests
 test:

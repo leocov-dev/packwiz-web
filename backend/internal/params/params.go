@@ -10,4 +10,5 @@ var (
 	ModId    Param = "modId"
 	ModType  Param = "modType"
 	UserID   Param = "userId"
+	JobId    Param = "jobId"
 )

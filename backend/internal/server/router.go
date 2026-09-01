@@ -6,9 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
+	"packwiz-web/internal/jobs"
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/routes"
+	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/public"
 	"time"
 )
@@ -38,6 +41,16 @@ func NewRouter() *gin.Engine {
 	}))
 
 	db := database.GetClient()
+
+	// jobResolver is only used to satisfy jobs.MigrateModsResolver for the
+	// (unstarted, insert-only) client below - it never needs to enqueue jobs
+	// itself, so it's built without a river client of its own.
+	jobResolver := packwiz_svc.NewPackwizService(db, nil)
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver))
+	if err != nil {
+		log.Error("failed to create river client:", err)
+		panic(err)
+	}
 
 	// -------------------------------------------------------------------------
 	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
@@ -73,7 +86,7 @@ func NewRouter() *gin.Engine {
 				// -------------------------------------------------------------
 				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db)
 
-				routes.RegisterPackRoutes(packwizGroup, db)
+				routes.RegisterPackRoutes(packwizGroup, db, riverClient)
 			}
 		}
 	}

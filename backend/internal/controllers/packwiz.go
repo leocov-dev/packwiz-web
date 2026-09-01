@@ -1,10 +1,14 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/riverqueue/river"
 	"gorm.io/gorm"
 	"net/http"
+	"strconv"
+
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/packwiz_svc"
@@ -17,8 +21,8 @@ type PackwizController struct {
 	packwizSvc *packwiz_svc.PackwizService
 }
 
-func NewPackwizController(db *gorm.DB) *PackwizController {
-	return &PackwizController{packwizSvc: packwiz_svc.NewPackwizService(db)}
+func NewPackwizController(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizController {
+	return &PackwizController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient)}
 }
 
 // -----------------------------------------------------------------------------
@@ -343,12 +347,36 @@ func (pc *PackwizController) MigratePack(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.Migrate(packId, request, user)
+	result, err := pc.packwizSvc.Migrate(c.Request.Context(), packId, request, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	isOK(c)
+	dataOK(c, result)
+}
+
+func (pc *PackwizController) MigrateJobStatus(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	jobId, parseErr := strconv.ParseInt(c.Param(string(params.JobId)), 10, 64)
+	if parseErr != nil || jobId <= 0 {
+		pc.abortWithError(c, response.New(http.StatusBadRequest, "invalid jobId"))
+		return
+	}
+
+	result, err := pc.packwizSvc.GetMigrateJobStatus(c.Request.Context(), jobId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
 }
 
 func (pc *PackwizController) MigrateDryRun(c *gin.Context) {

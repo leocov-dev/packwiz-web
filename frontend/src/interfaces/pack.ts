@@ -87,6 +87,18 @@ export class MigrateDryRunResponse {
 }
 
 
+export class MigrateResponse {
+  modsQueued!: boolean;
+  jobId?: number;
+}
+
+export class MigrateJobStatusResponse {
+  state!: "available" | "running" | "completed" | "discarded" | "cancelled" | "retryable" | "pending" | "scheduled";
+  @Type(() => MigrateDryRunMod)
+  mods?: MigrateDryRunMod[];
+}
+
+
 export class ModDependency {
   fileName!: string;
   modType!: string;
