@@ -1,5 +1,5 @@
 import {apiClient} from "@/services/api.service.ts";
-import type {AddModRequest, ChangeModSideRequest} from "@/interfaces/requests.ts";
+import type {AddModRequest, ChangeModOptionRequest, ChangeModSideRequest} from "@/interfaces/requests.ts";
 import {Mod, ModDependenciesResponse, ModSearchResponse} from "@/interfaces/pack.ts";
 import {plainToInstance} from "class-transformer";
 
@@ -20,6 +20,10 @@ export async function listMissingDependencies(packId: number, addModRequest: Add
 
 export async function changeModSide(packId: number, modId: number, request: ChangeModSideRequest) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/side`, request)
+}
+
+export async function changeModOption(packId: number, modId: number, request: ChangeModOptionRequest) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/option`, request)
 }
 
 export async function pinMod(packId: number, modId: number) {

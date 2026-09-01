@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {type Pack, type Mod} from "@/interfaces/pack.ts";
-import {changeModSide, pinMod, unpinMod, updateModFromSource} from "@/services/mods.service.ts";
+import {changeModOption, changeModSide, pinMod, unpinMod, updateModFromSource} from "@/services/mods.service.ts";
 import axios from "axios";
 
 const {pack, mod} = defineProps<{ pack: Pack, mod: Mod }>()
@@ -15,6 +15,9 @@ const loading = ref(false)
 const data = ref({
   side: mod.side,
   pinned: mod.pinned,
+  optional: mod.option?.optional ?? false,
+  description: mod.option?.description ?? "",
+  default: mod.option?.default ?? false,
 })
 
 const submitForm = async () => {
@@ -32,6 +35,17 @@ const submitForm = async () => {
       } else {
         await unpinMod(pack.id, mod.id)
       }
+    }
+
+    const optionChanged = data.value.optional !== (mod.option?.optional ?? false)
+      || data.value.description !== (mod.option?.description ?? "")
+      || data.value.default !== (mod.option?.default ?? false)
+    if (optionChanged) {
+      await changeModOption(pack.id, mod.id, {
+        optional: data.value.optional,
+        description: data.value.description,
+        default: data.value.default,
+      })
     }
 
     await router.push({path: `/packs/${pack.id}`})
@@ -121,6 +135,28 @@ const cancelForm = async () => {
         <v-switch
           v-model="data.pinned"
           label="Pinned (don't auto-update)"
+          color="primary"
+          hide-details
+        />
+
+        <v-switch
+          v-model="data.optional"
+          label="Optional (not required by every install)"
+          color="primary"
+          hide-details
+        />
+
+        <v-text-field
+          v-if="data.optional"
+          v-model="data.description"
+          label="Option description"
+          class="mt-3"
+        />
+
+        <v-switch
+          v-if="data.optional"
+          v-model="data.default"
+          label="Enabled by default"
           color="primary"
           hide-details
         />

@@ -7,9 +7,9 @@ default: help
 build: fmt
 	go build -o $(BIN_TARGET)
 
-# start the server in development mode (will run build first)
+# start the server in development mode (will run build first, migrating the database)
 start-dev: build
-	PWW_MODE=development $(BIN_TARGET) start
+	PWW_MODE=development $(BIN_TARGET) start --migrate
 
 # start the server in production mode (will run build first)
 start-prod: build

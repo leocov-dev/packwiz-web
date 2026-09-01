@@ -28,51 +28,26 @@ actual code state.
   not a clean boolean flag) — would need a backend dry-run/check endpoint.
   Intentionally deferred, not a bug.
 
-### Available in packwiz-nxt but not exposed anywhere in packwiz-web
-The backend only touches a thin slice of `packwiz-nxt`: add-mod resolution
-(modrinth/curseforge/github by URL) and missing-dependency lookup. The library
-itself is a full library-ified fork of the original `packwiz` CLI and supports
-considerably more than what's wired up. (Whole-modpack import/export — `.mrpack`,
-CurseForge zip import/export, the stale `reconcile_dir.go` importer — is
-explicitly out of scope; not tracked here.) None of the below has any backend
-route or frontend UI today:
-
-- 🟡 **Add a mod from a direct download URL (non-provider "external" mod).** The
-  CLI's `url add` command builds a `core.ModToml` with `Download.Mode = core.ModeURL`
-  by hashing the file via `fileio.CreateDownloadSession`
-  (`internal/commands/cmdurl/install.go`) — the underlying data model
-  (`core.ModDownload{URL, HashFormat, Hash}`) already supports this, but there's no
-  exported `sources.*` helper for it (logic is inlined in the CLI command) and
-  packwiz-web only supports modrinth/curseforge/github as mod sources today.
-- 🟡 **Bulk rehash.** The `rehash` command (`cmd/rehash.go`) re-computes and rewrites
-  every mod's hash to a chosen format (sha1/sha256/sha512) via
-  `fileio.CreateDownloadSession`. No equivalent in the backend.
-- 🟡 **Optional mods (per-mod default on/off toggle).** `core.ModOption{Optional bool,
-  Description string, Default bool}` (`core/modtoml.go:48`), exposed on
-  `core.Mod.Option`. The backend already wires up `ChangeModSide` (client/server/
-  universal, see `ModsList.vue` grouping) but nothing sets or reads `Option` — the
-  "mark a mod optional with a default state" concept is entirely unused.
-- 🟡 **Quilt/Fabric dependency auto-substitution** — `sources.MapDepOverride`
-  (`sources/depoverride.go`, used from `sources/cf-updater.go:540`) automatically
-  swaps Fabric-only deps (Fabric API, Fabric Language Kotlin) for Quilt-native
-  equivalents when the pack targets Quilt. This fires implicitly today inside the
-  already-used `*FindMissingDependencies` calls, but Quilt isn't selectable as a
-  target loader anywhere in the MC-version/loader edit flow, so it's dead in
-  practice until Quilt is added as a selectable loader.
-- 🟡 **Side-filtered listing semantics.** The CLI's `list` command has defined
-  fallthrough rules for `ServerSide`/`ClientSide`/`UniversalSide`/`EmptySide`
-  filtering (`cmd/list.go`) that aren't replicated in any packwiz-web listing/filter
-  endpoint — the frontend's mod list has no side-based filter at all currently.
-
 **Takeaway**: mod removal and Modrinth search have shipped; see git history of
-this file. What's left below (external-URL mods, bulk rehash, optional mods,
-Quilt substitution, side-filtered listing) is all low-priority polish, not
-core gaps.
+this file. The remaining packwiz-nxt-derived polish items (bulk rehash,
+optional mods, Quilt substitution, side-filtered listing) shipped 2026-08-31
+— see below.
 
 ---
 
 ## Suggested priority order
 
-Everything remaining is low-priority polish, deferred deliberately (5
-net-new packwiz-nxt library features not currently planned) — no urgent
-item outstanding.
+Nothing outstanding. All previously-tracked packwiz-nxt-derived polish items
+shipped 2026-08-31:
+- Bulk rehash — `PATCH /pack/:packId/rehash`, backend's first use of
+  `packwiz-nxt/fileio`, plus a "Rehash" dialog/button in `PackDetails.vue`.
+- Optional mods — new `mods.option` JSONB column
+  (migration `000004_add_mod_option`), `PATCH /pack/:packId/mod/:modId/option`,
+  and Optional/Description/Default fields in `EditModForm.vue`.
+- Quilt/Fabric dependency auto-substitution — verified already fully wired
+  end-to-end (loader versions endpoint, DTO validation, `resolveLoaderVersion`,
+  and `sources.MapDepOverride`'s `slices.Contains(..., "quilt")` gate all
+  already supported it); no code change needed.
+- Side-filtered mod listing — frontend-only filter (`lib/mod-filters.ts` +
+  a side `v-select` in `ModsList.vue`), since mods are already fully loaded
+  client-side with the pack; no new backend endpoint.

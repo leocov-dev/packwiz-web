@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
@@ -60,7 +61,15 @@ func init() {
 	config.AddConfigPath(".")
 	config.AddConfigPath(filepath.Dir(exePath))
 
-	_ = config.ReadInConfig()
+	// log package depends on this one, so it can't be used here yet - this is
+	// the only place in the app allowed to write to stdout before logging is
+	// set up, precisely so a missing/unreadable .env fails loudly instead of
+	// silently falling back to defaults (see envAdminPassword below).
+	if err := config.ReadInConfig(); err != nil {
+		fmt.Printf("no .env file loaded (%v); using environment variables and defaults\n", err)
+	} else {
+		fmt.Printf("loaded .env file: %s\n", config.ConfigFileUsed())
+	}
 
 	config.SetEnvPrefix("PWW")
 	config.AutomaticEnv()

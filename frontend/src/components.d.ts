@@ -40,6 +40,7 @@ declare module 'vue' {
     PackList: typeof import('./components/pack/PackList.vue')['default']
     PackMigrateDialog: typeof import('./components/pack/PackMigrateDialog.vue')['default']
     PackStatus: typeof import('./components/pack/PackStatus.vue')['default']
+    RehashDialog: typeof import('./components/pack/RehashDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SearchBar: typeof import('./components/SearchBar.vue')['default']

@@ -1,6 +1,7 @@
 package packwiz_svc
 
 import (
+	"context"
 	"fmt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
+	"github.com/leocov-dev/packwiz-nxt/fileio"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -501,6 +503,64 @@ func (ps *PackwizService) UpdateAll(packId uint, user tables.User) response.Serv
 	return nil
 }
 
+// RehashAll
+// recompute and persist a single hash format for every mod in a pack
+func (ps *PackwizService) RehashAll(ctx context.Context, packId uint, format string, user tables.User) response.ServerError {
+	dbPack, err := ps.GetPackById(packId)
+	if err != nil {
+		return err
+	}
+
+	pack := dbPack.AsMeta()
+
+	session, sessErr := fileio.CreateDownloadSession(nil, pack.GetModsList(), []string{format})
+	if sessErr != nil {
+		return response.Wrap(sessErr)
+	}
+
+	for dl := range session.StartDownloads(ctx) {
+		if dl.Error != nil {
+			// leave mods that fail to rehash (e.g. manual-download mods) untouched
+			continue
+		}
+		dl.Mod.Download.HashFormat = format
+		dl.Mod.Download.Hash = dl.Hashes[format]
+	}
+
+	if idxErr := session.SaveIndex(); idxErr != nil {
+		// non-fatal: this is a shared local download cache, not persisted pack state
+		log.Debug(idxErr)
+	}
+
+	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+		for _, dbMod := range dbPack.Mods {
+			updatedMod, ok := pack.Mods[dbMod.Slug]
+			if !ok || updatedMod.Download.Hash == "" {
+				continue
+			}
+			if err := tx.Model(&tables.Mod{ID: dbMod.ID}).Select(
+				"Download", "HashFormat", "UpdatedBy",
+			).Updates(tables.Mod{
+				Download: tables.DownloadInfo{
+					URL:        updatedMod.Download.URL,
+					Mode:       updatedMod.Download.Mode,
+					Hash:       updatedMod.Download.Hash,
+					HashFormat: updatedMod.Download.HashFormat,
+				},
+				HashFormat: format,
+				UpdatedBy:  user.ID,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}); txErr != nil {
+		return response.Wrap(txErr)
+	}
+
+	return nil
+}
+
 // applyModUpdate
 // persist the fields of an updated core.Mod back onto its corresponding tables.Mod row
 func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.User) error {
@@ -665,6 +725,24 @@ func (ps *PackwizService) ChangeModSide(modId uint, side core.ModSide) response.
 		Model(tables.Mod{}).
 		Where(tables.Mod{ID: modId}).
 		Update("side", side).
+		Error; err != nil {
+		return response.Wrap(err)
+	}
+
+	return nil
+}
+
+func (ps *PackwizService) ChangeModOption(modId uint, req dto.ChangeModOptionRequest) response.ServerError {
+	option := tables.OptionInfo{
+		Optional:    req.Optional,
+		Description: req.Description,
+		Default:     req.Default,
+	}
+
+	if err := ps.db.
+		Model(tables.Mod{}).
+		Where(tables.Mod{ID: modId}).
+		Update("option", option).
 		Error; err != nil {
 		return response.Wrap(err)
 	}
@@ -973,23 +1051,28 @@ func resolveLoaderVersion(loaderName, mcVersion string, def dto.LoaderDef, useRe
 	}
 }
 
-// Migrate
-// validates and applies a new Minecraft version / loader combination to a pack,
-// optionally cascading a mod re-check (core.UpdateAllMods) against the new target
-// versions, mirroring packwiz-nxt's CLI `migrate minecraft`/`migrate loader` flow.
-func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, user tables.User) response.ServerError {
+// migrationTarget is the resolved outcome of a MigratePackRequest: the
+// concrete Minecraft/loader versions it names, plus an in-memory core.Pack
+// (built from the pack's current mods) with those versions already applied,
+// ready for a compatibility check or a cascading mod update. Building this
+// performs no persistence.
+type migrationTarget struct {
+	Pack          core.Pack
+	MCVersion     string
+	LoaderName    string
+	LoaderVersion string
+}
 
-	dbPack, err := ps.GetPackById(packId)
-	if err != nil {
-		return err
-	}
-
+// resolveMigrationTarget resolves request against dbPack's current state into
+// a migrationTarget, shared by Migrate (which may persist it) and
+// MigrateDryRun (which only checks it).
+func resolveMigrationTarget(dbPack tables.Pack, request dto.MigratePackRequest) (migrationTarget, response.ServerError) {
 	mcVersion, mcErr := resolveMinecraftVersion(request.MinecraftDef, true)
 	if mcErr != nil {
-		return mcErr
+		return migrationTarget{}, mcErr
 	}
 	if mcVersion == "" {
-		return response.New(http.StatusBadRequest, "minecraft version or latest/snapshot flag is required")
+		return migrationTarget{}, response.New(http.StatusBadRequest, "minecraft version or latest/snapshot flag is required")
 	}
 
 	loaderName := strings.ToLower(request.LoaderDef.Name)
@@ -999,19 +1082,10 @@ func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, u
 
 	loaderVersion, lvErr := resolveLoaderVersion(loaderName, mcVersion, request.LoaderDef, request.UseRecommended)
 	if lvErr != nil {
-		return lvErr
+		return migrationTarget{}, lvErr
 	}
 	if loaderVersion == "" {
-		return response.New(http.StatusBadRequest, "loader version, latest, or recommended flag is required")
-	}
-
-	unchanged := mcVersion == dbPack.MCVersion &&
-		loaderName == dbPack.Loader &&
-		loaderVersion == dbPack.LoaderVersion &&
-		len(request.AcceptableVersions) == 0
-
-	if unchanged {
-		return nil
+		return migrationTarget{}, response.New(http.StatusBadRequest, "loader version, latest, or recommended flag is required")
 	}
 
 	pack := dbPack.AsMeta()
@@ -1023,6 +1097,41 @@ func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, u
 	if len(request.AcceptableVersions) > 0 {
 		pack.SetAcceptableGameVersions(request.AcceptableVersions)
 	}
+
+	return migrationTarget{
+		Pack:          pack,
+		MCVersion:     mcVersion,
+		LoaderName:    loaderName,
+		LoaderVersion: loaderVersion,
+	}, nil
+}
+
+// Migrate
+// validates and applies a new Minecraft version / loader combination to a pack,
+// optionally cascading a mod re-check (core.UpdateAllMods) against the new target
+// versions, mirroring packwiz-nxt's CLI `migrate minecraft`/`migrate loader` flow.
+func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, user tables.User) response.ServerError {
+
+	dbPack, err := ps.GetPackById(packId)
+	if err != nil {
+		return err
+	}
+
+	target, tErr := resolveMigrationTarget(dbPack, request)
+	if tErr != nil {
+		return tErr
+	}
+
+	unchanged := target.MCVersion == dbPack.MCVersion &&
+		target.LoaderName == dbPack.Loader &&
+		target.LoaderVersion == dbPack.LoaderVersion &&
+		len(request.AcceptableVersions) == 0
+
+	if unchanged {
+		return nil
+	}
+
+	pack := target.Pack
 
 	if request.UpdateMods {
 		if updateErr := core.UpdateAllMods(nil, pack); updateErr != nil {
@@ -1039,9 +1148,9 @@ func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, u
 		if err := tx.Model(&tables.Pack{ID: packId}).Select(
 			"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
 		).Updates(tables.Pack{
-			MCVersion:              mcVersion,
-			Loader:                 loaderName,
-			LoaderVersion:          loaderVersion,
+			MCVersion:              target.MCVersion,
+			Loader:                 target.LoaderName,
+			LoaderVersion:          target.LoaderVersion,
 			AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
 			UpdatedBy:              user.ID,
 		}).Error; err != nil {
@@ -1066,4 +1175,52 @@ func (ps *PackwizService) Migrate(packId uint, request dto.MigratePackRequest, u
 	}
 
 	return nil
+}
+
+// MigrateDryRun
+// resolves request the same way Migrate does, then checks (but does not
+// apply) each mod's compatibility with the candidate Minecraft version /
+// loader target, so a caller can preview what Migrate would do before
+// committing to it. Performs no persistence.
+func (ps *PackwizService) MigrateDryRun(packId uint, request dto.MigratePackRequest) (dto.MigrateDryRunResponse, response.ServerError) {
+	dbPack, err := ps.GetPackById(packId)
+	if err != nil {
+		return dto.MigrateDryRunResponse{}, err
+	}
+
+	target, tErr := resolveMigrationTarget(dbPack, request)
+	if tErr != nil {
+		return dto.MigrateDryRunResponse{}, tErr
+	}
+
+	results, checkErr := core.CheckAllMods(nil, target.Pack)
+	if checkErr != nil {
+		return dto.MigrateDryRunResponse{}, response.Wrap(checkErr)
+	}
+
+	bySlug := make(map[string]tables.Mod, len(dbPack.Mods))
+	for _, m := range dbPack.Mods {
+		bySlug[m.Slug] = m
+	}
+
+	out := dto.MigrateDryRunResponse{Mods: make([]dto.MigrateDryRunMod, 0, len(results))}
+	for _, r := range results {
+		dbMod := bySlug[r.Mod.Slug]
+		item := dto.MigrateDryRunMod{
+			ModId:  dbMod.ID,
+			Slug:   r.Mod.Slug,
+			Name:   r.Mod.Name,
+			Pinned: r.Mod.Pin,
+		}
+		if r.Err != nil {
+			item.Incompatible = true
+			item.Error = r.Err.Error()
+		} else {
+			item.UpdateAvailable = r.UpdateAvailable
+			item.UpdateString = r.UpdateString
+		}
+		out.Mods = append(out.Mods, item)
+	}
+
+	return out, nil
 }

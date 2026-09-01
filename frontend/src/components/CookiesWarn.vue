@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import {getCookieBool, setCookieBool} from "@/services/cookies.service";
+import {getLocalBool, setLocalBool} from "@/services/local-storage.service";
 
 const cookiePolicyName = 'cookiePolicyAccepted'
 
@@ -8,11 +8,11 @@ const showCookieNotice = ref(true)
 
 const acceptCookiePolicy = () => {
   showCookieNotice.value = false
-  setCookieBool(cookiePolicyName, true, 180)
+  setLocalBool(cookiePolicyName, true)
 }
 
 onMounted(() => {
-  showCookieNotice.value = !getCookieBool(cookiePolicyName)
+  showCookieNotice.value = !getLocalBool(cookiePolicyName)
 })
 
 </script>

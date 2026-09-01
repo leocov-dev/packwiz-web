@@ -42,6 +42,24 @@ func (u *UpdateInfo) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, u)
 }
 
+type OptionInfo struct {
+	Optional    bool   `json:"optional"`
+	Description string `json:"description"`
+	Default     bool   `json:"default"`
+}
+
+func (o OptionInfo) Value() (driver.Value, error) {
+	return json.Marshal(o)
+}
+
+func (o *OptionInfo) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed in OptionInfo Scan")
+	}
+	return json.Unmarshal(bytes, o)
+}
+
 type Mod struct {
 	ID            uint                      `gorm:"primaryKey" json:"id"`
 	Slug          string                    `json:"slug"`
@@ -56,6 +74,7 @@ type Mod struct {
 	Type          string                    `gorm:"default:mods" json:"type"`
 	Source        string                    `json:"source"`
 	Update        UpdateInfo                `gorm:"type:json"  json:"update"`
+	Option        OptionInfo                `gorm:"type:json"  json:"option"`
 	Preserve      bool                      `gorm:"default:false" json:"preserve"`
 	CreatedAt     time.Time                 `json:"createdAt"`
 	UpdatedAt     time.Time                 `json:"updatedAt"`
@@ -66,6 +85,15 @@ type Mod struct {
 }
 
 func (m Mod) AsMeta() *core.Mod {
+	var option *core.ModOption
+	if m.Option.Optional || m.Option.Description != "" || m.Option.Default {
+		option = &core.ModOption{
+			Optional:    m.Option.Optional,
+			Description: m.Option.Description,
+			Default:     m.Option.Default,
+		}
+	}
+
 	return &core.Mod{
 		Name:     m.Name,
 		FileName: m.FileName,
@@ -78,7 +106,7 @@ func (m Mod) AsMeta() *core.Mod {
 			Mode:       m.Download.Mode,
 		},
 		Update:     core.ModUpdate{m.Source: core.ModSourceData(m.Update)},
-		Option:     nil,
+		Option:     option,
 		Slug:       m.Slug,
 		ModType:    m.Type,
 		HashFormat: m.HashFormat,

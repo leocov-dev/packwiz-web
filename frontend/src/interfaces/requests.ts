@@ -55,3 +55,13 @@ export interface AddModRequest {
 export interface ChangeModSideRequest {
   side: "client" | "server" | "both";
 }
+
+export interface ChangeModOptionRequest {
+  optional: boolean;
+  description: string;
+  default: boolean;
+}
+
+export interface RehashRequest {
+  format: "sha1" | "sha256" | "sha512";
+}

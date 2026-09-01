@@ -23,6 +23,7 @@ func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 		modIdGroup.DELETE("", packModController.RemoveMod)
 		modIdGroup.PATCH("update", packModController.UpdateMod)
 		modIdGroup.PATCH("side", packModController.ChangeModSide)
+		modIdGroup.PATCH("option", packModController.ChangeModOption)
 		modIdGroup.PATCH("pin", packModController.PinMod)
 		modIdGroup.PATCH("unpin", packModController.UnPinMod)
 	}

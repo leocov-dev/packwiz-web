@@ -213,6 +213,35 @@ func (pc *PackwizModController) ChangeModSide(c *gin.Context) {
 	isOK(c)
 }
 
+func (pc *PackwizModController) ChangeModOption(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	modId, err := mustBindIdParam(c, params.ModId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfModNotExist(c, packId, modId) {
+		return
+	}
+
+	var request dto.ChangeModOptionRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.ChangeModOption(modId, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
+}
+
 func (pc *PackwizModController) PinMod(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {

@@ -105,6 +105,12 @@ const onRemove = async () => {
           icon="mdi-circle-double"
         />
         <v-icon
+          v-if="mod.option?.optional"
+          v-tooltip="mod.option?.description || 'optional'"
+          class="me-2"
+          icon="mdi-checkbox-marked-circle-outline"
+        />
+        <v-icon
           v-if="mod.isDependency"
           v-tooltip="'Dependency'"
           class="me-2"

@@ -1,0 +1,1 @@
+ALTER TABLE mods ADD COLUMN option JSONB NOT NULL DEFAULT '{}'::jsonb;

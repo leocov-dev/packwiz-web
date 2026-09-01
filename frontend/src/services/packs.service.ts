@@ -1,5 +1,6 @@
 import {
   AllPacksResponse,
+  MigrateDryRunResponse,
   Pack,
   PackCollaboratorsResponse,
   PackPermission,
@@ -8,7 +9,7 @@ import {
 } from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
-import type {EditPackRequest, MigratePackRequest, NewPackRequest} from "@/interfaces/requests.ts";
+import type {EditPackRequest, MigratePackRequest, NewPackRequest, RehashRequest} from "@/interfaces/requests.ts";
 
 
 export async function fetchAllPacks(
@@ -109,8 +110,17 @@ export async function updateAllMods(packId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/update-all`)
 }
 
+export async function rehashAllMods(packId: number, request: RehashRequest) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/rehash`, request)
+}
+
 export async function migratePack(packId: number, request: MigratePackRequest) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/migrate`, request)
+}
+
+export async function migrateDryRun(packId: number, request: MigratePackRequest): Promise<MigrateDryRunResponse> {
+  const response = await apiClient.post(`v1/packwiz/pack/${packId}/migrate/dry-run`, request)
+  return plainToInstance(MigrateDryRunResponse, response.data)
 }
 
 export async function getPackCollaborators(packId: number): Promise<PackCollaboratorsResponse> {

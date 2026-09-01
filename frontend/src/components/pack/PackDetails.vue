@@ -15,6 +15,7 @@ import {
 } from "@/services/packs.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import PackMigrateDialog from "@/components/pack/PackMigrateDialog.vue";
+import RehashDialog from "@/components/pack/RehashDialog.vue";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -28,6 +29,7 @@ const showPublicDialog = ref(false)
 const showPrivateDialog = ref(false)
 const showUpdateAllDialog = ref(false)
 const showMigrateDialog = ref(false)
+const showRehashDialog = ref(false)
 
 const updateAllLoading = ref(false)
 
@@ -171,6 +173,12 @@ const updateAll = async () => {
       :pack="pack"
       @migrated="router.go(0)"
     />
+    <RehashDialog
+      v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+      v-model="showRehashDialog"
+      :pack="pack"
+      @rehashed="router.go(0)"
+    />
 
     <v-card>
       <v-card-title
@@ -238,6 +246,13 @@ const updateAll = async () => {
           prepend-icon="mdi-arrow-up-bold-hexagon-outline"
           text="Migrate"
           @click="showMigrateDialog = true"
+        />
+
+        <v-btn
+          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+          prepend-icon="mdi-pound-box-outline"
+          text="Rehash"
+          @click="showRehashDialog = true"
         />
 
         <div

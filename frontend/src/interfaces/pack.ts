@@ -66,6 +66,24 @@ export class Mod {
   updatedAt!: string;
   isDependency!: boolean;
   dependencyIds?: number[];
+  option!: {optional: boolean; description: string; default: boolean};
+}
+
+
+export class MigrateDryRunMod {
+  modId!: number;
+  slug!: string;
+  name!: string;
+  pinned!: boolean;
+  updateAvailable!: boolean;
+  updateString?: string;
+  incompatible!: boolean;
+  error?: string;
+}
+
+export class MigrateDryRunResponse {
+  @Type(() => MigrateDryRunMod)
+  mods!: MigrateDryRunMod[];
 }
 
 

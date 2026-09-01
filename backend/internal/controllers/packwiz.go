@@ -293,6 +293,35 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 	isOK(c)
 }
 
+func (pc *PackwizController) RehashAll(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.RehashRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.RehashAll(c.Request.Context(), packId, request.Format, user)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
+}
+
 func (pc *PackwizController) MigratePack(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
@@ -320,6 +349,30 @@ func (pc *PackwizController) MigratePack(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+func (pc *PackwizController) MigrateDryRun(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	var request dto.MigratePackRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.MigrateDryRun(packId, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
 }
 
 func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {

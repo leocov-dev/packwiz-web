@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
+import {filterModsBySide, type ModSide} from "@/lib/mod-filters.ts";
 
 const {packId, mods, canEdit} = defineProps<{
   packId: number,
@@ -10,12 +11,15 @@ const {packId, mods, canEdit} = defineProps<{
 defineEmits(['add-mod', 'reload'])
 
 const search = ref<string>('')
+const sideFilter = ref<ModSide>('')
 
 const sortedMods = computed(() => {
-  const regularMods = mods.filter(mod => !mod.isDependency)
+  const filteredMods = filterModsBySide(mods, sideFilter.value)
+
+  const regularMods = filteredMods.filter(mod => !mod.isDependency)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const dependencyMods = mods.filter(mod => mod.isDependency)
+  const dependencyMods = filteredMods.filter(mod => mod.isDependency)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return [...regularMods, ...dependencyMods];
@@ -46,6 +50,20 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           prepend-inner-icon="mdi-magnify"
           variant="solo"
           clearable
+          hide-details
+        />
+        <v-select
+          v-model="sideFilter"
+          :items="[
+            {title: 'All Sides', value: ''},
+            {title: 'Client', value: 'client'},
+            {title: 'Server', value: 'server'},
+            {title: 'Client + Server', value: 'both'},
+          ]"
+          max-width="180"
+          class="me-3"
+          density="compact"
+          variant="solo"
           hide-details
         />
         <v-btn

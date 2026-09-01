@@ -12,7 +12,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/leocov-dev/packwiz-nxt v0.0.11-0.20260816224216-5f0e35c80445
+	github.com/leocov-dev/packwiz-nxt v0.0.11
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
