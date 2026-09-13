@@ -62,15 +62,21 @@ export function isSearchResultInstalled(
     return false
   }
   const resultSlug = result.slug?.toLowerCase()
-  const resultId = result.projectId
+  const resultId = result.projectId ? String(result.projectId) : undefined
   return installedMods.some((mod) => {
     if (resultSlug && mod.slug && mod.slug.toLowerCase() === resultSlug) {
       return true
     }
     const update = mod.update as any
     const modrinthUpdate = update?.modrinth
+    const curseforgeUpdate = update?.curseforge
     const updateModId = update?.['mod-id'] || modrinthUpdate?.['mod-id']
-    if (resultId && updateModId && String(updateModId) === String(resultId)) {
+    const updateProjectId = update?.['project-id'] || curseforgeUpdate?.['project-id']
+
+    if (resultId && updateModId && String(updateModId) === resultId) {
+      return true
+    }
+    if (resultId && updateProjectId && String(updateProjectId) === resultId) {
       return true
     }
     return false

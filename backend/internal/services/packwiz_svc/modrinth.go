@@ -4,6 +4,7 @@ import (
 	"codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
@@ -95,24 +96,64 @@ func getInstalledModIdentifiers(mods []tables.Mod) (slugs map[string]bool, proje
 	slugs = make(map[string]bool)
 	projectIDs = make(map[string]bool)
 
+	addID := func(v any) {
+		if v == nil {
+			return
+		}
+		switch id := v.(type) {
+		case string:
+			if id != "" {
+				projectIDs[id] = true
+				slugs[strings.ToLower(id)] = true
+			}
+		case int:
+			if id != 0 {
+				s := strconv.Itoa(id)
+				projectIDs[s] = true
+				slugs[strings.ToLower(s)] = true
+			}
+		case int64:
+			if id != 0 {
+				s := strconv.FormatInt(id, 10)
+				projectIDs[s] = true
+				slugs[strings.ToLower(s)] = true
+			}
+		case float64:
+			if id != 0 {
+				s := strconv.Itoa(int(id))
+				projectIDs[s] = true
+				slugs[strings.ToLower(s)] = true
+			}
+		case uint:
+			if id != 0 {
+				s := strconv.FormatUint(uint64(id), 10)
+				projectIDs[s] = true
+				slugs[strings.ToLower(s)] = true
+			}
+		case uint32:
+			if id != 0 {
+				s := strconv.FormatUint(uint64(id), 10)
+				projectIDs[s] = true
+				slugs[strings.ToLower(s)] = true
+			}
+		}
+	}
+
 	for _, m := range mods {
 		if m.Slug != "" {
 			slugs[strings.ToLower(m.Slug)] = true
 		}
+		addID(m.Update["mod-id"])
+		addID(m.Update["project-id"])
 		if mr, ok := m.Update["modrinth"].(map[string]any); ok {
-			if id, ok := mr["mod-id"].(string); ok && id != "" {
-				projectIDs[id] = true
-				slugs[strings.ToLower(id)] = true
-			}
+			addID(mr["mod-id"])
 		} else if mr, ok := m.Update["modrinth"].(map[string]interface{}); ok {
-			if id, ok := mr["mod-id"].(string); ok && id != "" {
-				projectIDs[id] = true
-				slugs[strings.ToLower(id)] = true
-			}
+			addID(mr["mod-id"])
 		}
-		if id, ok := m.Update["mod-id"].(string); ok && id != "" {
-			projectIDs[id] = true
-			slugs[strings.ToLower(id)] = true
+		if cf, ok := m.Update["curseforge"].(map[string]any); ok {
+			addID(cf["project-id"])
+		} else if cf, ok := m.Update["curseforge"].(map[string]interface{}); ok {
+			addID(cf["project-id"])
 		}
 	}
 	return slugs, projectIDs

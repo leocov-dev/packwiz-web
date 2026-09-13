@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {type Pack} from "@/interfaces/pack.ts";
-import {addMod, listMissingDependencies, searchModrinthMods} from "@/services/mods.service.ts";
+import {addMod, listMissingDependencies, searchModrinthMods, searchCurseforgeMods, getCurseforgeStatus} from "@/services/mods.service.ts";
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
@@ -17,11 +17,22 @@ const isValid = ref(false)
 const loading = ref(false)
 const dependencies = ref<ModDependency[]>([])
 
-const mode = ref<"url" | "search">("url")
+const mode = ref<"url" | "modrinth" | "curseforge">("url")
+const curseforgeAvailable = ref<boolean | null>(null)
 const searchQuery = ref("")
 const searchResults = ref<ModSearchResult[]>([])
 const searchLoading = ref(false)
 const selectedProjectSlug = ref("")
+
+onMounted(async () => {
+  try {
+    const status = await getCurseforgeStatus(pack.id)
+    curseforgeAvailable.value = status.available
+  } catch (e) {
+    console.error("Failed to check CurseForge status:", e)
+    curseforgeAvailable.value = false
+  }
+})
 
 const data = ref({
   modSource: "",
@@ -100,9 +111,12 @@ const cancelForm = async () => {
 
 const selectSearchResult = (result: ModSearchResult) => {
   selectedProjectSlug.value = result.slug
-  data.value.modUrl = `https://modrinth.com/mod/${result.slug}`
+  if (mode.value === "curseforge") {
+    data.value.modUrl = `https://www.curseforge.com/minecraft/mc-mods/${result.slug}`
+  } else {
+    data.value.modUrl = `https://modrinth.com/mod/${result.slug}`
+  }
 }
-
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let requestSeq = 0
@@ -110,14 +124,19 @@ let requestSeq = 0
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 let searchRequestSeq = 0
 
-watch(searchQuery, (newQuery: string) => {
+const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => {
   searchResults.value = []
 
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
   }
 
-  if (!newQuery || newQuery.length < 2) {
+  if (searchMode === "curseforge" && !curseforgeAvailable.value) {
+    searchLoading.value = false
+    return
+  }
+
+  if (!query || query.length < 2) {
     searchLoading.value = false
     return
   }
@@ -127,16 +146,39 @@ watch(searchQuery, (newQuery: string) => {
 
   searchDebounceTimer = setTimeout(async () => {
     try {
-      const response = await searchModrinthMods(pack.id, newQuery, pack.mcVersion ? [pack.mcVersion] : undefined)
+      const versions = pack.mcVersion ? [pack.mcVersion] : undefined
+      const response = searchMode === "curseforge"
+        ? await searchCurseforgeMods(pack.id, query, versions)
+        : await searchModrinthMods(pack.id, query, versions)
+
       if (seq === searchRequestSeq) {
         searchResults.value = response.results || []
       }
+    } catch (e) {
+      if (seq === searchRequestSeq) {
+        searchResults.value = []
+      }
+      console.error("Search failed:", e)
     } finally {
       if (seq === searchRequestSeq) {
         searchLoading.value = false
       }
     }
   }, 400)
+}
+
+watch(searchQuery, (newQuery: string) => {
+  if (mode.value === "modrinth" || mode.value === "curseforge") {
+    executeSearch(newQuery, mode.value)
+  }
+})
+
+watch(mode, (newMode) => {
+  searchResults.value = []
+  selectedProjectSlug.value = ""
+  if (newMode === "modrinth" || newMode === "curseforge") {
+    executeSearch(searchQuery.value, newMode)
+  }
 })
 
 watch(
@@ -222,8 +264,12 @@ watch(
             text="Paste URL"
           />
           <v-btn
-            value="search"
+            value="modrinth"
             text="Search Modrinth"
+          />
+          <v-btn
+            value="curseforge"
+            text="Search CurseForge"
           />
         </v-btn-toggle>
 
@@ -235,7 +281,7 @@ watch(
           clearable
         />
 
-        <div v-else>
+        <div v-else-if="mode === 'modrinth'">
           <v-text-field
             v-model="searchQuery"
             label="Search Modrinth"
@@ -284,6 +330,67 @@ watch(
           </v-list>
         </div>
 
+        <div v-else-if="mode === 'curseforge'">
+          <v-alert
+            v-if="curseforgeAvailable === false"
+            type="warning"
+            variant="tonal"
+            icon="mdi-key-alert"
+            title="CurseForge API Key Required"
+            text="CurseForge search requires a CurseForge API key. Please configure the PWW_CF_API_KEY environment variable on the server to enable CurseForge search."
+            class="mb-4"
+          />
+
+          <template v-else>
+            <v-text-field
+              v-model="searchQuery"
+              label="Search CurseForge"
+              prepend-inner-icon="mdi-magnify"
+              :loading="searchLoading"
+              clearable
+            />
+
+            <v-list
+              v-if="searchResults.length > 0"
+              max-height="450"
+              class="overflow-y-auto mb-4"
+            >
+              <v-list-item
+                v-for="result in searchResults"
+                :key="result.projectId"
+                :active="result.slug === selectedProjectSlug"
+                @click="selectSearchResult(result)"
+              >
+                <template #prepend>
+                  <v-avatar
+                    v-if="result.iconUrl"
+                    :image="result.iconUrl"
+                  />
+                  <v-icon
+                    v-else
+                    icon="mdi-puzzle-outline"
+                  />
+                </template>
+                <v-list-item-title>{{ result.title }}</v-list-item-title>
+                <v-list-item-subtitle class="text-truncate">
+                  {{ result.description }}
+                </v-list-item-subtitle>
+                <template
+                  v-if="isSearchResultInstalled(result, pack.mods)"
+                  #append
+                >
+                  <v-icon
+                    v-tooltip="'Already installed'"
+                    icon="mdi-check-circle"
+                    color="success"
+                    class="ms-2"
+                  />
+                </template>
+              </v-list-item>
+            </v-list>
+          </template>
+        </div>
+
         <MissingDependencies
           v-if="(dependencies || []).length > 0"
           class="mt-2 mb-6"
@@ -301,7 +408,7 @@ watch(
             text="Add Mod"
             color="primary"
             type="submit"
-            :disabled="loading || !isValid || (mode === 'search' && !data.modUrl)"
+            :disabled="loading || !isValid || (mode !== 'url' && !data.modUrl)"
           />
         </div>
       </v-form>

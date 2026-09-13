@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
+	"packwiz-web/internal/config"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/packwiz_svc"
@@ -108,6 +109,34 @@ func (pc *PackwizModController) SearchModrinthMods(c *gin.Context) {
 	}
 
 	dataOK(c, gin.H{"results": results})
+}
+
+func (pc *PackwizModController) SearchCurseforgeMods(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	var query dto.SearchModsQuery
+	err = mustBindQuery(c, &query)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	results, err := pc.packwizSvc.SearchCurseforgeProjects(packId, query.Query, query.Versions)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, gin.H{"results": results})
+}
+
+func (pc *PackwizModController) CurseforgeStatus(c *gin.Context) {
+	dataOK(c, gin.H{"available": config.HasCurseforgeApiKey()})
 }
 
 func (pc *PackwizModController) GetOneMod(c *gin.Context) {

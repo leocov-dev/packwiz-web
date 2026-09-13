@@ -17,7 +17,8 @@ func (sdc *StaticDataController) GetStaticData(c *gin.Context) {
 	c.JSON(
 		http.StatusOK,
 		gin.H{
-			"version": config.C.Version,
+			"version":             config.C.Version,
+			"curseforgeAvailable": config.HasCurseforgeApiKey(),
 		},
 	)
 }

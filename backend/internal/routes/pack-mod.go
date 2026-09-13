@@ -16,6 +16,9 @@ func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 	modGroup.POST("", packModController.AddMod)
 	modGroup.POST("missing-dependencies", packModController.ListMissingDependencies)
 	modGroup.GET("search", packModController.SearchModrinthMods)
+	modGroup.GET("search/modrinth", packModController.SearchModrinthMods)
+	modGroup.GET("search/curseforge", packModController.SearchCurseforgeMods)
+	modGroup.GET("search/curseforge/status", packModController.CurseforgeStatus)
 
 	modIdGroup := modGroup.Group(fmt.Sprintf(":%s", params.ModId))
 	{

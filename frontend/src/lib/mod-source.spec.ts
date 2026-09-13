@@ -63,6 +63,14 @@ describe("isSearchResultInstalled", () => {
     expect(isSearchResultInstalled({slug: "fabric-api", projectId: "P7dR8mSH"}, installedMods2)).toBe(true)
   })
 
+  it("returns true when projectId matches update['project-id'] or update.curseforge['project-id']", () => {
+    const installedMods1 = [{slug: "custom-slug", update: {"project-id": "238222"}}]
+    expect(isSearchResultInstalled({slug: "jei", projectId: "238222"}, installedMods1)).toBe(true)
+
+    const installedMods2 = [{slug: "custom-slug", update: {curseforge: {"project-id": 238222}}}]
+    expect(isSearchResultInstalled({slug: "jei", projectId: "238222"}, installedMods2)).toBe(true)
+  })
+
   it("returns false when mod is not installed", () => {
     const installedMods = [{slug: "sodium", update: {modrinth: {"mod-id": "AANobbMI"}}}]
     expect(isSearchResultInstalled({slug: "fabric-api", projectId: "P7dR8mSH"}, installedMods)).toBe(false)

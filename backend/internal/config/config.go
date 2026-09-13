@@ -53,6 +53,11 @@ func SetVersionTag(tag string) {
 	versionTag = tag
 }
 
+func HasCurseforgeApiKey() bool {
+	_, err := libConfig.DecodeCfApiKey()
+	return err == nil
+}
+
 func init() {
 	exePath, _ := os.Executable()
 

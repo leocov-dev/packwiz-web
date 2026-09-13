@@ -50,3 +50,17 @@ export async function searchModrinthMods(packId: number, query: string, versions
   const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/search?${params.toString()}`)
   return plainToInstance(ModSearchResponse, response.data)
 }
+
+export async function searchCurseforgeMods(packId: number, query: string, versions?: string[]): Promise<ModSearchResponse> {
+  const params = new URLSearchParams({q: query})
+  for (const v of versions || []) {
+    params.append('versions', v)
+  }
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/search/curseforge?${params.toString()}`)
+  return plainToInstance(ModSearchResponse, response.data)
+}
+
+export async function getCurseforgeStatus(packId: number): Promise<{ available: boolean }> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/search/curseforge/status`)
+  return response.data
+}
