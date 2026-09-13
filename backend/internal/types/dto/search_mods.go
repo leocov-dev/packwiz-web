@@ -21,4 +21,5 @@ type ModSearchResult struct {
 	Description string `json:"description"`
 	IconUrl     string `json:"iconUrl"`
 	ProjectId   string `json:"projectId"`
+	Installed   bool   `json:"installed"`
 }

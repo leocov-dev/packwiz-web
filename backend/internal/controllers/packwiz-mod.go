@@ -102,7 +102,7 @@ func (pc *PackwizModController) SearchModrinthMods(c *gin.Context) {
 		return
 	}
 
-	results, err := pc.packwizSvc.SearchModrinthProjects(query.Query, query.Versions)
+	results, err := pc.packwizSvc.SearchModrinthProjects(packId, query.Query, query.Versions)
 	if pc.abortWithError(c, err) {
 		return
 	}

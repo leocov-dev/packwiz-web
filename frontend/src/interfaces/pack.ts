@@ -120,6 +120,7 @@ export class ModSearchResult {
   description!: string;
   iconUrl!: string;
   projectId!: string;
+  installed?: boolean;
 }
 
 export class ModSearchResponse {

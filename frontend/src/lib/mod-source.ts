@@ -50,3 +50,29 @@ export function buildRequest(modSource: ModSource, modUrl: string): BuildRequest
 
   return {error: `Invalid mod source: ${modSource}`}
 }
+
+export function isSearchResultInstalled(
+  result: { slug?: string; projectId?: string; installed?: boolean },
+  installedMods?: Array<{ slug?: string; update?: Record<string, any> }>,
+): boolean {
+  if (result.installed) {
+    return true
+  }
+  if (!installedMods || installedMods.length === 0) {
+    return false
+  }
+  const resultSlug = result.slug?.toLowerCase()
+  const resultId = result.projectId
+  return installedMods.some((mod) => {
+    if (resultSlug && mod.slug && mod.slug.toLowerCase() === resultSlug) {
+      return true
+    }
+    const update = mod.update as any
+    const modrinthUpdate = update?.modrinth
+    const updateModId = update?.['mod-id'] || modrinthUpdate?.['mod-id']
+    if (resultId && updateModId && String(updateModId) === String(resultId)) {
+      return true
+    }
+    return false
+  })
+}

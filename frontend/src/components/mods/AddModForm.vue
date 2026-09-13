@@ -4,7 +4,7 @@ import {addMod, listMissingDependencies, searchModrinthMods} from "@/services/mo
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, type ModSource} from "@/lib/mod-source.ts";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, isSearchResultInstalled, type ModSource} from "@/lib/mod-source.ts";
 import axios from "axios";
 
 const {pack} = defineProps<{ pack: Pack }>()
@@ -244,7 +244,11 @@ watch(
             clearable
           />
 
-          <v-list v-if="searchResults.length > 0">
+          <v-list
+            v-if="searchResults.length > 0"
+            max-height="450"
+            class="overflow-y-auto mb-4"
+          >
             <v-list-item
               v-for="result in searchResults"
               :key="result.projectId"
@@ -265,6 +269,17 @@ watch(
               <v-list-item-subtitle class="text-truncate">
                 {{ result.description }}
               </v-list-item-subtitle>
+              <template
+                v-if="isSearchResultInstalled(result, pack.mods)"
+                #append
+              >
+                <v-icon
+                  v-tooltip="'Already installed'"
+                  icon="mdi-check-circle"
+                  color="success"
+                  class="ms-2"
+                />
+              </template>
             </v-list-item>
           </v-list>
         </div>
