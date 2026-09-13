@@ -75,12 +75,17 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.NewPack(request, author)
+	packId, err := pc.packwizSvc.NewPack(request, author)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	isOK(c)
+	pack, err := pc.packwizSvc.GetPackWithPerms(packId, author.ID)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, pack)
 }
 
 func (pc *PackwizController) PackHead(c *gin.Context) {

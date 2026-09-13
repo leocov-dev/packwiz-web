@@ -27,7 +27,9 @@ Any changes are immediately available to users.
 ## Deploy
 This is a web service intended to be deployed as a docker container.
 A Postgres database is required. 
-See [docker-compose.yml](examples/docker-compose/docker-compose.yml) for a very basic example.
+See the deployment examples in [examples](examples):
+- [docker-compose.yml](examples/docker-compose/docker-compose.yml): Basic single-container setup running background jobs in-process (`--worker`).
+- [docker-compose-worker](examples/docker-compose-worker/docker-compose.yml): Multi-container setup running a dedicated worker container with in-process jobs disabled on the web container.
 
 [Latest Container Image](https://github.com/leocov-dev/packwiz-web/pkgs/container/packwiz-web)
 

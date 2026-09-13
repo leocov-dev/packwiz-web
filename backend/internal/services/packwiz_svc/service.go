@@ -124,30 +124,30 @@ func (ps *PackwizService) PackExistsBySlug(packSlug string, includeDeleted bool)
 	return exists
 }
 
-func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) response.ServerError {
+func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User) (uint, response.ServerError) {
 
 	if ps.PackExistsBySlug(request.Slug, true) {
-		return response.New(http.StatusBadRequest, "pack already exists")
+		return 0, response.New(http.StatusBadRequest, "pack already exists")
+	}
+
+	newPack := &tables.Pack{
+		Slug:                   request.Slug,
+		Name:                   request.Name,
+		Description:            request.Description,
+		CreatedBy:              author.ID,
+		UpdatedBy:              author.ID,
+		IsPublic:               false,
+		Status:                 types.PackStatusDraft,
+		MCVersion:              request.MinecraftVersion,
+		Loader:                 request.LoaderName,
+		LoaderVersion:          request.LoaderVersion,
+		AcceptableGameVersions: request.AcceptableVersions,
+
+		Version:    request.Version,
+		PackFormat: core.CurrentPackFormat,
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		newPack := &tables.Pack{
-			Slug:                   request.Slug,
-			Name:                   request.Name,
-			Description:            request.Description,
-			CreatedBy:              author.ID,
-			UpdatedBy:              author.ID,
-			IsPublic:               false,
-			Status:                 types.PackStatusDraft,
-			MCVersion:              request.MinecraftVersion,
-			Loader:                 request.LoaderName,
-			LoaderVersion:          request.LoaderVersion,
-			AcceptableGameVersions: request.AcceptableVersions,
-
-			Version:    request.Version,
-			PackFormat: core.CurrentPackFormat,
-		}
-
 		if err := tx.Create(newPack).Error; err != nil {
 			return err
 		}
@@ -162,10 +162,10 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 
 		return nil
 	}); err != nil {
-		return response.Wrap(err)
+		return 0, response.Wrap(err)
 	}
 
-	return nil
+	return newPack.ID, nil
 }
 
 // filterValidDependencyIds trims each mod's DependencyIds to only reference

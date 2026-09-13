@@ -4,6 +4,8 @@ services:
       - postgres
     image: ghcr.io/leocov-dev/packwiz-web:latest  # release builds
     #image: packwiz-web:latest  # local development
+    # Run migrations and start the background job worker in-process alongside the web server
+    command: ["start", "--migrate", "--worker"]
     ports:
       - "8080:8080"
     environment:
@@ -20,5 +22,6 @@ services:
     image: postgres:17
     environment:
       - POSTGRES_DB=packwiz
+      - POSTGRES_USER=packwiz
       - POSTGRES_PASSWORD=insecure-db-password
       - TZ=Etc/UTC

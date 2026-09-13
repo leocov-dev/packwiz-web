@@ -205,7 +205,7 @@ watch(
         <v-select
           v-show="false"
           v-model="data.modSource"
-          :items="['Curseforge', 'Modrinth', 'GitHub']"
+          :items="['Curseforge', 'Modrinth', 'Github']"
           label="Mod Source"
           :rules="[rules.sourceRequired]"
         />
