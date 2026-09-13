@@ -25,24 +25,25 @@ onUnmounted(() => {
   <v-app>
     <v-app-bar
       app
-      class="d-flex"
+      class="d-flex justify-start"
       color="primary"
       elevation="2"
     >
-      <v-app-bar-nav-icon
+      <v-btn
         v-ripple="false"
-        icon="mdi-layers"
+        icon
         to="/"
-      />
-      <v-img
-        src="/packwiz@0.25x.png"
-        width="32"
-        height="32"
-      />
+      >
+        <v-img
+          src="/favicon-32x32.png"
+          width="32"
+          height="32"
+        />
+      </v-btn>
       <v-app-bar-title
         link
         text="Packwiz Web"
-        class="ms-2"
+        class="ms-2 flex-grow-0"
       />
 
       <v-spacer />
