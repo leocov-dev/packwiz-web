@@ -34,6 +34,11 @@ onUnmounted(() => {
         icon="mdi-layers"
         to="/"
       />
+      <v-img
+        src="/packwiz@0.25x.png"
+        width="32"
+        height="32"
+      />
       <v-app-bar-title
         link
         text="Packwiz Web"

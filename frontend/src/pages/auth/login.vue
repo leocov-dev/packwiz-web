@@ -63,7 +63,7 @@ onMounted(async () => {
       <v-img
         class="mb-4"
         height="100"
-        src="@/assets/logo.png"
+        src="/packwiz.png"
       />
 
       <div class="mb-5 text-center">
