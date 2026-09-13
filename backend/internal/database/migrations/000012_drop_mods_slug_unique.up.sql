@@ -1,0 +1,1 @@
+ALTER TABLE mods DROP CONSTRAINT IF EXISTS mods_slug_key;
