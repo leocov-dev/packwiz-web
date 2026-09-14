@@ -88,7 +88,9 @@ const submitForm = async () => {
   try {
     await addMod(pack.id, request)
 
-    await router.push({path: `/packs/${pack.id}`})
+    if (mode.value === "modrinth" || mode.value === "curseforge") {
+      executeSearch(searchQuery.value, mode.value)
+    }
   } catch (e) {
     error.value = true
 

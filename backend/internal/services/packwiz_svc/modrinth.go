@@ -175,7 +175,7 @@ func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, vers
 
 	searchRes, err := sources.GetModrinthClient().Projects.Search(&modrinth.SearchOptions{
 		Limit:  25,
-		Index:  "relevance",
+		Index:  "downloads",
 		Query:  query,
 		Facets: facets,
 	})

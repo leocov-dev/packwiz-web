@@ -67,7 +67,25 @@ export async function getPackPublicLink(packId: number): Promise<string> {
 
 export async function linkToClipboard(packId: number) {
   const link = await getPackPublicLink(packId)
-  await navigator.clipboard.writeText(link)
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(link)
+    return
+  }
+
+  const textArea = document.createElement('textarea')
+  textArea.value = link
+  textArea.style.position = 'fixed'
+  textArea.style.opacity = '0'
+  document.body.appendChild(textArea)
+  textArea.select()
+
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textArea)
+
+  if (!copied) {
+    throw new Error('Unable to copy link to clipboard')
+  }
 }
 
 export async function openPublicLink(packId: number) {

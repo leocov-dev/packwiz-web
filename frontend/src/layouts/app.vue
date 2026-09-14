@@ -42,9 +42,10 @@ onUnmounted(() => {
       </v-btn>
       <v-app-bar-title
         link
-        text="Packwiz Web"
         class="ms-2 flex-grow-0"
-      />
+      >
+        Packwiz Web
+      </v-app-bar-title>
 
       <v-spacer />
       <UserMenu />
