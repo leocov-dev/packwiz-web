@@ -33,7 +33,7 @@ RUN go build \
      --ldflags="\
         -s \
         -w \
-        -X 'github.com/packwiz-web/main.VersionTag=$VERSION_TAG' \
+        -X 'main.VersionTag=$VERSION_TAG' \
         -X 'github.com/packwiz-nxt/main.CfApiKey=$CF_API_KEY' \
      "
 

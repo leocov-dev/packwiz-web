@@ -51,6 +51,7 @@ func SetVersionTag(tag string) {
 		return
 	}
 	versionTag = tag
+	C.Version = tag
 }
 
 func HasCurseforgeApiKey() bool {
