@@ -17,7 +17,10 @@ afterEach(() => {
 })
 
 describe("linkToClipboard", () => {
-  it("falls back to the document copy command when the Clipboard API is unavailable", async () => {
+  it.each([
+    ["unavailable", false],
+    ["rejected", true],
+  ])("falls back to the document copy command when the Clipboard API is %s", async (_state, rejects) => {
     get.mockResolvedValue({data: {link: 'https://example.com/pack.toml'}})
     const textArea = {
       value: '',
@@ -27,7 +30,10 @@ describe("linkToClipboard", () => {
     const appendChild = vi.fn()
     const removeChild = vi.fn()
     const execCommand = vi.fn().mockReturnValue(true)
-    Object.defineProperty(globalThis, 'navigator', {value: {}, configurable: true})
+    const clipboard = !rejects
+      ? undefined
+      : {writeText: vi.fn().mockRejectedValue(new Error("Clipboard permission denied"))}
+    Object.defineProperty(globalThis, 'navigator', {value: {clipboard}, configurable: true})
     Object.defineProperty(globalThis, 'document', {
       value: {
         createElement: vi.fn().mockReturnValue(textArea),

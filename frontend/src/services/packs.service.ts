@@ -69,8 +69,13 @@ export async function linkToClipboard(packId: number) {
   const link = await getPackPublicLink(packId)
 
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(link)
-    return
+    try {
+      await navigator.clipboard.writeText(link)
+      return
+    } catch {
+      // Fall back for browsers that expose the Clipboard API but reject the
+      // write because the page is not secure or clipboard permission is denied.
+    }
   }
 
   const textArea = document.createElement('textarea')
