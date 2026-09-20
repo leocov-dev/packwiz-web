@@ -11,6 +11,7 @@ import router from "@/router";
 import type {RouteLocationRaw} from "vue-router";
 import {usePrefStore} from "@/stores/user";
 import {initializeCacheStore} from "@/stores/cache.ts";
+import {initializeAppStore} from "@/stores/app.ts";
 import {AxiosError} from "axios";
 
 
@@ -63,6 +64,7 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
 
       try {
         await initializeCacheStore()
+        await initializeAppStore()
 
         const userPrefs = usePrefStore()
         userPrefs.loadPreferences(this.user.id)

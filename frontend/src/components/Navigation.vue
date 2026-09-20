@@ -1,9 +1,11 @@
 <script setup lang="ts">
 
 import {useAuthStore} from "@/stores/auth";
+import {useAppStore} from "@/stores/app";
 
 const route = useRoute()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 const selected = ref<string[]>([])
 
 const items = [
@@ -56,6 +58,15 @@ watch(
       :title="item.text"
       color="primary"
     />
+
+    <v-spacer />
+
+    <div
+      v-if="appStore.version"
+      class="text-caption text-medium-emphasis text-center text-truncate pb-2 px-1"
+    >
+      v{{ appStore.version }}
+    </div>
   </v-list>
 </template>
 
