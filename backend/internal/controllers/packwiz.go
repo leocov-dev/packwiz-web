@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/params"
@@ -427,6 +428,9 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 	scheme := "http"
 	if c.Request.TLS != nil {
 		scheme = "https"
+	}
+	if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+		scheme = strings.Split(proto, ",")[0]
 	}
 
 	link, err := pc.packwizSvc.GetPersonalLink(user, pack.ID, scheme, c.Request.Host)
