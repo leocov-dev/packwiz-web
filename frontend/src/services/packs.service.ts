@@ -65,12 +65,10 @@ export async function getPackPublicLink(packId: number): Promise<string> {
 }
 
 
-export async function linkToClipboard(packId: number) {
-  const link = await getPackPublicLink(packId)
-
+async function writeToClipboard(text: string) {
   if (navigator.clipboard?.writeText) {
     try {
-      await navigator.clipboard.writeText(link)
+      await navigator.clipboard.writeText(text)
       return
     } catch {
       // Fall back for browsers that expose the Clipboard API but reject the
@@ -79,7 +77,7 @@ export async function linkToClipboard(packId: number) {
   }
 
   const textArea = document.createElement('textarea')
-  textArea.value = link
+  textArea.value = text
   textArea.style.position = 'fixed'
   textArea.style.opacity = '0'
   document.body.appendChild(textArea)
@@ -93,9 +91,24 @@ export async function linkToClipboard(packId: number) {
   }
 }
 
+export async function linkToClipboard(packId: number) {
+  const link = await getPackPublicLink(packId)
+  await writeToClipboard(link)
+}
+
 export async function openPublicLink(packId: number) {
   const link = await getPackPublicLink(packId)
   window.open(link, '_blank')
+}
+
+// See https://packwiz.infra.link/tutorials/installing/packwiz-installer/
+export function getClientSetupCommand(link: string): string {
+  return `"$INST_JAVA" -jar packwiz-installer-bootstrap.jar ${link}`
+}
+
+export async function clientSetupCommandToClipboard(packId: number) {
+  const link = await getPackPublicLink(packId)
+  await writeToClipboard(getClientSetupCommand(link))
 }
 
 export async function newPack(request: NewPackRequest): Promise<Pack> {

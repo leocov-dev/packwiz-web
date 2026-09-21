@@ -53,3 +53,19 @@ describe("linkToClipboard", () => {
     expect(removeChild).toHaveBeenCalledWith(textArea)
   })
 })
+
+describe("clientSetupCommandToClipboard", () => {
+  it("copies the packwiz-installer-bootstrap command for the pack's link", async () => {
+    get.mockResolvedValue({data: {link: 'https://example.com/pack.toml'}})
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(globalThis, 'navigator', {value: {clipboard: {writeText}}, configurable: true})
+
+    const {clientSetupCommandToClipboard} = await import("./packs.service.ts")
+    await clientSetupCommandToClipboard(42)
+
+    expect(get).toHaveBeenCalledWith('v1/packwiz/pack/42/link')
+    expect(writeText).toHaveBeenCalledWith(
+      '"$INST_JAVA" -jar packwiz-installer-bootstrap.jar https://example.com/pack.toml'
+    )
+  })
+})

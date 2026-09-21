@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {type Pack, PackStatus} from "@/interfaces/pack.ts";
-import {linkToClipboard, openPublicLink} from "@/services/packs.service.ts";
+import {clientSetupCommandToClipboard, linkToClipboard, openPublicLink} from "@/services/packs.service.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -10,7 +10,6 @@ const actionsDisabled = computed(() => {
 })
 
 const snackbar = useSnackbarStore()
-
 
 const copyToClipboard = async () => {
   await linkToClipboard(pack.id)
@@ -25,20 +24,34 @@ const openLink = () => {
   openPublicLink(pack.id)
 }
 
+const copySetupCommand = async () => {
+  await clientSetupCommandToClipboard(pack.id)
+  snackbar.showSnackbar(
+    'Client setup command copied to clipboard',
+    'default',
+    2000
+  )
+}
+
 const actions = computed<{
   icon: string,
   action: () => void | Promise<void>,
-  tooltip: string,
+  title: string,
 }[]>(() => [
   {
     icon: 'mdi-clipboard-text-multiple-outline',
     action: copyToClipboard,
-    tooltip: pack.isPublic ? "Copy public link" : "Copy personalized link"
+    title: pack.isPublic ? "Copy public link" : "Copy personalized link"
   },
   {
     icon: 'mdi-open-in-new',
     action: openLink,
-    tooltip: pack.isPublic ? "Open public link" : "Open personalized link",
+    title: pack.isPublic ? "Open public link" : "Open personalized link",
+  },
+  {
+    icon: 'mdi-console',
+    action: copySetupCommand,
+    title: "Copy client setup command (MultiMC/Prism)",
   }
 ])
 </script>
@@ -51,43 +64,39 @@ const actions = computed<{
   >
     <template #activator="{ props }">
       <div v-bind="props">
-        <template
-          v-for="actionItem in actions"
-          :key="actionItem.icon"
-        >
-          <v-btn
-            link
-            density="comfortable"
-            color="default"
-            variant="plain"
-            :icon="actionItem.icon"
-            :disabled="true"
-          />
-        </template>
+        <v-btn
+          link
+          density="comfortable"
+          color="default"
+          variant="plain"
+          icon="mdi-dots-vertical"
+          :disabled="true"
+        />
       </div>
     </template>
   </v-tooltip>
 
-  <div v-else>
-    <template
-      v-for="actionItem in actions"
-      :key="actionItem.icon"
-    >
-      <v-tooltip :text="actionItem.tooltip">
-        <template #activator="{ props }">
-          <v-btn
-            link
-            density="comfortable"
-            color="default"
-            variant="plain"
-            v-bind="props"
-            :icon="actionItem.icon"
-            :disabled="actionsDisabled"
-            @click="actionItem.action"
-          />
-        </template>
-      </v-tooltip>
+  <v-menu v-else>
+    <template #activator="{ props }">
+      <v-btn
+        link
+        density="comfortable"
+        color="default"
+        variant="plain"
+        v-bind="props"
+        icon="mdi-dots-vertical"
+        :disabled="actionsDisabled"
+      />
     </template>
-  </div>
-</template>
 
+    <v-list>
+      <v-list-item
+        v-for="actionItem in actions"
+        :key="actionItem.icon"
+        :prepend-icon="actionItem.icon"
+        :title="actionItem.title"
+        @click="actionItem.action"
+      />
+    </v-list>
+  </v-menu>
+</template>
