@@ -19,7 +19,7 @@ import RehashDialog from "@/components/pack/RehashDialog.vue";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
-defineEmits(['reload'])
+const emit = defineEmits(['reload'])
 
 const showPublishDialog = ref(false)
 const showDraftDialog = ref(false)
@@ -75,39 +75,39 @@ const chipList: Chip[] = [
 
 const convertToDraft = async () => {
   await convertPackToDraft(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const publish = async () => {
   await publishPack(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const archive = async () => {
   await archivePack(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const unArchive = async () => {
   await unArchivePack(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const makePublic = async () => {
   await makePackPublic(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const makePrivate = async () => {
   await makePackPrivate(pack.id)
-  router.go(0)
+  emit('reload')
 }
 
 const updateAll = async () => {
   updateAllLoading.value = true
   try {
     await updateAllMods(pack.id)
-    router.go(0)
+    emit('reload')
   } finally {
     updateAllLoading.value = false
   }
@@ -171,13 +171,13 @@ const updateAll = async () => {
       v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
       v-model="showMigrateDialog"
       :pack="pack"
-      @migrated="router.go(0)"
+      @migrated="emit('reload')"
     />
     <RehashDialog
       v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
       v-model="showRehashDialog"
       :pack="pack"
-      @rehashed="router.go(0)"
+      @rehashed="emit('reload')"
     />
 
     <v-card>
