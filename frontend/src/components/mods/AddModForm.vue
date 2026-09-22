@@ -16,6 +16,9 @@ const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
 const dependencies = ref<ModDependency[]>([])
+const addModButtonText = computed(() =>
+  dependencies.value.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
+)
 
 const mode = ref<"url" | "modrinth" | "curseforge">("url")
 const curseforgeAvailable = ref<boolean | null>(null)
@@ -222,7 +225,14 @@ watch(
     class="ma-6"
   >
     <v-card>
-      <v-card-title>
+      <v-card-title class="d-flex align-center">
+        <v-btn
+          icon="mdi-arrow-left"
+          variant="text"
+          class="me-3"
+          :disabled="loading"
+          @click="cancelForm"
+        />
         <h1 class="me-5">
           {{ pack.name || pack.slug }}
         </h1>
@@ -393,26 +403,20 @@ watch(
           </template>
         </div>
 
-        <MissingDependencies
-          v-if="(dependencies || []).length > 0"
-          class="mt-2 mb-6"
-          :missing="dependencies"
-        />
-
         <div class="d-flex justify-end">
           <v-btn
-            text="Cancel"
-            :disabled="loading"
-            class="me-6"
-            @click="cancelForm"
-          />
-          <v-btn
-            text="Add Mod"
+            :text="addModButtonText"
             color="primary"
             type="submit"
             :disabled="loading || !isValid || (mode !== 'url' && !data.modUrl)"
           />
         </div>
+
+        <MissingDependencies
+          v-if="(dependencies || []).length > 0"
+          class="mt-2 mb-6"
+          :missing="dependencies"
+        />
       </v-form>
 
 
