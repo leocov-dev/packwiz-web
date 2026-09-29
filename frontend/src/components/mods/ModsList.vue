@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
-import {countMods, filterModsBySide, formatModCounts, type ModSide} from "@/lib/mod-filters.ts";
+import {
+  applyModListState,
+  buildDependentsMap,
+  buildModListQuery,
+  countMods,
+  dependentNames as getDependentNames,
+  findOrphanedDependencies,
+  formatFilteredCount,
+  formatModCounts,
+  hasActiveModFilters,
+  parseModListQuery,
+  type ModShow,
+  type ModSide,
+  type ModSort,
+} from "@/lib/mod-filters.ts";
 
 const {packId, mods, canEdit} = defineProps<{
   packId: number,
@@ -10,31 +24,59 @@ const {packId, mods, canEdit} = defineProps<{
 
 defineEmits(['add-mod', 'reload'])
 
+const route = useRoute()
+const router = useRouter()
 
-const search = ref<string>('')
-const sideFilter = ref<ModSide>('')
+// Filter state lives in the route query: a reload remounts this component
+// (parent swaps in a skeleton), so local refs alone would be lost.
+const initial = parseModListQuery(route.query)
+const search = ref<string>(initial.q)
+const sort = ref<ModSort>(initial.sort)
+const sideFilter = ref<ModSide>(initial.side)
+const show = ref<ModShow[]>(initial.show)
+const currentPage = ref(1)
 
-const sortedMods = computed(() => {
-  const filteredMods = filterModsBySide(mods, sideFilter.value)
+const listState = computed(() => ({
+  q: search.value ?? '',
+  sort: sort.value,
+  side: sideFilter.value,
+  show: show.value,
+}))
 
-  const regularMods = filteredMods.filter(mod => !mod.isDependency)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const dependencyMods = filteredMods.filter(mod => mod.isDependency)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  return [...regularMods, ...dependencyMods];
+watch(listState, (state) => {
+  currentPage.value = 1
+  router.replace({query: {...route.query, q: undefined, sort: undefined, side: undefined, show: undefined, ...buildModListQuery(state)}})
 })
 
+const sortOptions = [
+  {title: 'Name (A-Z)', value: 'name'},
+  {title: 'Recently updated', value: 'updated'},
+]
+const sideOptions = [
+  {title: 'All Sides', value: ''},
+  {title: 'Client', value: 'client'},
+  {title: 'Server', value: 'server'},
+  {title: 'Client + Server', value: 'both'},
+]
+
+const sortedMods = computed(() => applyModListState(mods, listState.value))
+
+const dependents = computed(() => buildDependentsMap(mods))
+const dependentNamesFor = (mod: Mod) => getDependentNames(mod, dependents.value)
+const orphanNamesFor = (mod: Mod) => findOrphanedDependencies(mod, mods, dependents.value).map(m => m.name)
+
 const counts = computed(() => countMods(mods))
-const countLabel = computed(() => formatModCounts(counts.value))
+const hasActiveFilters = computed(() => hasActiveModFilters(listState.value))
+const countLabel = computed(() => hasActiveFilters.value
+  ? formatFilteredCount(sortedMods.value.length, counts.value.total)
+  : formatModCounts(counts.value))
 
 const hasMods = computed(() => mods.length > 0)
-const hasActiveFilters = computed(() => !!search.value || !!sideFilter.value)
 
 const clearFilters = () => {
   search.value = ''
   sideFilter.value = ''
+  show.value = []
 }
 
 const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
@@ -46,8 +88,8 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
 
 <template>
   <v-data-iterator
+    v-model:page="currentPage"
     :items="sortedMods"
-    :search="search"
     items-per-page="20"
   >
     <template #header>
@@ -67,19 +109,49 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
         />
         <v-select
           v-model="sideFilter"
-          :items="[
-            {title: 'All Sides', value: ''},
-            {title: 'Client', value: 'client'},
-            {title: 'Server', value: 'server'},
-            {title: 'Client + Server', value: 'both'},
-          ]"
+          :items="sideOptions"
           max-width="180"
           class="me-3"
           density="compact"
           variant="solo"
           hide-details
         />
+        <v-select
+          v-model="sort"
+          :items="sortOptions"
+          max-width="200"
+          class="me-3"
+          density="compact"
+          variant="solo"
+          label="Sort"
+          hide-details
+        />
       </v-toolbar>
+      <v-chip-group
+        v-model="show"
+        multiple
+        class="px-4 py-2"
+        aria-label="Show only"
+      >
+        <v-chip
+          value="pinned"
+          filter
+          variant="outlined"
+          text="Pinned"
+        />
+        <v-chip
+          value="optional"
+          filter
+          variant="outlined"
+          text="Optional"
+        />
+        <v-chip
+          value="dependencies"
+          filter
+          variant="outlined"
+          text="Dependencies"
+        />
+      </v-chip-group>
     </template>
 
     <template #no-data>
@@ -142,6 +214,8 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
             :pack-id="packId"
             :mod="item.raw"
             :can-edit="canEdit"
+            :dependent-names="dependentNamesFor(item.raw)"
+            :orphan-names="orphanNamesFor(item.raw)"
             @reload="$emit('reload')"
           />
         </v-list-item>
