@@ -667,15 +667,25 @@ func (ps *PackwizService) RehashAll(ctx context.Context, packId uint, format str
 func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.User) error {
 	source, update := tables.ExtractModSource(updated)
 
+	var existing tables.Mod
+	if err := tx.Select("id", "file_name", "download").
+		First(&existing, dbModID).Error; err != nil {
+		return err
+	}
+	fileChanged := existing.FileName != updated.FileName ||
+		existing.Download.Hash != updated.Download.Hash
+
+	nextVersion, writeVersion := nextStoredVersion(existing.Version, updated.Version, fileChanged)
+
 	columns := []string{"FileName", "Download", "Source", "Update", "UpdatedBy"}
-	// never overwrite a stored version with an empty one
-	if updated.Version != "" {
+	if writeVersion && nextVersion != "" {
 		columns = append(columns, "Version")
 	}
+	clearVersion := writeVersion && nextVersion == ""
 
-	return tx.Model(&tables.Mod{ID: dbModID}).Select(columns).Updates(tables.Mod{
+	if err := tx.Model(&tables.Mod{ID: dbModID}).Select(columns).Updates(tables.Mod{
 		FileName: updated.FileName,
-		Version:  updated.Version,
+		Version:  nextVersion,
 		Download: tables.DownloadInfo{
 			URL:        updated.Download.URL,
 			Mode:       updated.Download.Mode,
@@ -685,7 +695,30 @@ func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.Us
 		Source:    source,
 		Update:    update,
 		UpdatedBy: user.ID,
-	}).Error
+	}).Error; err != nil {
+		return err
+	}
+
+	if clearVersion {
+		// stale version must not outlive the file it described; NULL matches legacy rows
+		return tx.Model(&tables.Mod{}).Where("id = ?", dbModID).
+			UpdateColumn("version", nil).Error
+	}
+	return nil
+}
+
+// nextStoredVersion decides what to persist for mods.version after an update.
+// A non-empty new version always wins. With no new version: keep the stored one
+// if the file is unchanged, otherwise clear it (write=true, "") so the UI falls
+// back to the file name instead of showing a stale version.
+func nextStoredVersion(oldVersion, newVersion string, fileChanged bool) (version string, write bool) {
+	if newVersion != "" {
+		return newVersion, true
+	}
+	if fileChanged && oldVersion != "" {
+		return "", true
+	}
+	return oldVersion, false
 }
 
 // persistModVersion stores a freshly resolved version without touching
@@ -1117,6 +1150,9 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		pack.LoaderVersion != before.loaderVersion ||
 		!slices.Equal([]string(pack.AcceptableGameVersions), before.acceptable)
 
+	// NOTE: association saves here must not touch mods.version. Enabling
+	// FullSaveAssociations, or a full-row Save(&mod), would blank the DB-only
+	// version column (verified on Postgres 16). Keep this a plain Save(pack).
 	if err := ps.db.Save(pack).Error; err != nil {
 		return response.Wrap(err)
 	}
