@@ -79,26 +79,8 @@ export function describeSaveFailure(results: StepResult[]): string {
     .join(" ")
 }
 
-export interface ModSnapshot {
-  fileName: string
-  update: Mod["update"]
-}
-
-export function snapshotMod(mod: Mod): ModSnapshot {
-  return {fileName: mod.fileName, update: {...(mod.update ?? {})}}
-}
-
-export function modWasUpdated(before: ModSnapshot, after: ModSnapshot): boolean {
-  if (before.fileName !== after.fileName) return true
-  return JSON.stringify(sortKeys(before.update)) !== JSON.stringify(sortKeys(after.update))
-}
-
-function sortKeys(o: Mod["update"] | undefined) {
-  return Object.fromEntries(Object.entries(o ?? {}).sort(([a], [b]) => a.localeCompare(b)))
-}
-
-export function describeUpdateResult(name: string, before: ModSnapshot, after: ModSnapshot): string {
-  return modWasUpdated(before, after)
-    ? `Updated ${name} to ${after.fileName}`
+export function describeUpdateResult(name: string, updated: boolean, fileName: string): string {
+  return updated
+    ? `Updated ${name} to ${fileName}`
     : `${name} is already up to date`
 }

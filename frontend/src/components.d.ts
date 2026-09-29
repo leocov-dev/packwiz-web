@@ -49,6 +49,7 @@ declare module 'vue' {
     SlugAndName: typeof import('./components/forms/SlugAndName.vue')['default']
     ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
     UnderConstruction: typeof import('./components/UnderConstruction.vue')['default']
+    UpdateAllResultDialog: typeof import('./components/pack/UpdateAllResultDialog.vue')['default']
     UserList: typeof import('./components/user/UserList.vue')['default']
     UserMenu: typeof import('./components/user/UserMenu.vue')['default']
     UserProfile: typeof import('./components/user/UserProfile.vue')['default']

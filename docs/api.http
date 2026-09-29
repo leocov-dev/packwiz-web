@@ -90,8 +90,11 @@ Content-Type: application/json
 ### DELETE remove a named mod
 DELETE {{apiRoot}}/v1/packwiz/pack/packA/mod/balm
 
-### PATCH update a named mod
+### PATCH update a named mod (responds {"updated": bool}; 400 if pinned)
 PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/update
+
+### PATCH update all mods in a pack (partial success; responds {updated, skipped, failed, upToDate})
+PATCH {{apiRoot}}/v1/packwiz/pack/packA/update-all
 
 ### PATCH update a mods side
 PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/side

@@ -480,36 +480,94 @@ func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcce
 }
 
 // UpdateAll
-// update all the mods in a pack, skipping pinned mods
-func (ps *PackwizService) UpdateAll(packId uint, user tables.User) response.ServerError {
-
+// update all the mods in a pack with partial success: pinned mods are skipped,
+// per-mod failures are collected and do not abort the run. Mods are checked in
+// one pass (CheckAllMods, per-mod errors) then updated sequentially (the nxt
+// updaters are not verified concurrency-safe). Only mods that actually changed
+// are written to the DB, so unchanged rows keep their updated_at.
+func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user tables.User) (dto.UpdateAllResponse, response.ServerError) {
 	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
-		return err
+		return dto.UpdateAllResponse{}, err
 	}
 
 	pack := dbPack.AsMeta()
 
-	if updateErr := core.UpdateAllMods(nil, pack); updateErr != nil {
-		return response.Wrap(updateErr)
+	dbModsBySlug := make(map[string]tables.Mod, len(dbPack.Mods))
+	for _, dbMod := range dbPack.Mods {
+		dbModsBySlug[dbMod.Slug] = dbMod
 	}
 
-	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
-		for _, dbMod := range dbPack.Mods {
-			updatedMod, ok := pack.Mods[dbMod.Slug]
-			if !ok {
+	checks, checkErr := core.CheckAllMods(nil, pack)
+	if checkErr != nil {
+		return dto.UpdateAllResponse{}, response.Wrap(checkErr)
+	}
+
+	summary := &updateAllSummary{}
+	checked := make(map[string]bool, len(checks))
+
+	for _, check := range checks {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return dto.UpdateAllResponse{}, response.Wrap(ctxErr)
+		}
+
+		dbMod, ok := dbModsBySlug[check.Mod.Slug]
+		if !ok {
+			continue
+		}
+		checked[check.Mod.Slug] = true
+		item := dto.UpdateAllItem{ModId: dbMod.ID, Slug: dbMod.Slug, Name: dbMod.Name}
+
+		switch {
+		case check.Err != nil:
+			if dbMod.Pinned {
+				// pinned mods are never updated; a failed check changes nothing for the user
+				log.Debug(fmt.Errorf("update check failed for pinned mod %s: %w", dbMod.Slug, check.Err))
+				summary.addUpToDate()
 				continue
 			}
-			if err := applyModUpdate(tx, dbMod.ID, updatedMod, user); err != nil {
-				return err
-			}
+			summary.addFailed(item, check.Err)
+		case !check.UpdateAvailable:
+			summary.addUpToDate()
+		case dbMod.Pinned:
+			summary.addSkipped(item, SkipReasonPinned)
+		default:
+			ps.updateOneOfMany(pack, check.Mod, item, user, summary)
 		}
-		return nil
-	}); txErr != nil {
-		return response.Wrap(txErr)
 	}
 
-	return nil
+	// mods without a registered updater are never checked; they count as up to date
+	for slug := range dbModsBySlug {
+		if !checked[slug] {
+			summary.addUpToDate()
+		}
+	}
+
+	return summary.response(), nil
+}
+
+// updateOneOfMany updates a single mod during UpdateAll, recording the outcome
+// in summary. Failures are recorded, not returned.
+func (ps *PackwizService) updateOneOfMany(pack core.Pack, mod *core.Mod, item dto.UpdateAllItem, user tables.User, summary *updateAllSummary) {
+	before := takeModSnapshot(mod)
+
+	if updateErr := core.UpdateSingleMod(nil, pack, mod); updateErr != nil {
+		summary.addFailed(item, updateErr)
+		return
+	}
+
+	if !before.changedSince(mod) {
+		summary.addUpToDate()
+		return
+	}
+
+	if dbErr := applyModUpdate(ps.db, item.ModId, mod, user); dbErr != nil {
+		summary.addFailed(item, fmt.Errorf("failed to save update: %w", dbErr))
+		return
+	}
+
+	item.FileName = mod.FileName
+	summary.addUpdated(item)
 }
 
 // RehashAll
@@ -634,40 +692,47 @@ func (ps *PackwizService) RemoveModById(modId uint) response.ServerError {
 }
 
 // UpdateMod
-// update a given mod from a given pack
-func (ps *PackwizService) UpdateMod(modId uint, user tables.User) response.ServerError {
+// update a given mod from a given pack. Reports whether anything changed; the
+// DB row is only written when it did.
+func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateModResponse, response.ServerError) {
 	modInfo, err := ps.GetMod(modId)
 	if err != nil {
-		return err
+		return dto.UpdateModResponse{}, err
 	}
 
 	if modInfo.Pinned {
-		return response.New(http.StatusBadRequest, "cannot update pinned mod")
+		return dto.UpdateModResponse{}, response.New(http.StatusBadRequest, "cannot update pinned mod")
 	}
 
 	dbPack, err := ps.GetPackById(modInfo.PackID)
 	if err != nil {
-		return err
+		return dto.UpdateModResponse{}, err
 	}
 
 	pack := dbPack.AsMeta()
 
 	mod, ok := pack.Mods[modInfo.Slug]
 	if !ok {
-		return response.New(http.StatusNotFound, fmt.Sprintf("mod '%s' not found in pack", modInfo.Slug))
+		return dto.UpdateModResponse{}, response.New(http.StatusNotFound, fmt.Sprintf("mod '%s' not found in pack", modInfo.Slug))
 	}
 
+	before := takeModSnapshot(mod)
+
 	if updateErr := core.UpdateSingleMod(nil, pack, mod); updateErr != nil {
-		return response.Wrap(updateErr)
+		return dto.UpdateModResponse{}, response.Wrap(updateErr)
+	}
+
+	if !before.changedSince(mod) {
+		return dto.UpdateModResponse{Updated: false}, nil
 	}
 
 	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
 		return applyModUpdate(tx, modInfo.ID, mod, user)
 	}); txErr != nil {
-		return response.Wrap(txErr)
+		return dto.UpdateModResponse{}, response.Wrap(txErr)
 	}
 
-	return nil
+	return dto.UpdateModResponse{Updated: true}, nil
 }
 
 // GetMod

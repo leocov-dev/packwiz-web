@@ -1,6 +1,6 @@
 import {apiClient} from "@/services/api.service.ts";
 import type {AddModRequest, ChangeModOptionRequest, ChangeModSideRequest} from "@/interfaces/requests.ts";
-import {Mod, ModDependenciesResponse, ModSearchResponse} from "@/interfaces/pack.ts";
+import {Mod, ModDependenciesResponse, ModSearchResponse, UpdateModResponse} from "@/interfaces/pack.ts";
 import {plainToInstance} from "class-transformer";
 
 export async function fetchOneMod(packId: number, modId: number): Promise<Mod> {
@@ -34,8 +34,9 @@ export async function unpinMod(packId: number, modId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/unpin`)
 }
 
-export async function updateModFromSource(packId: number, modId: number) {
-  return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/update`)
+export async function updateModFromSource(packId: number, modId: number): Promise<UpdateModResponse> {
+  const response = await apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/update`)
+  return plainToInstance(UpdateModResponse, response.data)
 }
 
 export async function removeMod(packId: number, modId: number) {

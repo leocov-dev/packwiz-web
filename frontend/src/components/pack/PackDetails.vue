@@ -16,6 +16,11 @@ import {
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import PackMigrateDialog from "@/components/pack/PackMigrateDialog.vue";
 import RehashDialog from "@/components/pack/RehashDialog.vue";
+import UpdateAllResultDialog from "@/components/pack/UpdateAllResultDialog.vue";
+import {updateAllOutcome} from "@/lib/update-summary.ts";
+import type {UpdateAllResponse} from "@/interfaces/pack.ts";
+import {apiErrorMessage} from "@/services/utils.ts";
+import {useSnackbarStore} from "@/stores/snackbar.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -32,6 +37,10 @@ const showMigrateDialog = ref(false)
 const showRehashDialog = ref(false)
 
 const updateAllLoading = ref(false)
+const showUpdateAllResult = ref(false)
+const updateAllResult = ref<UpdateAllResponse | null>(null)
+
+const snackbar = useSnackbarStore()
 
 const router = useRouter()
 const {canEdit, hasEditAccess} = usePackPermissions(() => pack)
@@ -89,8 +98,16 @@ const makePrivate = async () => {
 const updateAll = async () => {
   updateAllLoading.value = true
   try {
-    await updateAllMods(pack.id)
+    const result = await updateAllMods(pack.id)
+    if (updateAllOutcome(result) === "up-to-date") {
+      snackbar.showSnackbar("All mods are up to date", "success")
+    } else {
+      updateAllResult.value = result
+      showUpdateAllResult.value = true
+    }
     emit('reload')
+  } catch (e) {
+    snackbar.showSnackbar(apiErrorMessage(e, "Failed to update mods"), "error")
   } finally {
     updateAllLoading.value = false
   }
@@ -149,6 +166,11 @@ const updateAll = async () => {
       text="Are you sure you want to update all mods to their latest versions?
       Pinned mods will be skipped."
       @accepted="updateAll"
+    />
+    <UpdateAllResultDialog
+      v-if="updateAllResult"
+      v-model="showUpdateAllResult"
+      :result="updateAllResult"
     />
     <PackMigrateDialog
       v-if="canEdit"

@@ -3,7 +3,6 @@ import type {Mod} from "@/interfaces/pack.ts"
 import {updateModFromSource} from "@/services/mods.service.ts"
 import {apiErrorMessage} from "@/services/utils.ts"
 import {modSourceLabel} from "@/lib/mod-filters.ts"
-import {snapshotMod, type ModSnapshot} from "@/lib/mod-edit.ts"
 
 const {packId, mod, hasUnsavedChanges, pinned, disabled = false} = defineProps<{
   packId: number
@@ -14,8 +13,8 @@ const {packId, mod, hasUnsavedChanges, pinned, disabled = false} = defineProps<{
   disabled?: boolean
 }>()
 
-// Emits the pre-update snapshot so the parent can compare after its reload.
-const emit = defineEmits<{ updated: [before: ModSnapshot], busy: [busy: boolean] }>()
+// Emits whether the server actually changed the mod.
+const emit = defineEmits<{ updated: [changed: boolean], busy: [busy: boolean] }>()
 
 const displayName = computed(() => mod.name || mod.slug)
 
@@ -34,9 +33,8 @@ const doUpdate = async () => {
   loading.value = true
   emit("busy", true)
   try {
-    const before = snapshotMod(mod)
-    await updateModFromSource(packId, mod.id)
-    emit("updated", before)
+    const result = await updateModFromSource(packId, mod.id)
+    emit("updated", result.updated)
   } catch (e) {
     errorMsg.value = apiErrorMessage(e, "Failed to update mod from source")
   } finally {
