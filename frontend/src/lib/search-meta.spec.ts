@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {formatAuthorLine, formatDownloads, isPackLoader, limitChips} from "./search-meta.ts"
+import {formatAuthorLine, formatDownloads, isPackLoader, limitChips, prettyCategory} from "./search-meta.ts"
 
 describe("formatDownloads", () => {
   it.each([
@@ -45,5 +45,17 @@ describe("limitChips", () => {
   it("handles undefined and short lists", () => {
     expect(limitChips(undefined, 2)).toEqual({shown: [], hidden: 0})
     expect(limitChips(["a"], 2)).toEqual({shown: ["a"], hidden: 0})
+  })
+})
+
+describe("prettyCategory", () => {
+  it.each([
+    ["game-mechanics", "Game Mechanics"],
+    ["worldgen", "Worldgen"],
+    ["magic", "Magic"],
+    ["", ""],
+    ["a--b", "A B"],
+  ])("%s -> %s", (input, expected) => {
+    expect(prettyCategory(input)).toBe(expected)
   })
 })
