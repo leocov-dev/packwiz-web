@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {addedKey, buildRequest, getResultState, normalizeSearchQuery, isSearchResultInstalled, parseUrl, searchEmptyState} from "./mod-source.ts"
+import {addedKey, buildRequest, getResultState, normalizeSearchQuery, isSearchResultInstalled, parseUrl, normalizeUrl, searchEmptyState, searchFilterCaption} from "./mod-source.ts"
 
 describe("parseUrl", () => {
   it("recognizes a curseforge URL", () => {
@@ -33,8 +33,20 @@ describe("parseUrl", () => {
   })
 
   it("returns empty string for an invalid URL", () => {
-    expect(parseUrl("modrinth.com/mod/sodium")).toBe("")
     expect(parseUrl("not a url")).toBe("")
+    expect(parseUrl("!!!")).toBe("")
+    expect(parseUrl("example.com/mod")).toBe("")
+  })
+
+  it("accepts scheme-less pastes", () => {
+    expect(parseUrl("modrinth.com/mod/sodium")).toBe("Modrinth")
+    expect(parseUrl("www.curseforge.com/minecraft/mc-mods/jei")).toBe("Curseforge")
+    expect(parseUrl("github.com/owner/repo")).toBe("Github")
+  })
+
+  it("still rejects lookalike scheme-less hosts", () => {
+    expect(parseUrl("notmodrinth.com/mod/x")).toBe("")
+    expect(parseUrl("modrinth.com.evil.io/mod/x")).toBe("")
   })
 
   it("accepts www and other subdomains", () => {
@@ -166,5 +178,41 @@ describe("normalizeSearchQuery", () => {
   it("handles null and undefined", () => {
     expect(normalizeSearchQuery(null)).toBe("")
     expect(normalizeSearchQuery(undefined)).toBe("")
+  })
+})
+
+describe("normalizeUrl", () => {
+  it("prepends https:// to scheme-less input", () => {
+    expect(normalizeUrl("  modrinth.com/mod/sodium ")).toBe("https://modrinth.com/mod/sodium")
+  })
+
+  it("leaves URLs with a scheme untouched", () => {
+    expect(normalizeUrl("http://modrinth.com/mod/sodium")).toBe("http://modrinth.com/mod/sodium")
+    expect(normalizeUrl("ftp://modrinth.com/x")).toBe("ftp://modrinth.com/x")
+  })
+
+  it("returns empty for empty input", () => {
+    expect(normalizeUrl("  ")).toBe("")
+  })
+})
+
+describe("searchFilterCaption", () => {
+  it("includes version and loader for modrinth", () => {
+    expect(searchFilterCaption("modrinth", "1.20.1", "quilt")).toBe("Filtering for Minecraft 1.20.1 \u00b7 Quilt")
+  })
+
+  it("includes loader for curseforge when supported", () => {
+    expect(searchFilterCaption("curseforge", "1.20.1", "neoforge")).toBe("Filtering for Minecraft 1.20.1 \u00b7 Neoforge")
+    expect(searchFilterCaption("curseforge", "1.20.1", "Fabric")).toBe("Filtering for Minecraft 1.20.1 \u00b7 Fabric")
+  })
+
+  it("omits the loader for curseforge when unsupported", () => {
+    expect(searchFilterCaption("curseforge", "1.20.1", "quilt")).toBe("Filtering for Minecraft 1.20.1")
+  })
+
+  it("handles missing values", () => {
+    expect(searchFilterCaption("modrinth", undefined, undefined)).toBe("")
+    expect(searchFilterCaption("curseforge", undefined, "quilt")).toBe("")
+    expect(searchFilterCaption("modrinth", undefined, "fabric")).toBe("Filtering for Fabric")
   })
 })

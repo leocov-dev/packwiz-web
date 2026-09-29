@@ -8,14 +8,29 @@ const SOURCE_HOSTS: Array<[string, ModSource]> = [
   ["github.com", "Github"],
 ]
 
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
+
+/**
+ * Normalises a pasted URL: trims, and prepends https:// when no scheme is present
+ * (e.g. "modrinth.com/mod/foo"). Returns the input trimmed otherwise.
+ */
+export function normalizeUrl(url: string): string {
+  const trimmed = (url ?? "").trim()
+  if (!trimmed || HAS_SCHEME.test(trimmed)) {
+    return trimmed
+  }
+  return `https://${trimmed}`
+}
+
 export function parseUrl(url: string): ModSource {
-  if (!url) {
+  const normalized = normalizeUrl(url)
+  if (!normalized) {
     return ""
   }
 
   let parsed: URL
   try {
-    parsed = new URL(url)
+    parsed = new URL(normalized)
   } catch {
     return ""
   }
@@ -32,6 +47,32 @@ export function parseUrl(url: string): ModSource {
   }
 
   return ""
+}
+
+const CURSEFORGE_FILTER_LOADERS = ["fabric", "forge", "neoforge"]
+
+/**
+ * Caption describing the filters the backend really applies for a search source.
+ * CurseForge only filters by loader for fabric/forge/neoforge; other loaders
+ * (e.g. quilt) are searched without a loader filter, so they are omitted.
+ */
+export function searchFilterCaption(
+  source: "modrinth" | "curseforge",
+  mcVersion: string | undefined,
+  loader: string | undefined,
+): string {
+  const parts: string[] = []
+  if (mcVersion) {
+    parts.push(`Minecraft ${mcVersion}`)
+  }
+  const loaderName = (loader ?? "").trim()
+  if (loaderName) {
+    const applies = source === "modrinth" || CURSEFORGE_FILTER_LOADERS.includes(loaderName.toLowerCase())
+    if (applies) {
+      parts.push(loaderName.charAt(0).toUpperCase() + loaderName.slice(1).toLowerCase())
+    }
+  }
+  return parts.length > 0 ? `Filtering for ${parts.join(" \u00b7 ")}` : ""
 }
 
 export type BuildRequestResult =
