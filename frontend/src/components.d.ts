@@ -28,6 +28,7 @@ declare module 'vue' {
     MinecraftVersion: typeof import('./components/forms/MinecraftVersion.vue')['default']
     MissingDependencies: typeof import('./components/mods/MissingDependencies.vue')['default']
     ModCard: typeof import('./components/mods/ModCard.vue')['default']
+    ModSearchResults: typeof import('./components/mods/ModSearchResults.vue')['default']
     ModsList: typeof import('./components/mods/ModsList.vue')['default']
     Navigation: typeof import('./components/Navigation.vue')['default']
     PackActions: typeof import('./components/pack/PackActions.vue')['default']

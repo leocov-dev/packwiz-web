@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {buildRequest, isSearchResultInstalled, parseUrl} from "./mod-source.ts"
+import {buildRequest, getResultState, isSearchResultInstalled, parseUrl, searchEmptyState} from "./mod-source.ts"
 
 describe("parseUrl", () => {
   it("recognizes a curseforge URL", () => {
@@ -79,5 +79,42 @@ describe("isSearchResultInstalled", () => {
   it("returns false when installedMods list is empty or undefined", () => {
     expect(isSearchResultInstalled({slug: "fabric-api", projectId: "P7dR8mSH"}, [])).toBe(false)
     expect(isSearchResultInstalled({slug: "fabric-api", projectId: "P7dR8mSH"}, undefined)).toBe(false)
+  })
+})
+
+describe("getResultState", () => {
+  const installed = [{slug: "sodium"}]
+
+  it("is available for an unknown result", () => {
+    expect(getResultState({slug: "iris", projectId: "x"}, installed, [])).toBe("available")
+  })
+
+  it("is installed when present in pack mods", () => {
+    expect(getResultState({slug: "Sodium"}, installed, [])).toBe("installed")
+  })
+
+  it("is added when added locally, even if pack mods are stale", () => {
+    expect(getResultState({slug: "iris"}, installed, ["iris"])).toBe("added")
+  })
+
+  it("handles undefined installed mods", () => {
+    expect(getResultState({slug: "iris"}, undefined, [])).toBe("available")
+  })
+})
+
+describe("searchEmptyState", () => {
+  it("prompts for a longer query", () => {
+    expect(searchEmptyState("a", false, 0, false)).toBe("short-query")
+    expect(searchEmptyState("", false, 0, true)).toBe("short-query")
+  })
+
+  it("reports no results after a completed search", () => {
+    expect(searchEmptyState("sodium", false, 0, true)).toBe("no-results")
+  })
+
+  it("shows nothing while loading, before search, or with results", () => {
+    expect(searchEmptyState("sodium", true, 0, true)).toBe("none")
+    expect(searchEmptyState("sodium", false, 0, false)).toBe("none")
+    expect(searchEmptyState("sodium", false, 3, true)).toBe("none")
   })
 })

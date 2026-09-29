@@ -89,3 +89,28 @@ export function modPageUrl(source: "modrinth" | "curseforge", slug: string): str
   }
   return `https://modrinth.com/mod/${slug}`
 }
+
+export type ResultState = "available" | "installed" | "added"
+
+export function getResultState(
+  result: { slug?: string; projectId?: string; installed?: boolean },
+  installedMods: Array<{ slug?: string; update?: Record<string, unknown> }> | undefined,
+  addedSlugs: readonly string[],
+): ResultState {
+  if (result.slug && addedSlugs.includes(result.slug)) {
+    return "added"
+  }
+  return isSearchResultInstalled(result, installedMods) ? "installed" : "available"
+}
+
+export type SearchEmptyState = "short-query" | "no-results" | "none"
+
+export function searchEmptyState(query: string, loading: boolean, resultCount: number, hasSearched: boolean): SearchEmptyState {
+  if (loading || resultCount > 0) {
+    return "none"
+  }
+  if (!query || query.length < 2) {
+    return "short-query"
+  }
+  return hasSearched ? "no-results" : "none"
+}
