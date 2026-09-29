@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
+import {updateAvailableIds, type UpdateChecksMap} from "@/lib/update-checks.ts";
 import {
   applyModListState,
   applyPinOverrides,
@@ -17,10 +18,11 @@ import {
   type ModSort,
 } from "@/lib/mod-filters.ts";
 
-const {packId, mods, canEdit} = defineProps<{
+const {packId, mods, canEdit, updateChecks = new Map()} = defineProps<{
   packId: number,
   mods: Mod[],
   canEdit: boolean,
+  updateChecks?: UpdateChecksMap,
 }>()
 
 defineEmits(['add-mod', 'reload'])
@@ -91,7 +93,8 @@ const sideOptions = [
   {title: 'Client + Server', value: 'both'},
 ]
 
-const sortedMods = computed(() => applyModListState(effectiveMods.value, listState.value))
+const updateIds = computed(() => updateAvailableIds(updateChecks))
+const sortedMods = computed(() => applyModListState(effectiveMods.value, listState.value, updateIds.value))
 
 const dependents = computed(() => buildDependentsMap(effectiveMods.value))
 const dependentNamesById = computed(() => buildDependentNamesMap(dependents.value))
@@ -194,6 +197,12 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
           variant="outlined"
           text="Dependencies"
         />
+        <v-chip
+          value="updates"
+          filter
+          variant="outlined"
+          text="Updates available"
+        />
       </v-chip-group>
     </template>
 
@@ -259,6 +268,7 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
             :can-edit="canEdit"
             :dependent-names="dependentNamesFor(item.raw)"
             :orphan-names="orphanNamesFor(item.raw)"
+            :update-check="updateChecks.get(item.raw.id)"
             @reload="$emit('reload')"
             @pinned="onPinned"
           />

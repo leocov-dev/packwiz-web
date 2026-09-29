@@ -46,7 +46,7 @@ func NewRouter() *gin.Engine {
 	// (unstarted, insert-only) client below - it never needs to enqueue jobs
 	// itself, so it's built without a river client of its own.
 	jobResolver := packwiz_svc.NewPackwizService(db, nil)
-	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver))
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver))
 	if err != nil {
 		log.Error("failed to create river client:", err)
 		panic(err)

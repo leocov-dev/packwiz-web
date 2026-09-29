@@ -21,6 +21,8 @@ import {summarizeUpdateAll, updateAllOutcome} from "@/lib/update-summary.ts";
 import type {UpdateAllResponse} from "@/interfaces/pack.ts";
 import {apiErrorMessage} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
+import {useUpdateChecks} from "@/composables/useUpdateChecks.ts";
+import {countUpdatable, formatCheckedAgo, updateAllLabel, updatesAvailableText} from "@/lib/update-checks.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -44,6 +46,18 @@ const snackbar = useSnackbarStore()
 
 const router = useRouter()
 const {canEdit, hasEditAccess} = usePackPermissions(() => pack)
+
+const updateChecks = useUpdateChecks(() => pack.id)
+const updatableCount = computed(() => countUpdatable(pack.mods ?? [], updateChecks.results.value))
+const hasCompletedCheck = computed(() => updateChecks.status.value === "done")
+const updateAllText = computed(() => hasCompletedCheck.value ? updateAllLabel(updatableCount.value) : "Update All")
+const checkedText = computed(() => {
+  if (updateChecks.isChecking.value) return "Checking for updates..."
+  if (updateChecks.error.value) return updateChecks.error.value
+  if (!hasCompletedCheck.value) return ""
+  return `${updatesAvailableText(updatableCount.value)} · ${formatCheckedAgo(updateChecks.checkedAt.value)}`
+})
+const onCheckUpdates = () => updateChecks.start(hasCompletedCheck.value)
 
 const onAddMod = () => {
   router.push({path: `/packs/${pack.id}/add-mod`})
@@ -109,6 +123,8 @@ const updateAll = async () => {
     snackbar.showSnackbar(apiErrorMessage(e, "Failed to update mods"), "error")
   } finally {
     updateAllLoading.value = false
+    // the mods changed, so stored check results are stale (the server clears them too)
+    updateChecks.reset()
     // always reload: a failed/timed-out run may still have applied some updates
     emit('reload')
   }
@@ -247,9 +263,24 @@ const updateAll = async () => {
             variant="flat"
             @click="onAddMod"
           />
+          <span
+            v-if="checkedText"
+            class="text-body-2 me-auto"
+            :class="updateChecks.error.value ? 'text-warning' : 'text-medium-emphasis'"
+            role="status"
+          >
+            {{ checkedText }}
+          </span>
+          <v-btn
+            prepend-icon="mdi-cloud-search-outline"
+            text="Check for updates"
+            :loading="updateChecks.isChecking.value"
+            :disabled="updateChecks.isChecking.value || updateAllLoading"
+            @click="onCheckUpdates"
+          />
           <v-btn
             prepend-icon="mdi-update"
-            text="Update All"
+            :text="updateAllText"
             :loading="updateAllLoading"
             :disabled="updateAllLoading"
             @click="showUpdateAllDialog = true"
@@ -353,6 +384,7 @@ const updateAll = async () => {
       :pack-id="pack.id"
       :mods="pack.mods || []"
       :can-edit="canEdit"
+      :update-checks="updateChecks.results.value"
       @add-mod="onAddMod"
       @reload="$emit('reload')"
     />

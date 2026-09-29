@@ -554,6 +554,9 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 		}
 	}
 
+	// stored check results no longer describe the pack
+	invalidatePackChecks(db, packId)
+
 	return summary.response(), nil
 }
 
@@ -765,6 +768,7 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 		return dto.UpdateModResponse{}, response.Wrap(cmpErr)
 	}
 	if !changed {
+		invalidateModChecks(ps.db, modInfo.ID)
 		return dto.UpdateModResponse{Updated: false}, nil
 	}
 
@@ -773,6 +777,7 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 	}); txErr != nil {
 		return dto.UpdateModResponse{}, response.Wrap(txErr)
 	}
+	invalidateModChecks(ps.db, modInfo.ID)
 
 	return dto.UpdateModResponse{Updated: true}, nil
 }

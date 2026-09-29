@@ -580,3 +580,53 @@ func (pc *PackwizController) abortIfModNotExist(c *gin.Context, packId, modId ui
 	}
 	return false
 }
+
+// CheckForUpdates enqueues an async update check: 202 when a job was enqueued,
+// 200 with the existing job when one is active or a fresh result is cached.
+func (pc *PackwizController) CheckForUpdates(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	force := c.Query("force") == "true"
+
+	result, enqueued, err := pc.packwizSvc.RequestUpdateCheck(c.Request.Context(), packId, user, force)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if enqueued {
+		c.JSON(http.StatusAccepted, result)
+		return
+	}
+	dataOK(c, result)
+}
+
+// GetUpdateChecks returns the stored update-check state and per-mod results.
+func (pc *PackwizController) GetUpdateChecks(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	result, err := pc.packwizSvc.GetUpdateChecks(c.Request.Context(), packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}

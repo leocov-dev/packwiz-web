@@ -1,18 +1,20 @@
 <script setup lang="ts">
 
-import type {Mod} from "@/interfaces/pack.ts";
+import type {Mod, UpdateCheckItem} from "@/interfaces/pack.ts";
+import {modUpdateBadge} from "@/lib/update-checks.ts";
 import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
 import {dependencyTooltip, modSideLabel, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import axios from "axios";
 
-const {packId, mod, canEdit, dependentNames, orphanNames} = defineProps<{
+const {packId, mod, canEdit, dependentNames, orphanNames, updateCheck = undefined} = defineProps<{
   packId: number,
   mod: Mod,
   canEdit: boolean,
   dependentNames: string[],
   orphanNames: string[],
+  updateCheck?: UpdateCheckItem,
 }>()
 
 const emit = defineEmits<{
@@ -76,6 +78,8 @@ const editHint = computed(() => mod.isDependency
 const removeHint = computed(() => removeBlocked.value ? dependencyHint.value : "")
 const modRoute = computed(() => `/packs/${packId}/mod/${mod.id}`)
 const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
+// uses the optimistic pin state so the badge follows a pin toggle immediately
+const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value}, updateCheck))
 const typeLabel = computed(() => mod.type || "mod")
 
 const onTogglePin = async () => {
@@ -171,6 +175,39 @@ const onTogglePin = async () => {
         variant="tonal"
         prepend-icon="mdi-graph"
         text="Dependency"
+      />
+
+      <v-chip
+        v-if="updateBadge?.kind === 'available'"
+        v-tooltip="updateBadge.tooltip"
+        tabindex="0"
+        size="small"
+        label
+        color="success"
+        variant="tonal"
+        prepend-icon="mdi-arrow-up-bold-circle-outline"
+        text="Update available"
+      />
+      <v-chip
+        v-else-if="updateBadge?.kind === 'pinned'"
+        v-tooltip="updateBadge.tooltip"
+        tabindex="0"
+        size="small"
+        label
+        variant="text"
+        class="text-medium-emphasis"
+        prepend-icon="mdi-arrow-up-bold-circle-outline"
+        text="Update available (pinned)"
+      />
+      <v-icon
+        v-else-if="updateBadge?.kind === 'error'"
+        v-tooltip="updateBadge.tooltip"
+        tabindex="0"
+        role="img"
+        aria-label="Update check failed"
+        size="small"
+        color="warning"
+        icon="mdi-alert-circle-outline"
       />
 
       <v-spacer />

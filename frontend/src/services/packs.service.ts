@@ -8,6 +8,8 @@ import {
   PackPermission,
   PackResponse,
   UpdateAllResponse,
+  UpdateCheckJobResponse,
+  UpdateChecksResponse,
   UserSearchResponse
 } from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
@@ -197,4 +199,19 @@ export async function updateCollaboratorPermission(packId: number, userId: numbe
 
 export async function removeCollaborator(packId: number, userId: number) {
   return apiClient.delete(`v1/packwiz/pack/${packId}/users/${userId}`)
+}
+
+/** Starts (or joins) an async update check job; poll {@link fetchUpdateChecks} for results. */
+export async function checkForUpdates(packId: number, force: boolean = false): Promise<UpdateCheckJobResponse> {
+  const response = await apiClient.post(
+    `v1/packwiz/pack/${packId}/updates/check`,
+    undefined,
+    {params: force ? {force: 'true'} : undefined},
+  )
+  return plainToInstance(UpdateCheckJobResponse, response.data)
+}
+
+export async function fetchUpdateChecks(packId: number): Promise<UpdateChecksResponse> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/updates`)
+  return plainToInstance(UpdateChecksResponse, response.data)
 }

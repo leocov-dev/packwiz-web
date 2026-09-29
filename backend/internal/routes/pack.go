@@ -28,6 +28,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 		{
 			packIdGroup.HEAD("", packwizController.PackHead)
 			packIdGroup.GET("", packwizController.GetOnePack)
+			packIdGroup.GET("updates", packwizController.GetUpdateChecks)
 			packIdGroup.GET("link", packwizController.GetPersonalizedLink)
 
 			editPackGroup := packIdGroup.Group("", canEditPackGuard)
@@ -40,6 +41,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 				editPackGroup.PATCH("private", packwizController.MakePrivate)
 				editPackGroup.PATCH("edit", packwizController.EditPackInfo)
 				editPackGroup.PATCH("update-all", packwizController.UpdateAll)
+				editPackGroup.POST("updates/check", packwizController.CheckForUpdates)
 				editPackGroup.PATCH("rehash", packwizController.RehashAll)
 				editPackGroup.PATCH("migrate", packwizController.MigratePack)
 				editPackGroup.POST("migrate/dry-run", packwizController.MigrateDryRun)
