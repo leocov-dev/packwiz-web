@@ -15,6 +15,7 @@ const route = useRoute<'/packs/[packId].mod.[modId]'>()
 const {
   isLoading,
   data,
+  reload,
 } = buildDataLoader<{ pack: Pack, mod: Mod }>(async () => {
   const pack = await fetchOnePack(Number(route.params.packId), true)
   const mod = await fetchOneMod(Number(route.params.packId), Number(route.params.modId))
@@ -38,6 +39,7 @@ const {
     v-else-if="data?.pack && data?.mod"
     :pack="data.pack"
     :mod="data.mod"
+    @reload="reload"
   />
 </template>
 

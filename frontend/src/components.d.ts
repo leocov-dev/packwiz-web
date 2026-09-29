@@ -30,6 +30,7 @@ declare module 'vue' {
     ModCard: typeof import('./components/mods/ModCard.vue')['default']
     ModSearchResults: typeof import('./components/mods/ModSearchResults.vue')['default']
     ModsList: typeof import('./components/mods/ModsList.vue')['default']
+    ModSourceCard: typeof import('./components/mods/ModSourceCard.vue')['default']
     Navigation: typeof import('./components/Navigation.vue')['default']
     PackActions: typeof import('./components/pack/PackActions.vue')['default']
     PackCard: typeof import('./components/pack/PackCard.vue')['default']
