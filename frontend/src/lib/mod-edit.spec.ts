@@ -6,7 +6,6 @@ import {
   diffModEdit,
   editValuesFromMod,
   MAX_OPTION_DESCRIPTION,
-  modWasUpdated,
   runSaveSteps,
   type ModEditValues,
 } from "@/lib/mod-edit.ts"
@@ -133,15 +132,10 @@ describe("describeSaveFailure", () => {
 })
 
 describe("update result", () => {
-  const a = {fileName: "a.jar", update: {hash: "1", id: 2}}
-  it("detects no change regardless of key order", () => {
-    expect(modWasUpdated(a, {fileName: "a.jar", update: {id: 2, hash: "1"}})).toBe(false)
-    expect(describeUpdateResult("Foo", a, a)).toBe("Foo is already up to date")
+  it("reports an up to date mod", () => {
+    expect(describeUpdateResult("Foo", false, "a.jar")).toBe("Foo is already up to date")
   })
-  it("detects file change", () => {
-    expect(describeUpdateResult("Foo", a, {...a, fileName: "b.jar"})).toBe("Updated Foo to b.jar")
-  })
-  it("detects update metadata change", () => {
-    expect(modWasUpdated(a, {...a, update: {hash: "2", id: 2}})).toBe(true)
+  it("reports an updated mod with its new file", () => {
+    expect(describeUpdateResult("Foo", true, "b.jar")).toBe("Updated Foo to b.jar")
   })
 })

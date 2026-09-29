@@ -10,7 +10,7 @@ import {type Pack, type Mod} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
 import {fetchOneMod} from "@/services/mods.service.ts";
 import {apiErrorMessage} from "@/services/utils.ts";
-import {describeUpdateResult, snapshotMod, type ModSnapshot} from "@/lib/mod-edit.ts";
+import {describeUpdateResult} from "@/lib/mod-edit.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 
 const route = useRoute<'/packs/[packId].mod.[modId]'>()
@@ -29,14 +29,14 @@ const {
 const snackbar = useSnackbarStore()
 
 // Reload after an update-from-source, then report what actually changed.
-const onReload = async (before: ModSnapshot) => {
+const onReload = async (updated: boolean) => {
   await reload()
   const mod = data.value?.mod
   if (error.value || !mod) {
     snackbar.showSnackbar(error.value ? apiErrorMessage(error.value, "Updated, but failed to reload the mod") : "Updated, but failed to reload the mod", "error")
     return
   }
-  snackbar.showSnackbar(describeUpdateResult(mod.name || mod.slug, before, snapshotMod(mod)), "success")
+  snackbar.showSnackbar(describeUpdateResult(mod.name || mod.slug, updated, mod.fileName), "success")
 }
 </script>
 

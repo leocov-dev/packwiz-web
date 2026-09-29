@@ -205,12 +205,12 @@ func (pc *PackwizModController) UpdateMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateMod(modId, user)
+	result, err := pc.packwizSvc.UpdateMod(modId, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	isOK(c)
+	dataOK(c, result)
 }
 
 func (pc *PackwizModController) ChangeModSide(c *gin.Context) {

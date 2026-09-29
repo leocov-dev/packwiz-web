@@ -7,6 +7,7 @@ import {
   PackCollaboratorsResponse,
   PackPermission,
   PackResponse,
+  UpdateAllResponse,
   UserSearchResponse
 } from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
@@ -144,8 +145,9 @@ export async function makePackPrivate(packId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/private`)
 }
 
-export async function updateAllMods(packId: number) {
-  return apiClient.patch(`v1/packwiz/pack/${packId}/update-all`)
+export async function updateAllMods(packId: number): Promise<UpdateAllResponse> {
+  const response = await apiClient.patch(`v1/packwiz/pack/${packId}/update-all`)
+  return plainToInstance(UpdateAllResponse, response.data)
 }
 
 export async function rehashAllMods(packId: number, request: RehashRequest) {

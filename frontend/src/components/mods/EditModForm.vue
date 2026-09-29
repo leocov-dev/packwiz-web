@@ -8,7 +8,6 @@ import {
   describeSaveFailure,
   diffModEdit,
   runSaveSteps,
-  type ModSnapshot,
   type SaveStep,
   editValuesFromMod,
   MAX_OPTION_DESCRIPTION,
@@ -17,7 +16,7 @@ import {
 
 const {pack, mod} = defineProps<{ pack: Pack, mod: Mod }>()
 
-const emit = defineEmits<{ reload: [before: ModSnapshot] }>()
+const emit = defineEmits<{ reload: [updated: boolean] }>()
 
 const router = useRouter()
 const snackbar = useSnackbarStore()

@@ -158,3 +158,26 @@ export class UserSearchResponse {
   @Type(() => UserSearchResult)
   users?: UserSearchResult[];
 }
+
+export class UpdateModResponse {
+  updated!: boolean;
+}
+
+export class UpdateAllItem {
+  modId!: number;
+  slug!: string;
+  name!: string;
+  fileName?: string;
+  reason?: string;
+  error?: string;
+}
+
+export class UpdateAllResponse {
+  @Type(() => UpdateAllItem)
+  updated!: UpdateAllItem[];
+  @Type(() => UpdateAllItem)
+  skipped!: UpdateAllItem[];
+  @Type(() => UpdateAllItem)
+  failed!: UpdateAllItem[];
+  upToDate!: number;
+}

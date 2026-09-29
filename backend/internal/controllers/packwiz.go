@@ -295,12 +295,12 @@ func (pc *PackwizController) UpdateAll(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.UpdateAll(packId, user)
+	result, err := pc.packwizSvc.UpdateAll(c.Request.Context(), packId, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	isOK(c)
+	dataOK(c, result)
 }
 
 func (pc *PackwizController) RehashAll(c *gin.Context) {
