@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
-import {filterModsBySide, type ModSide} from "@/lib/mod-filters.ts";
+import {countMods, filterModsBySide, type ModSide} from "@/lib/mod-filters.ts";
 
 const {packId, mods, canEdit} = defineProps<{
   packId: number,
@@ -9,6 +9,7 @@ const {packId, mods, canEdit} = defineProps<{
 }>()
 
 defineEmits(['add-mod', 'reload'])
+
 
 const search = ref<string>('')
 const sideFilter = ref<ModSide>('')
@@ -24,6 +25,17 @@ const sortedMods = computed(() => {
 
   return [...regularMods, ...dependencyMods];
 })
+
+const counts = computed(() => countMods(mods))
+const countLabel = computed(() => `${counts.value.total} mods · ${counts.value.dependencies} dependencies`)
+
+const hasMods = computed(() => mods.length > 0)
+const hasActiveFilters = computed(() => !!search.value || !!sideFilter.value)
+
+const clearFilters = () => {
+  search.value = ''
+  sideFilter.value = ''
+}
 
 const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
   if (!mod.isDependency) return false;
@@ -41,6 +53,7 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
     <template #header>
       <v-toolbar class="d-flex flex-wrap">
         <v-toolbar-title>Mods</v-toolbar-title>
+        <span class="text-body-2 text-medium-emphasis me-3">{{ countLabel }}</span>
         <v-text-field
           v-model="search"
           max-width="300"
@@ -67,7 +80,7 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           hide-details
         />
         <v-btn
-          v-if="canEdit"
+          v-if="canEdit && hasMods"
           class="me-3"
           color="primary"
           variant="flat"
@@ -76,6 +89,55 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           @click="$emit('add-mod')"
         />
       </v-toolbar>
+    </template>
+
+    <template #no-data>
+      <div
+        v-if="!hasMods"
+        class="d-flex flex-column align-center text-center pa-10"
+      >
+        <v-icon
+          icon="mdi-package-variant"
+          size="48"
+          class="mb-3 text-medium-emphasis"
+        />
+        <div class="text-h6">
+          No mods yet
+        </div>
+        <div
+          v-if="canEdit"
+          class="text-body-2 text-medium-emphasis mb-4"
+        >
+          Add your first mod to get started.
+        </div>
+        <v-btn
+          v-if="canEdit"
+          color="primary"
+          variant="flat"
+          prepend-icon="mdi-plus"
+          text="Add Mod"
+          @click="$emit('add-mod')"
+        />
+      </div>
+      <div
+        v-else
+        class="d-flex flex-column align-center text-center pa-10"
+      >
+        <v-icon
+          icon="mdi-filter-off-outline"
+          size="48"
+          class="mb-3 text-medium-emphasis"
+        />
+        <div class="text-h6 mb-4">
+          No mods match your filters
+        </div>
+        <v-btn
+          v-if="hasActiveFilters"
+          variant="tonal"
+          text="Clear filters"
+          @click="clearFilters"
+        />
+      </div>
     </template>
 
     <template #default="{items}">

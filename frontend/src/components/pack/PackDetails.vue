@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {PackPermission, PackResponse} from "@/interfaces/pack.ts";
+import type {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import ModsList from "@/components/mods/ModsList.vue";
 import {toTitleCase} from "@/services/utils.ts";
-import {useAuthStore} from "@/stores/auth.ts";
+import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {
   archivePack,
   convertPackToDraft,
@@ -34,43 +34,20 @@ const showRehashDialog = ref(false)
 const updateAllLoading = ref(false)
 
 const router = useRouter()
-const authStore = useAuthStore()
+const {canEdit, hasEditAccess} = usePackPermissions(() => pack)
 
 const onAddMod = () => {
   router.push({path: `/packs/${pack.id}/add-mod`})
 }
 
-interface Chip {
-  text: string,
-  color: string,
-}
-
-const chipList: Chip[] = [
-  {
-    text: pack.slug,
-    color: "orange",
-  },
-  {
-    text: `Version: ${pack.version}`,
-    color: "teal",
-  },
-  {
-    text: `Minecraft: ${pack.mcVersion}`,
-    color: "cyan",
-  },
-  {
-    text: `${toTitleCase(pack.loader)}: ${pack.loaderVersion}`,
-    color: "yellow",
-  },
-  {
-    text: pack.packFormat,
-    color: "purple",
-  },
-  {
-    text: `Game Versions: ${(pack.acceptableGameVersions || [pack.mcVersion]).join(', ')}`,
-    color: "magenta",
-  },
-]
+const chipList = computed<string[]>(() => [
+  `Slug: ${pack.slug}`,
+  `Version: ${pack.version}`,
+  `Minecraft: ${pack.mcVersion}`,
+  `${toTitleCase(pack.loader)}: ${pack.loaderVersion}`,
+  pack.packFormat ? `Format: ${pack.packFormat}` : '',
+  `Game versions: ${(pack.acceptableGameVersions?.length ? pack.acceptableGameVersions : [pack.mcVersion]).join(', ')}`,
+].filter(text => !text.endsWith(': ') && text !== ''))
 
 
 const convertToDraft = async () => {
@@ -168,13 +145,13 @@ const updateAll = async () => {
       @accepted="updateAll"
     />
     <PackMigrateDialog
-      v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+      v-if="canEdit"
       v-model="showMigrateDialog"
       :pack="pack"
       @migrated="emit('reload')"
     />
     <RehashDialog
-      v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
+      v-if="canEdit"
       v-model="showRehashDialog"
       :pack="pack"
       @rehashed="emit('reload')"
@@ -205,111 +182,119 @@ const updateAll = async () => {
           class="ms-3"
           :pack="pack"
         />
-        <v-btn
-          icon="mdi-refresh"
-          variant="text"
-          color="disabled"
-          @click="$emit('reload')"
-        />
+        <v-tooltip
+          text="Reload pack"
+          location="bottom"
+        >
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon="mdi-refresh"
+              variant="text"
+              color="disabled"
+              aria-label="Reload pack"
+              @click="$emit('reload')"
+            />
+          </template>
+        </v-tooltip>
       </v-card-title>
 
       <v-divider />
 
       <div
+        v-if="hasEditAccess"
         class="d-flex flex-wrap ga-3 align-center justify-end mt-3 ms-3 me-3"
       >
-        <v-btn
-          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
-          prepend-icon="mdi-pencil"
-          text="Edit"
-          :to="`/packs/${pack.id}/edit`"
-        />
-
-        <v-btn
-          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
-          prepend-icon="mdi-account-multiple"
-          text="Collaborators"
-          :to="`/packs/${pack.id}/collaborators`"
-        />
-
-        <v-btn
-          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
-          prepend-icon="mdi-update"
-          text="Update All"
-          :loading="updateAllLoading"
-          :disabled="updateAllLoading"
-          @click="showUpdateAllDialog = true"
-        />
-
-        <v-btn
-          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
-          prepend-icon="mdi-arrow-up-bold-hexagon-outline"
-          text="Migrate"
-          @click="showMigrateDialog = true"
-        />
-
-        <v-btn
-          v-if="!pack.isArchived && (pack.currentUserPermission >= PackPermission.EDIT || authStore.user?.isAdmin)"
-          prepend-icon="mdi-pound-box-outline"
-          text="Rehash"
-          @click="showRehashDialog = true"
-        />
-
-        <div
-          v-if="!pack.isArchived"
-          class="d-flex align-center"
-        >
+        <template v-if="canEdit">
           <v-btn
-            v-if="pack.status === 'draft'"
-            text="Publish"
-            prepend-icon="mdi-earth"
-            @click="showPublishDialog = true"
+            prepend-icon="mdi-pencil"
+            text="Edit"
+            :to="`/packs/${pack.id}/edit`"
           />
           <v-btn
-            v-else-if="pack.status === 'published'"
-            text="Convert to Draft"
-            color="warning"
-            prepend-icon="mdi-file-edit"
-            @click="showDraftDialog = true"
+            prepend-icon="mdi-plus"
+            text="Add Mod"
+            color="primary"
+            variant="flat"
+            @click="onAddMod"
           />
-        </div>
+          <v-btn
+            prepend-icon="mdi-update"
+            text="Update All"
+            :loading="updateAllLoading"
+            :disabled="updateAllLoading"
+            @click="showUpdateAllDialog = true"
+          />
+        </template>
 
-        <div class="d-flex align-center">
-          <v-btn
-            v-if="!pack.isArchived"
-            text="Archive"
-            color="error"
-            prepend-icon="mdi-archive"
-            @click="showArchiveDialog = true"
-          />
-          <v-btn
-            v-else
-            text="Unarchive"
-            color="warning"
-            prepend-icon="mdi-archive-refresh"
-            @click="showUnArchiveDialog = true"
-          />
-        </div>
+        <v-menu>
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              prepend-icon="mdi-cog"
+              append-icon="mdi-menu-down"
+              text="Manage"
+            />
+          </template>
 
-        <div
-          v-if="!pack.isArchived"
-          class="d-flex align-center"
-        >
-          <v-btn
-            v-if="!pack.isPublic"
-            text="Make Public"
-            color="error"
-            prepend-icon="mdi-earth"
-            @click="showPublicDialog = true"
-          />
-          <v-btn
-            v-else
-            text="Make Private"
-            color="warning"
-            prepend-icon="mdi-earth-off"
-            @click="showPrivateDialog = true"
-          />
-        </div>
+          <v-list>
+            <template v-if="canEdit">
+              <v-list-item
+                prepend-icon="mdi-account-multiple"
+                title="Collaborators"
+                :to="`/packs/${pack.id}/collaborators`"
+              />
+              <v-list-item
+                prepend-icon="mdi-arrow-up-bold-hexagon-outline"
+                title="Migrate"
+                @click="showMigrateDialog = true"
+              />
+              <v-list-item
+                prepend-icon="mdi-pound-box-outline"
+                title="Rehash"
+                @click="showRehashDialog = true"
+              />
+              <v-list-item
+                v-if="pack.status === 'draft'"
+                prepend-icon="mdi-earth"
+                title="Publish"
+                @click="showPublishDialog = true"
+              />
+              <v-list-item
+                v-else-if="pack.status === 'published'"
+                prepend-icon="mdi-file-edit"
+                title="Convert to Draft"
+                @click="showDraftDialog = true"
+              />
+              <v-list-item
+                v-if="!pack.isPublic"
+                prepend-icon="mdi-earth"
+                title="Make Public"
+                @click="showPublicDialog = true"
+              />
+              <v-list-item
+                v-else
+                prepend-icon="mdi-earth-off"
+                title="Make Private"
+                @click="showPrivateDialog = true"
+              />
+              <v-divider class="my-1" />
+              <v-list-item
+                prepend-icon="mdi-archive"
+                title="Archive"
+                base-color="error"
+                @click="showArchiveDialog = true"
+              />
+            </template>
+            <v-list-item
+              v-else
+              prepend-icon="mdi-archive-refresh"
+              title="Unarchive"
+              base-color="warning"
+              @click="showUnArchiveDialog = true"
+            />
+          </v-list>
+        </v-menu>
       </div>
 
       <v-card-text class="ms-2 me-2 mb-2">
@@ -319,11 +304,11 @@ const updateAll = async () => {
         >
           <v-chip
             v-for="chip in chipList"
-            :key="chip.text"
+            :key="chip"
             class="me-2 mb-2"
-            :color="chip.color"
+            variant="tonal"
           >
-            {{ chip.text }}
+            {{ chip }}
           </v-chip>
         </div>
         <p
@@ -338,7 +323,7 @@ const updateAll = async () => {
     <ModsList
       :pack-id="pack.id"
       :mods="pack.mods || []"
-      :can-edit="pack.currentUserPermission >= PackPermission.EDIT && !pack.isArchived"
+      :can-edit="canEdit"
       @add-mod="onAddMod"
       @reload="$emit('reload')"
     />
