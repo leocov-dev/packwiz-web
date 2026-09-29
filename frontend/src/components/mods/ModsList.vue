@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
-import {countMods, filterModsBySide, type ModSide} from "@/lib/mod-filters.ts";
+import {countMods, filterModsBySide, formatModCounts, type ModSide} from "@/lib/mod-filters.ts";
 
 const {packId, mods, canEdit} = defineProps<{
   packId: number,
@@ -27,7 +27,7 @@ const sortedMods = computed(() => {
 })
 
 const counts = computed(() => countMods(mods))
-const countLabel = computed(() => `${counts.value.total} mods · ${counts.value.dependencies} dependencies`)
+const countLabel = computed(() => formatModCounts(counts.value))
 
 const hasMods = computed(() => mods.length > 0)
 const hasActiveFilters = computed(() => !!search.value || !!sideFilter.value)
@@ -51,9 +51,9 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
     items-per-page="20"
   >
     <template #header>
-      <v-toolbar class="d-flex flex-wrap">
+      <v-toolbar height="auto">
         <v-toolbar-title>Mods</v-toolbar-title>
-        <span class="text-body-2 text-medium-emphasis me-3">{{ countLabel }}</span>
+        <span class="text-body-2 text-medium-emphasis me-3 d-none d-sm-inline">{{ countLabel }}</span>
         <v-text-field
           v-model="search"
           max-width="300"
@@ -78,15 +78,6 @@ const isFirstDependency = (mod: Mod, items: readonly Mod[], index: number) => {
           density="compact"
           variant="solo"
           hide-details
-        />
-        <v-btn
-          v-if="canEdit && hasMods"
-          class="me-3"
-          color="primary"
-          variant="flat"
-          prepend-icon="mdi-plus"
-          text="Add Mod"
-          @click="$emit('add-mod')"
         />
       </v-toolbar>
     </template>

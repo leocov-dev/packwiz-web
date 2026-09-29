@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import type {Mod} from "@/interfaces/pack.ts"
-import {countMods, filterModsBySide, matchesSide} from "./mod-filters.ts"
+import {countMods, filterModsBySide, formatModCounts, matchesSide} from "./mod-filters.ts"
 
 const mod = (side: Mod["side"], isDependency = false) => ({side, isDependency}) as Mod
 
@@ -25,5 +25,19 @@ describe("side filtering", () => {
   it("keeps matching and universal mods", () => {
     const mods = [mod("client"), mod("server"), mod("both")]
     expect(filterModsBySide(mods, "client")).toHaveLength(2)
+  })
+})
+
+describe("formatModCounts", () => {
+  it("handles zero", () => {
+    expect(formatModCounts({total: 0, dependencies: 0})).toBe("0 mods · 0 dependencies")
+  })
+
+  it("handles singular", () => {
+    expect(formatModCounts({total: 1, dependencies: 1})).toBe("1 mod · 1 dependency")
+  })
+
+  it("handles plural", () => {
+    expect(formatModCounts({total: 5, dependencies: 2})).toBe("5 mods · 2 dependencies")
   })
 })

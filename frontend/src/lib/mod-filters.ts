@@ -26,3 +26,9 @@ export function countMods(mods: Mod[]): ModCounts {
     dependencies: mods.filter(mod => mod.isDependency).length,
   }
 }
+
+const plural = (n: number, singular: string, pluralForm: string) => `${n} ${n === 1 ? singular : pluralForm}`
+
+export function formatModCounts(counts: ModCounts): string {
+  return `${plural(counts.total, "mod", "mods")} · ${plural(counts.dependencies, "dependency", "dependencies")}`
+}
