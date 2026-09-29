@@ -4,7 +4,7 @@ import {addMod, listMissingDependencies, searchModrinthMods, searchCurseforgeMod
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, isSearchResultInstalled, type ModSource} from "@/lib/mod-source.ts";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, isSearchResultInstalled, modPageUrl, type ModSource} from "@/lib/mod-source.ts";
 import axios from "axios";
 
 const {pack} = defineProps<{ pack: Pack }>()
@@ -20,7 +20,7 @@ const addModButtonText = computed(() =>
   dependencies.value.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
 )
 
-const mode = ref<"url" | "modrinth" | "curseforge">("url")
+const mode = ref<"url" | "modrinth" | "curseforge">("modrinth")
 const curseforgeAvailable = ref<boolean | null>(null)
 const searchQuery = ref("")
 const searchResults = ref<ModSearchResult[]>([])
@@ -116,11 +116,7 @@ const cancelForm = async () => {
 
 const selectSearchResult = (result: ModSearchResult) => {
   selectedProjectSlug.value = result.slug
-  if (mode.value === "curseforge") {
-    data.value.modUrl = `https://www.curseforge.com/minecraft/mc-mods/${result.slug}`
-  } else {
-    data.value.modUrl = `https://modrinth.com/mod/${result.slug}`
-  }
+  data.value.modUrl = modPageUrl(mode.value === "curseforge" ? "curseforge" : "modrinth", result.slug)
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
@@ -272,16 +268,16 @@ watch(
           variant="outlined"
         >
           <v-btn
-            value="url"
-            text="Paste URL"
-          />
-          <v-btn
             value="modrinth"
             text="Search Modrinth"
           />
           <v-btn
             value="curseforge"
             text="Search CurseForge"
+          />
+          <v-btn
+            value="url"
+            text="Paste URL"
           />
         </v-btn-toggle>
 
@@ -327,15 +323,24 @@ watch(
               <v-list-item-subtitle class="text-truncate">
                 {{ result.description }}
               </v-list-item-subtitle>
-              <template
-                v-if="isSearchResultInstalled(result, pack.mods)"
-                #append
-              >
+              <template #append>
                 <v-icon
+                  v-if="isSearchResultInstalled(result, pack.mods)"
                   v-tooltip="'Already installed'"
                   icon="mdi-check-circle"
                   color="success"
                   class="ms-2"
+                />
+                <v-btn
+                  v-tooltip="'Open in new tab'"
+                  icon="mdi-open-in-new"
+                  variant="text"
+                  size="small"
+                  density="comfortable"
+                  :href="modPageUrl('modrinth', result.slug)"
+                  target="_blank"
+                  rel="noopener"
+                  @click.stop
                 />
               </template>
             </v-list-item>
@@ -387,15 +392,24 @@ watch(
                 <v-list-item-subtitle class="text-truncate">
                   {{ result.description }}
                 </v-list-item-subtitle>
-                <template
-                  v-if="isSearchResultInstalled(result, pack.mods)"
-                  #append
-                >
+                <template #append>
                   <v-icon
+                    v-if="isSearchResultInstalled(result, pack.mods)"
                     v-tooltip="'Already installed'"
                     icon="mdi-check-circle"
                     color="success"
                     class="ms-2"
+                  />
+                  <v-btn
+                    v-tooltip="'Open in new tab'"
+                    icon="mdi-open-in-new"
+                    variant="text"
+                    size="small"
+                    density="comfortable"
+                    :href="modPageUrl('curseforge', result.slug)"
+                    target="_blank"
+                    rel="noopener"
+                    @click.stop
                   />
                 </template>
               </v-list-item>
