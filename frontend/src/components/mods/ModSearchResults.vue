@@ -4,7 +4,7 @@ import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import {getResultState, modPageUrl} from "@/lib/mod-source.ts";
 import {formatAuthorLine, isPackLoader, limitChips} from "@/lib/search-meta.ts";
 
-const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed, packLoader} = defineProps<{
+const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed, packLoader = ""} = defineProps<{
   results: ModSearchResult[]
   source: "modrinth" | "curseforge"
   installedMods: Mod[]
