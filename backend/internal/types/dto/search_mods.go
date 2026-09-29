@@ -22,4 +22,10 @@ type ModSearchResult struct {
 	IconUrl     string `json:"iconUrl"`
 	ProjectId   string `json:"projectId"`
 	Installed   bool   `json:"installed"`
+	Author      string `json:"author,omitempty"`
+	Downloads   uint64 `json:"downloads,omitempty"`
+	// Loaders are mod loaders/platforms the project supports (lowercase names)
+	Loaders []string `json:"loaders,omitempty"`
+	// Categories are the remaining (non-loader) project categories
+	Categories []string `json:"categories,omitempty"`
 }
