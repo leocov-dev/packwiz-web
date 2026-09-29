@@ -4,12 +4,17 @@ import {addMod, listMissingDependencies, searchModrinthMods, searchCurseforgeMod
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, isSearchResultInstalled, modPageUrl, type ModSource} from "@/lib/mod-source.ts";
+import ModSearchResults from "@/components/mods/ModSearchResults.vue";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, searchEmptyState, type ModSource} from "@/lib/mod-source.ts";
+import {useSnackbarStore} from "@/stores/snackbar.ts";
 import axios from "axios";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
 const router = useRouter()
+const snackbar = useSnackbarStore()
+
+type Mode = "url" | "modrinth" | "curseforge"
 
 const error = ref(false)
 const errorMsg = ref("")
@@ -20,12 +25,25 @@ const addModButtonText = computed(() =>
   dependencies.value.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
 )
 
-const mode = ref<"url" | "modrinth" | "curseforge">("modrinth")
+const mode = ref<Mode>("modrinth")
 const curseforgeAvailable = ref<boolean | null>(null)
 const searchQuery = ref("")
 const searchResults = ref<ModSearchResult[]>([])
 const searchLoading = ref(false)
+const searchError = ref("")
+const hasSearched = ref(false)
 const selectedProjectSlug = ref("")
+const addingSlug = ref("")
+const addedSlugs = ref<string[]>([])
+const modUrl = ref("")
+
+const searchSource = computed<"modrinth" | "curseforge">(() =>
+  mode.value === "curseforge" ? "curseforge" : "modrinth"
+)
+const modSource = computed<ModSource>(() => parseModSourceUrl(modUrl.value))
+const emptyState = computed(() =>
+  searchEmptyState(searchQuery.value, searchLoading.value, searchResults.value.length, hasSearched.value)
+)
 
 onMounted(async () => {
   try {
@@ -37,100 +55,140 @@ onMounted(async () => {
   }
 })
 
-const data = ref({
-  modSource: "",
-  modUrl: "",
-})
-
 const rules = {
-  sourceRequired: (value: string) => !!value || "Mod Source is required",
   urlRequired: (value: string) => !!value || "Mod Url is required",
+  urlSupported: (value: string) => !value || parseModSourceUrl(value) !== "" || "URL must be a Modrinth, CurseForge or GitHub link",
 }
 
-const parseUrl = (url: string) => {
-  data.value.modSource = parseModSourceUrl(url)
+let requestSeq = 0
+
+const showError = (msg: string) => {
+  error.value = true
+  errorMsg.value = msg
 }
 
-const checkForDependencies = async (seq: number) => {
-  const request = buildRequest()
-
-  if (request === undefined) {
-    return
-  }
-  const deps = await listMissingDependencies(pack.id, request)
-
-  if (seq === requestSeq) {
-    dependencies.value = deps.missing
-  }
-}
-
-const buildRequest = (): AddModRequest | undefined => {
-  const result = buildModRequest(data.value.modSource as ModSource, data.value.modUrl)
+const requestFor = (source: ModSource, url: string): AddModRequest | undefined => {
+  const result = buildModRequest(source, url)
 
   if ("request" in result) {
     return result.request
   }
 
-  error.value = true
-  errorMsg.value = result.error
-  console.error(result.error)
+  showError(result.error)
 }
 
-const submitForm = async () => {
-  error.value = false
-  loading.value = true
+const resultRequest = (result: ModSearchResult): AddModRequest | undefined =>
+  requestFor(
+    searchSource.value === "curseforge" ? "Curseforge" : "Modrinth",
+    modPageUrl(searchSource.value, result.slug),
+  )
 
-  const request = buildRequest()
+const checkForDependencies = async (request: AddModRequest, seq: number) => {
+  try {
+    const deps = await listMissingDependencies(pack.id, request)
 
-  if (request === undefined) {
-    error.value = true
-    loading.value = false
-    return
+    if (seq === requestSeq) {
+      dependencies.value = deps.missing
+    }
+  } catch (e) {
+    console.error("Failed to check dependencies:", e)
   }
+}
+
+const errorMessage = (e: unknown): string =>
+  axios.isAxiosError(e) ? (e.response?.data?.error || "Failed to add mod") : String(e)
+
+const submitRequest = async (request: AddModRequest, title: string): Promise<boolean> => {
+  error.value = false
 
   try {
     await addMod(pack.id, request)
-
-    if (mode.value === "modrinth" || mode.value === "curseforge") {
-      executeSearch(searchQuery.value, mode.value)
-    }
+    snackbar.showSnackbar(`Added ${title}`, "success")
+    return true
   } catch (e) {
-    error.value = true
+    showError(errorMessage(e))
+    console.error(errorMessage(e))
+    return false
+  }
+}
 
-    if (axios.isAxiosError(e)) {
-      errorMsg.value = e.response?.data?.error || "Failed to add mod"
-    } else {
-      errorMsg.value = String(e)
-    }
+const submitForm = async () => {
+  const request = requestFor(modSource.value, modUrl.value)
 
-    console.error(errorMsg.value)
-  } finally {
-    loading.value = false
+  if (request === undefined) {
+    return
   }
 
+  loading.value = true
+  const url = modUrl.value
+  const ok = await submitRequest(request, url)
+  loading.value = false
+
+  if (ok) {
+    modUrl.value = ""
+  }
+}
+
+const addResult = async (result: ModSearchResult) => {
+  const request = resultRequest(result)
+
+  if (request === undefined) {
+    return
+  }
+
+  addingSlug.value = result.slug
+  const ok = await submitRequest(request, result.title)
+  addingSlug.value = ""
+
+  if (ok) {
+    addedSlugs.value.push(result.slug)
+    clearSelection()
+  }
 }
 
 const cancelForm = async () => {
   await router.push({path: `/packs/${pack.id}`})
 }
 
+const clearSelection = () => {
+  requestSeq++
+  selectedProjectSlug.value = ""
+  dependencies.value = []
+}
+
 const selectSearchResult = (result: ModSearchResult) => {
+  if (selectedProjectSlug.value === result.slug) {
+    clearSelection()
+    return
+  }
+
+  clearSelection()
   selectedProjectSlug.value = result.slug
-  data.value.modUrl = modPageUrl(mode.value === "curseforge" ? "curseforge" : "modrinth", result.slug)
+  error.value = false
+
+  const request = resultRequest(result)
+
+  if (request !== undefined) {
+    void checkForDependencies(request, requestSeq)
+  }
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
-let requestSeq = 0
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 let searchRequestSeq = 0
 
 const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => {
   searchResults.value = []
+  searchError.value = ""
+  hasSearched.value = false
+  clearSelection()
 
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
   }
+
+  const seq = ++searchRequestSeq
 
   if (searchMode === "curseforge" && !curseforgeAvailable.value) {
     searchLoading.value = false
@@ -143,7 +201,6 @@ const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => 
   }
 
   searchLoading.value = true
-  const seq = ++searchRequestSeq
 
   searchDebounceTimer = setTimeout(async () => {
     try {
@@ -158,61 +215,63 @@ const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => 
     } catch (e) {
       if (seq === searchRequestSeq) {
         searchResults.value = []
+        searchError.value = axios.isAxiosError(e)
+          ? (e.response?.data?.error || "Search failed")
+          : "Search failed"
       }
       console.error("Search failed:", e)
     } finally {
       if (seq === searchRequestSeq) {
         searchLoading.value = false
+        hasSearched.value = true
       }
     }
   }, 400)
 }
 
-watch(searchQuery, (newQuery: string) => {
-  if (mode.value === "modrinth" || mode.value === "curseforge") {
-    executeSearch(newQuery, mode.value)
+watch(searchQuery, (newQuery: string | null) => {
+  if (mode.value !== "url") {
+    executeSearch(newQuery ?? "", mode.value)
   }
 })
 
 watch(mode, (newMode) => {
-  searchResults.value = []
-  selectedProjectSlug.value = ""
-  if (newMode === "modrinth" || newMode === "curseforge") {
+  modUrl.value = ""
+  error.value = false
+  errorMsg.value = ""
+  clearSelection()
+  if (newMode === "url") {
+    searchResults.value = []
+    searchError.value = ""
+    hasSearched.value = false
+    searchRequestSeq++
+    searchLoading.value = false
+  } else {
     executeSearch(searchQuery.value, newMode)
   }
 })
 
-watch(
-  () => data.value.modUrl,
-  (newUrl: string | null) => {
-    dependencies.value = []
-    error.value = false
+watch(modUrl, (newUrl: string | null) => {
+  dependencies.value = []
+  error.value = false
 
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+
+  const seq = ++requestSeq
+
+  if (!newUrl || parseModSourceUrl(newUrl) === "") {
+    return
+  }
+
+  debounceTimer = setTimeout(async () => {
+    const request = requestFor(modSource.value, newUrl)
+    if (request !== undefined) {
+      await checkForDependencies(request, seq)
     }
-
-    if (!newUrl) {
-      data.value.modSource = ""
-      loading.value = false
-      return
-    }
-
-    loading.value = true
-    const seq = ++requestSeq
-
-    debounceTimer = setTimeout(async () => {
-      try {
-        parseUrl(newUrl)
-        await checkForDependencies(seq)
-      } finally {
-        if (seq === requestSeq) {
-          loading.value = false
-        }
-      }
-    }, 400)
-  },
-)
+  }, 400)
+})
 
 </script>
 
@@ -232,10 +291,18 @@ watch(
         <h1 class="me-5">
           {{ pack.name || pack.slug }}
         </h1>
+        <v-spacer />
+        <v-btn
+          text="Back to pack"
+          variant="text"
+          :disabled="loading"
+          @click="cancelForm"
+        />
       </v-card-title>
 
       <v-alert
         v-if="error"
+        v-model="error"
         class="mb-6 ms-6 me-6"
         :text="'Error: ' + (errorMsg || 'failed to add new mod...')"
         type="error"
@@ -252,14 +319,6 @@ watch(
         class="ma-6"
         @submit.prevent="submitForm"
       >
-        <v-select
-          v-show="false"
-          v-model="data.modSource"
-          :items="['Curseforge', 'Modrinth', 'Github']"
-          label="Mod Source"
-          :rules="[rules.sourceRequired]"
-        />
-
         <v-btn-toggle
           v-model="mode"
           class="mb-4"
@@ -281,75 +340,33 @@ watch(
           />
         </v-btn-toggle>
 
-        <v-text-field
-          v-if="mode === 'url'"
-          v-model="data.modUrl"
-          label="Mod URL"
-          :rules="[rules.urlRequired]"
-          clearable
-        />
-
-        <div v-else-if="mode === 'modrinth'">
+        <template v-if="mode === 'url'">
           <v-text-field
-            v-model="searchQuery"
-            label="Search Modrinth"
-            prepend-inner-icon="mdi-magnify"
-            :loading="searchLoading"
+            v-model="modUrl"
+            label="Mod URL"
+            :rules="[rules.urlRequired, rules.urlSupported]"
             clearable
           />
 
-          <v-list
-            v-if="searchResults.length > 0"
-            max-height="450"
-            class="overflow-y-auto mb-4"
-          >
-            <v-list-item
-              v-for="result in searchResults"
-              :key="result.projectId"
-              :active="result.slug === selectedProjectSlug"
-              @click="selectSearchResult(result)"
-            >
-              <template #prepend>
-                <v-avatar
-                  v-if="result.iconUrl"
-                  :image="result.iconUrl"
-                />
-                <v-icon
-                  v-else
-                  icon="mdi-puzzle-outline"
-                />
-              </template>
-              <v-list-item-title>{{ result.title }}</v-list-item-title>
-              <v-list-item-subtitle class="text-truncate">
-                {{ result.description }}
-              </v-list-item-subtitle>
-              <template #append>
-                <v-icon
-                  v-if="isSearchResultInstalled(result, pack.mods)"
-                  v-tooltip="'Already installed'"
-                  icon="mdi-check-circle"
-                  color="success"
-                  class="ms-2"
-                />
-                <v-btn
-                  v-tooltip="'Open in new tab'"
-                  icon="mdi-open-in-new"
-                  variant="text"
-                  size="small"
-                  density="comfortable"
-                  :href="modPageUrl('modrinth', result.slug)"
-                  target="_blank"
-                  rel="noopener"
-                  @click.stop
-                />
-              </template>
-            </v-list-item>
-          </v-list>
-        </div>
+          <MissingDependencies
+            v-if="dependencies.length > 0"
+            class="mb-4"
+            :missing="dependencies"
+          />
 
-        <div v-else-if="mode === 'curseforge'">
+          <div class="d-flex justify-end">
+            <v-btn
+              :text="addModButtonText"
+              color="primary"
+              type="submit"
+              :disabled="loading || !isValid || !modUrl"
+            />
+          </div>
+        </template>
+
+        <div v-else>
           <v-alert
-            v-if="curseforgeAvailable === false"
+            v-if="mode === 'curseforge' && curseforgeAvailable === false"
             type="warning"
             variant="tonal"
             icon="mdi-key-alert"
@@ -361,76 +378,51 @@ watch(
           <template v-else>
             <v-text-field
               v-model="searchQuery"
-              label="Search CurseForge"
+              :label="mode === 'curseforge' ? 'Search CurseForge' : 'Search Modrinth'"
               prepend-inner-icon="mdi-magnify"
               :loading="searchLoading"
               clearable
             />
 
-            <v-list
+            <v-alert
+              v-if="searchError"
+              type="error"
+              variant="tonal"
+              density="compact"
+              class="mb-4"
+              :text="searchError"
+            />
+
+            <ModSearchResults
               v-if="searchResults.length > 0"
-              max-height="450"
-              class="overflow-y-auto mb-4"
+              :results="searchResults"
+              :source="searchSource"
+              :installed-mods="pack.mods"
+              :added-slugs="addedSlugs"
+              :adding-slug="addingSlug"
+              :selected-slug="selectedProjectSlug"
+              :dependencies="dependencies"
+              @select="selectSearchResult"
+              @add="addResult"
+            />
+
+            <div
+              v-else-if="!searchError && emptyState !== 'none'"
+              class="text-medium-emphasis mb-4"
             >
-              <v-list-item
-                v-for="result in searchResults"
-                :key="result.projectId"
-                :active="result.slug === selectedProjectSlug"
-                @click="selectSearchResult(result)"
-              >
-                <template #prepend>
-                  <v-avatar
-                    v-if="result.iconUrl"
-                    :image="result.iconUrl"
-                  />
-                  <v-icon
-                    v-else
-                    icon="mdi-puzzle-outline"
-                  />
-                </template>
-                <v-list-item-title>{{ result.title }}</v-list-item-title>
-                <v-list-item-subtitle class="text-truncate">
-                  {{ result.description }}
-                </v-list-item-subtitle>
-                <template #append>
-                  <v-icon
-                    v-if="isSearchResultInstalled(result, pack.mods)"
-                    v-tooltip="'Already installed'"
-                    icon="mdi-check-circle"
-                    color="success"
-                    class="ms-2"
-                  />
-                  <v-btn
-                    v-tooltip="'Open in new tab'"
-                    icon="mdi-open-in-new"
-                    variant="text"
-                    size="small"
-                    density="comfortable"
-                    :href="modPageUrl('curseforge', result.slug)"
-                    target="_blank"
-                    rel="noopener"
-                    @click.stop
-                  />
-                </template>
-              </v-list-item>
-            </v-list>
+              {{ emptyState === 'short-query' ? 'Type at least 2 characters to search' : 'No results' }}
+            </div>
           </template>
         </div>
 
-        <div class="d-flex justify-end">
+        <div class="d-flex justify-end mt-2">
           <v-btn
-            :text="addModButtonText"
-            color="primary"
-            type="submit"
-            :disabled="loading || !isValid || (mode !== 'url' && !data.modUrl)"
+            text="Done"
+            variant="text"
+            :disabled="loading"
+            @click="cancelForm"
           />
         </div>
-
-        <MissingDependencies
-          v-if="(dependencies || []).length > 0"
-          class="mt-2 mb-6"
-          :missing="dependencies"
-        />
       </v-form>
 
 
@@ -449,4 +441,3 @@ watch(
     </v-card>
   </div>
 </template>
-
