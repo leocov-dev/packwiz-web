@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {type Pack} from "@/interfaces/pack.ts";
-import {addMod, listMissingDependencies, searchModrinthMods, searchCurseforgeMods, getCurseforgeStatus} from "@/services/mods.service.ts";
+import {addMod, listMissingDependencies, getCurseforgeStatus} from "@/services/mods.service.ts";
 import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import ModSearchResults from "@/components/mods/ModSearchResults.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, searchEmptyState, addedKey, normalizeSearchQuery, type ModSource} from "@/lib/mod-source.ts";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, addedKey, type ModSource} from "@/lib/mod-source.ts";
+import {useModSearch, type SearchMode} from "@/composables/useModSearch.ts";
+import {toTitleCase} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import axios from "axios";
 
@@ -14,25 +16,21 @@ const {pack} = defineProps<{ pack: Pack }>()
 const router = useRouter()
 const snackbar = useSnackbarStore()
 
-type Mode = "url" | "modrinth" | "curseforge"
-
 const error = ref(false)
 const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
 const depsLoading = ref(false)
+const depsError = ref(false)
+let lastDepsRequest: AddModRequest | undefined
 const dependencies = ref<ModDependency[]>([])
 const addModButtonText = computed(() =>
   dependencies.value.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
 )
 
-const mode = ref<Mode>("modrinth")
+const mode = ref<SearchMode>("modrinth")
 const curseforgeAvailable = ref<boolean | null>(null)
 const searchQuery = ref("")
-const searchResults = ref<ModSearchResult[]>([])
-const searchLoading = ref(false)
-const searchError = ref("")
-const hasSearched = ref(false)
 const selectedProjectSlug = ref("")
 const addingSlug = ref("")
 const addedKeys = ref<string[]>([])
@@ -43,9 +41,26 @@ const searchSource = computed<"modrinth" | "curseforge">(() =>
 )
 const trimmedUrl = computed(() => (modUrl.value ?? "").trim())
 const modSource = computed<ModSource>(() => parseModSourceUrl(trimmedUrl.value))
-const emptyState = computed(() =>
-  searchEmptyState(searchQuery.value, searchLoading.value, searchResults.value.length, hasSearched.value)
-)
+
+const {
+  results: searchResults,
+  loading: searchLoading,
+  error: searchError,
+  emptyState,
+} = useModSearch({
+  packId: () => pack.id,
+  mcVersion: () => pack.mcVersion,
+  mode,
+  query: searchQuery,
+  curseforgeAvailable,
+  onReset: () => clearSelection(),
+})
+
+const filterCaption = computed(() => {
+  const loader = pack.loader ? toTitleCase(pack.loader) : ""
+  const parts = [pack.mcVersion ? `Minecraft ${pack.mcVersion}` : "", loader].filter(Boolean)
+  return parts.length > 0 ? `Filtering for ${parts.join(" \u00b7 ")}` : ""
+})
 
 onMounted(async () => {
   try {
@@ -86,6 +101,10 @@ const resultRequest = (result: ModSearchResult): AddModRequest | undefined =>
   )
 
 const checkForDependencies = async (request: AddModRequest, seq: number) => {
+  lastDepsRequest = request
+  depsError.value = false
+  depsLoading.value = true
+
   try {
     const deps = await listMissingDependencies(pack.id, request)
 
@@ -93,6 +112,9 @@ const checkForDependencies = async (request: AddModRequest, seq: number) => {
       dependencies.value = deps.missing
     }
   } catch (e) {
+    if (seq === requestSeq) {
+      depsError.value = true
+    }
     console.error("Failed to check dependencies:", e)
   } finally {
     if (seq === requestSeq) {
@@ -164,9 +186,17 @@ const cancelForm = async () => {
   await router.push({path: `/packs/${pack.id}`})
 }
 
+const retryDependencies = () => {
+  if (lastDepsRequest !== undefined) {
+    void checkForDependencies(lastDepsRequest, requestSeq)
+  }
+}
+
 const clearSelection = () => {
   requestSeq++
   depsLoading.value = false
+  depsError.value = false
+  lastDepsRequest = undefined
   selectedProjectSlug.value = ""
   dependencies.value = []
 }
@@ -190,94 +220,22 @@ const selectSearchResult = (result: ModSearchResult) => {
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
-let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
-let searchRequestSeq = 0
-
 onBeforeUnmount(() => {
   clearTimeout(debounceTimer)
-  clearTimeout(searchDebounceTimer)
 })
 
-const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => {
-  searchResults.value = []
-  searchError.value = ""
-  hasSearched.value = false
-  clearSelection()
-
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-  }
-
-  const seq = ++searchRequestSeq
-
-  if (searchMode === "curseforge" && !curseforgeAvailable.value) {
-    searchLoading.value = false
-    return
-  }
-
-  query = normalizeSearchQuery(query)
-
-  if (query.length < 2) {
-    searchLoading.value = false
-    return
-  }
-
-  searchLoading.value = true
-
-  searchDebounceTimer = setTimeout(async () => {
-    try {
-      const versions = pack.mcVersion ? [pack.mcVersion] : undefined
-      const response = searchMode === "curseforge"
-        ? await searchCurseforgeMods(pack.id, query, versions)
-        : await searchModrinthMods(pack.id, query, versions)
-
-      if (seq === searchRequestSeq) {
-        searchResults.value = response.results || []
-      }
-    } catch (e) {
-      if (seq === searchRequestSeq) {
-        searchResults.value = []
-        searchError.value = axios.isAxiosError(e)
-          ? (e.response?.data?.error || "Search failed")
-          : "Search failed"
-      }
-      console.error("Search failed:", e)
-    } finally {
-      if (seq === searchRequestSeq) {
-        searchLoading.value = false
-        hasSearched.value = true
-      }
-    }
-  }, 400)
-}
-
-watch(searchQuery, (newQuery: string | null) => {
-  if (mode.value !== "url") {
-    executeSearch(newQuery ?? "", mode.value)
-  }
-})
-
-watch(mode, (newMode) => {
+watch(mode, () => {
   modUrl.value = ""
   error.value = false
   errorMsg.value = ""
   clearSelection()
-  if (newMode === "url") {
-    searchResults.value = []
-    searchError.value = ""
-    hasSearched.value = false
-    searchRequestSeq++
-    clearTimeout(searchDebounceTimer)
-    searchLoading.value = false
-  } else {
-    executeSearch(searchQuery.value, newMode)
-  }
 })
 
 watch(modUrl, (rawUrl: string | null) => {
   const newUrl = (rawUrl ?? "").trim()
   dependencies.value = []
   depsLoading.value = false
+  depsError.value = false
   error.value = false
 
   if (debounceTimer) {
@@ -355,10 +313,21 @@ watch(modUrl, (rawUrl: string | null) => {
             value="modrinth"
             text="Search Modrinth"
           />
-          <v-btn
-            value="curseforge"
-            text="Search CurseForge"
-          />
+          <v-tooltip
+            :disabled="curseforgeAvailable !== false"
+            location="bottom"
+            text="CurseForge search needs a server API key (PWW_CF_API_KEY)"
+          >
+            <template #activator="{props: tooltipProps}">
+              <span v-bind="tooltipProps">
+                <v-btn
+                  value="curseforge"
+                  text="Search CurseForge"
+                  :disabled="curseforgeAvailable === false"
+                />
+              </span>
+            </template>
+          </v-tooltip>
           <v-btn
             value="url"
             text="Paste URL"
@@ -382,6 +351,24 @@ watch(modUrl, (rawUrl: string | null) => {
             class="mb-4"
             :missing="dependencies"
           />
+
+          <v-alert
+            v-if="depsError"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            text="Couldn't check dependencies. You can still add this mod, but required dependencies may be missing."
+          >
+            <template #append>
+              <v-btn
+                text="Retry"
+                variant="text"
+                size="small"
+                @click="retryDependencies"
+              />
+            </template>
+          </v-alert>
 
           <div class="d-flex justify-end">
             <v-btn
@@ -410,6 +397,8 @@ watch(modUrl, (rawUrl: string | null) => {
               :label="mode === 'curseforge' ? 'Search CurseForge' : 'Search Modrinth'"
               prepend-inner-icon="mdi-magnify"
               :loading="searchLoading"
+              :hint="filterCaption"
+              persistent-hint
               clearable
             />
 
@@ -432,8 +421,10 @@ watch(modUrl, (rawUrl: string | null) => {
               :selected-slug="selectedProjectSlug"
               :dependencies="dependencies"
               :error-message="error ? errorMsg : ''"
+              :dependencies-failed="depsError"
               @select="selectSearchResult"
               @add="addResult"
+              @retry-dependencies="retryDependencies"
             />
 
             <div
@@ -443,15 +434,6 @@ watch(modUrl, (rawUrl: string | null) => {
               {{ emptyState === 'short-query' ? 'Type at least 2 characters to search' : 'No results' }}
             </div>
           </template>
-        </div>
-
-        <div class="d-flex justify-end mt-2">
-          <v-btn
-            text="Done"
-            variant="text"
-            :disabled="loading"
-            @click="cancelForm"
-          />
         </div>
       </div>
 

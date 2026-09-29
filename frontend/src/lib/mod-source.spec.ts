@@ -21,6 +21,32 @@ describe("parseUrl", () => {
   it("returns empty string for an empty URL", () => {
     expect(parseUrl("")).toBe("")
   })
+
+  it("ignores a recognized domain in the query string or path", () => {
+    expect(parseUrl("https://example.com/?u=modrinth.com")).toBe("")
+    expect(parseUrl("https://example.com/github.com/owner/repo")).toBe("")
+  })
+
+  it("ignores lookalike hosts", () => {
+    expect(parseUrl("https://notmodrinth.com/mod/x")).toBe("")
+    expect(parseUrl("https://modrinth.com.evil.io/mod/x")).toBe("")
+  })
+
+  it("returns empty string for an invalid URL", () => {
+    expect(parseUrl("modrinth.com/mod/sodium")).toBe("")
+    expect(parseUrl("not a url")).toBe("")
+  })
+
+  it("accepts www and other subdomains", () => {
+    expect(parseUrl("https://www.modrinth.com/mod/sodium")).toBe("Modrinth")
+    expect(parseUrl("https://legacy.curseforge.com/minecraft/mc-mods/jei")).toBe("Curseforge")
+    expect(parseUrl("https://www.github.com/owner/repo")).toBe("Github")
+  })
+
+  it("accepts http and https but not other protocols", () => {
+    expect(parseUrl("http://modrinth.com/mod/sodium")).toBe("Modrinth")
+    expect(parseUrl("ftp://modrinth.com/mod/sodium")).toBe("")
+  })
 })
 
 describe("buildRequest", () => {

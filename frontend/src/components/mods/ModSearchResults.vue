@@ -3,7 +3,7 @@ import type {Mod, ModDependency, ModSearchResult} from "@/interfaces/pack.ts";
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import {getResultState, modPageUrl} from "@/lib/mod-source.ts";
 
-const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage} = defineProps<{
+const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed} = defineProps<{
   results: ModSearchResult[]
   source: "modrinth" | "curseforge"
   installedMods: Mod[]
@@ -12,11 +12,13 @@ const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, depe
   selectedSlug: string
   dependencies: ModDependency[]
   errorMessage: string
+  dependenciesFailed: boolean
 }>()
 
 const emit = defineEmits<{
   select: [result: ModSearchResult]
   add: [result: ModSearchResult]
+  retryDependencies: []
 }>()
 
 const stateOf = (result: ModSearchResult) => getResultState(result, installedMods, addedKeys, source)
@@ -102,6 +104,23 @@ const addLabel = computed(() =>
           class="mb-3"
           :missing="dependencies"
         />
+        <v-alert
+          v-if="dependenciesFailed"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
+          text="Couldn't check dependencies. You can still add this mod, but required dependencies may be missing."
+        >
+          <template #append>
+            <v-btn
+              text="Retry"
+              variant="text"
+              size="small"
+              @click="emit('retryDependencies')"
+            />
+          </template>
+        </v-alert>
         <v-alert
           v-if="errorMessage"
           type="error"
