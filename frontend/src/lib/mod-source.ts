@@ -82,3 +82,10 @@ export function isSearchResultInstalled(
     return false
   })
 }
+
+export function modPageUrl(source: "modrinth" | "curseforge", slug: string): string {
+  if (source === "curseforge") {
+    return `https://www.curseforge.com/minecraft/mc-mods/${slug}`
+  }
+  return `https://modrinth.com/mod/${slug}`
+}

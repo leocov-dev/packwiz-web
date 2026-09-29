@@ -4,6 +4,7 @@ import (
 	"codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -171,6 +172,19 @@ func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, vers
 			versionFacets = append(versionFacets, "versions:"+v)
 		}
 		facets = append(facets, versionFacets)
+	}
+
+	var pack tables.Pack
+	if err := ps.db.Where("id = ?", packId).First(&pack).Error; err != nil {
+		return nil, response.New(http.StatusNotFound, "Pack not found")
+	}
+	metaPack := pack.AsMeta()
+	if loaders := metaPack.GetCompatibleLoaders(); len(loaders) > 0 {
+		loaderFacets := make([]string, 0, len(loaders))
+		for _, l := range loaders {
+			loaderFacets = append(loaderFacets, "categories:"+l)
+		}
+		facets = append(facets, loaderFacets)
 	}
 
 	searchRes, err := sources.GetModrinthClient().Projects.Search(&modrinth.SearchOptions{
