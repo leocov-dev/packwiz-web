@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export function toTitleCase(str: string): string {
   return str
     .split(' ')
@@ -16,4 +18,11 @@ export function arraysEqual<T>(a: T[], b: T[]): boolean {
 
   if (set1.size !== set2.size) return false;
   return [...set1].every(item => set2.has(item));
+}
+
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  if (axios.isAxiosError(e)) {
+    return e.response?.data?.error || fallback
+  }
+  return e instanceof Error ? e.message : String(e)
 }
