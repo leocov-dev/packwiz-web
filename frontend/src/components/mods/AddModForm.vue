@@ -419,6 +419,7 @@ watch(modUrl, (rawUrl: string | null) => {
               v-if="searchResults.length > 0"
               :results="searchResults"
               :source="searchSource"
+              :pack-loader="pack.loader"
               :installed-mods="pack.mods ?? []"
               :added-keys="addedKeys"
               :adding-slug="addingSlug"

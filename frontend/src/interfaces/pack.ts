@@ -121,6 +121,10 @@ export class ModSearchResult {
   iconUrl!: string;
   projectId!: string;
   installed?: boolean;
+  author?: string;
+  downloads?: number;
+  loaders?: string[];
+  categories?: string[];
 }
 
 export class ModSearchResponse {

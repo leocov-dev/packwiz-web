@@ -2,8 +2,9 @@
 import type {Mod, ModDependency, ModSearchResult} from "@/interfaces/pack.ts";
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import {getResultState, modPageUrl} from "@/lib/mod-source.ts";
+import {formatAuthorLine, isPackLoader, limitChips} from "@/lib/search-meta.ts";
 
-const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed} = defineProps<{
+const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed, packLoader} = defineProps<{
   results: ModSearchResult[]
   source: "modrinth" | "curseforge"
   installedMods: Mod[]
@@ -13,6 +14,7 @@ const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, depe
   dependencies: ModDependency[]
   errorMessage: string
   dependenciesFailed: boolean
+  packLoader?: string
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +32,9 @@ const onRowClick = (result: ModSearchResult) => {
 }
 
 const isAvailable = (result: ModSearchResult) => stateOf(result) === "available"
+
+const loaderChips = (result: ModSearchResult) => limitChips(result.loaders, 3).shown
+const categoryChips = (result: ModSearchResult) => limitChips(result.categories, 2).shown
 
 const addLabel = computed(() =>
   dependencies.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
@@ -64,6 +69,35 @@ const addLabel = computed(() =>
         <v-list-item-subtitle class="text-truncate">
           {{ result.description }}
         </v-list-item-subtitle>
+        <v-list-item-subtitle
+          v-if="formatAuthorLine(result.author, result.downloads)"
+          class="text-truncate"
+        >
+          {{ formatAuthorLine(result.author, result.downloads) }}
+        </v-list-item-subtitle>
+        <div
+          v-if="loaderChips(result).length > 0 || categoryChips(result).length > 0"
+          class="d-flex flex-nowrap ga-1 mt-1 overflow-hidden"
+        >
+          <v-chip
+            v-for="loader in loaderChips(result)"
+            :key="`l-${loader}`"
+            size="x-small"
+            label
+            class="flex-shrink-0"
+            :color="isPackLoader(loader, packLoader) ? 'primary' : undefined"
+            :variant="isPackLoader(loader, packLoader) ? 'flat' : 'tonal'"
+            :text="loader"
+          />
+          <v-chip
+            v-for="category in categoryChips(result)"
+            :key="`c-${category}`"
+            size="x-small"
+            variant="tonal"
+            class="text-truncate"
+            :text="category"
+          />
+        </div>
         <template #append>
           <v-chip
             v-if="stateOf(result) === 'installed'"

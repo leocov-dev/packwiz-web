@@ -28,6 +28,16 @@ type cfSearchItem struct {
 		ThumbnailURL string `json:"thumbnailUrl"`
 		URL          string `json:"url"`
 	} `json:"logo"`
+	Authors []struct {
+		Name string `json:"name"`
+	} `json:"authors"`
+	DownloadCount      float64 `json:"downloadCount"`
+	LatestFilesIndexes []struct {
+		ModLoader int `json:"modLoader"`
+	} `json:"latestFilesIndexes"`
+	Categories []struct {
+		Name string `json:"name"`
+	} `json:"categories"`
 }
 
 type cfSearchResponse struct {
@@ -138,6 +148,10 @@ func (ps *PackwizService) SearchCurseforgeProjects(packId uint, query string, ve
 			(projId != "" && slugs[strings.ToLower(projId)])
 
 		results = append(results, dto.ModSearchResult{
+			Author:      cfAuthor(item),
+			Downloads:   cfDownloads(item),
+			Loaders:     cfLoaders(item),
+			Categories:  cfCategories(item),
 			Slug:        slug,
 			Title:       item.Name,
 			Description: item.Summary,
