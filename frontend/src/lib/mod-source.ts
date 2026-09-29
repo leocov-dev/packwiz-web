@@ -2,19 +2,36 @@ import type {AddModRequest} from "@/interfaces/requests.ts";
 
 export type ModSource = "Curseforge" | "Modrinth" | "Github" | ""
 
+const SOURCE_HOSTS: Array<[string, ModSource]> = [
+  ["curseforge.com", "Curseforge"],
+  ["modrinth.com", "Modrinth"],
+  ["github.com", "Github"],
+]
+
 export function parseUrl(url: string): ModSource {
   if (!url) {
     return ""
   }
-  if (url.includes("curseforge.com")) {
-    return "Curseforge"
-  } else if (url.includes("modrinth.com")) {
-    return "Modrinth"
-  } else if (url.includes("github.com")) {
-    return "Github"
-  } else {
+
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
     return ""
   }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return ""
+  }
+
+  const host = parsed.hostname.toLowerCase()
+  for (const [domain, source] of SOURCE_HOSTS) {
+    if (host === domain || host.endsWith("." + domain)) {
+      return source
+    }
+  }
+
+  return ""
 }
 
 export type BuildRequestResult =
