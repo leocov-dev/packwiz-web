@@ -45,10 +45,60 @@ export function buildOptionRequest(values: ModEditValues) {
     : {optional: false, description: "", default: false}
 }
 
-export function describeSaveFailure(saved: string[], failed: string, message: string, notAttempted: string[] = []): string {
-  const parts: string[] = []
-  if (saved.length > 0) parts.push(`${saved.join(", ")} saved.`)
-  parts.push(`${failed} failed: ${message}.`)
-  if (notAttempted.length > 0) parts.push(`Not saved: ${notAttempted.join(", ")}.`)
-  return parts.join(" ")
+export interface SaveStep {
+  label: string
+  run: () => Promise<void>
+}
+
+export interface StepResult {
+  label: string
+  ok: boolean
+  message?: string
+}
+
+// Steps touch independent columns, so every step is attempted even if an earlier one fails.
+export async function runSaveSteps(
+  steps: SaveStep[],
+  toMessage: (e: unknown) => string = e => (e instanceof Error ? e.message : String(e)),
+): Promise<StepResult[]> {
+  const results: StepResult[] = []
+  for (const step of steps) {
+    try {
+      await step.run()
+      results.push({label: step.label, ok: true})
+    } catch (e) {
+      results.push({label: step.label, ok: false, message: toMessage(e)})
+    }
+  }
+  return results
+}
+
+export function describeSaveFailure(results: StepResult[]): string {
+  return results
+    .map(r => (r.ok ? `${r.label} saved.` : `${r.label} failed: ${r.message}.`))
+    .join(" ")
+}
+
+export interface ModSnapshot {
+  fileName: string
+  update: Mod["update"]
+}
+
+export function snapshotMod(mod: Mod): ModSnapshot {
+  return {fileName: mod.fileName, update: {...(mod.update ?? {})}}
+}
+
+export function modWasUpdated(before: ModSnapshot, after: ModSnapshot): boolean {
+  if (before.fileName !== after.fileName) return true
+  return JSON.stringify(sortKeys(before.update)) !== JSON.stringify(sortKeys(after.update))
+}
+
+function sortKeys(o: Mod["update"] | undefined) {
+  return Object.fromEntries(Object.entries(o ?? {}).sort(([a], [b]) => a.localeCompare(b)))
+}
+
+export function describeUpdateResult(name: string, before: ModSnapshot, after: ModSnapshot): string {
+  return modWasUpdated(before, after)
+    ? `Updated ${name} to ${after.fileName}`
+    : `${name} is already up to date`
 }
