@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {buildRequest, getResultState, isSearchResultInstalled, parseUrl, searchEmptyState} from "./mod-source.ts"
+import {addedKey, buildRequest, getResultState, normalizeSearchQuery, isSearchResultInstalled, parseUrl, searchEmptyState} from "./mod-source.ts"
 
 describe("parseUrl", () => {
   it("recognizes a curseforge URL", () => {
@@ -86,19 +86,27 @@ describe("getResultState", () => {
   const installed = [{slug: "sodium"}]
 
   it("is available for an unknown result", () => {
-    expect(getResultState({slug: "iris", projectId: "x"}, installed, [])).toBe("available")
+    expect(getResultState({slug: "iris", projectId: "x"}, installed, [], "modrinth")).toBe("available")
   })
 
   it("is installed when present in pack mods", () => {
-    expect(getResultState({slug: "Sodium"}, installed, [])).toBe("installed")
+    expect(getResultState({slug: "Sodium"}, installed, [], "modrinth")).toBe("installed")
   })
 
   it("is added when added locally, even if pack mods are stale", () => {
-    expect(getResultState({slug: "iris"}, installed, ["iris"])).toBe("added")
+    expect(getResultState({slug: "iris"}, installed, [addedKey("modrinth", "iris")], "modrinth")).toBe("added")
+  })
+
+  it("does not mark a same-slug result from another source as added", () => {
+    expect(getResultState({slug: "iris"}, installed, [addedKey("modrinth", "iris")], "curseforge")).toBe("available")
+  })
+
+  it("prefers added when slug is both installed and added", () => {
+    expect(getResultState({slug: "sodium"}, installed, [addedKey("modrinth", "sodium")], "modrinth")).toBe("added")
   })
 
   it("handles undefined installed mods", () => {
-    expect(getResultState({slug: "iris"}, undefined, [])).toBe("available")
+    expect(getResultState({slug: "iris"}, undefined, [], "modrinth")).toBe("available")
   })
 })
 
@@ -106,6 +114,7 @@ describe("searchEmptyState", () => {
   it("prompts for a longer query", () => {
     expect(searchEmptyState("a", false, 0, false)).toBe("short-query")
     expect(searchEmptyState("", false, 0, true)).toBe("short-query")
+    expect(searchEmptyState("   ", false, 0, true)).toBe("short-query")
   })
 
   it("reports no results after a completed search", () => {
@@ -116,5 +125,20 @@ describe("searchEmptyState", () => {
     expect(searchEmptyState("sodium", true, 0, true)).toBe("none")
     expect(searchEmptyState("sodium", false, 0, false)).toBe("none")
     expect(searchEmptyState("sodium", false, 3, true)).toBe("none")
+  })
+})
+
+describe("normalizeSearchQuery", () => {
+  it("trims whitespace", () => {
+    expect(normalizeSearchQuery("  sodium ")).toBe("sodium")
+  })
+
+  it("reduces a whitespace-only query to empty", () => {
+    expect(normalizeSearchQuery("   ")).toBe("")
+  })
+
+  it("handles null and undefined", () => {
+    expect(normalizeSearchQuery(null)).toBe("")
+    expect(normalizeSearchQuery(undefined)).toBe("")
   })
 })

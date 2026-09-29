@@ -51,9 +51,13 @@ export function buildRequest(modSource: ModSource, modUrl: string): BuildRequest
   return {error: `Invalid mod source: ${modSource}`}
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : undefined
+}
+
 export function isSearchResultInstalled(
   result: { slug?: string; projectId?: string; installed?: boolean },
-  installedMods?: Array<{ slug?: string; update?: Record<string, any> }>,
+  installedMods?: Array<{ slug?: string; update?: Record<string, unknown> }>,
 ): boolean {
   if (result.installed) {
     return true
@@ -67,9 +71,9 @@ export function isSearchResultInstalled(
     if (resultSlug && mod.slug && mod.slug.toLowerCase() === resultSlug) {
       return true
     }
-    const update = mod.update as any
-    const modrinthUpdate = update?.modrinth
-    const curseforgeUpdate = update?.curseforge
+    const update = mod.update
+    const modrinthUpdate = asRecord(update?.modrinth)
+    const curseforgeUpdate = asRecord(update?.curseforge)
     const updateModId = update?.['mod-id'] || modrinthUpdate?.['mod-id']
     const updateProjectId = update?.['project-id'] || curseforgeUpdate?.['project-id']
 
@@ -90,14 +94,23 @@ export function modPageUrl(source: "modrinth" | "curseforge", slug: string): str
   return `https://modrinth.com/mod/${slug}`
 }
 
+export function addedKey(source: "modrinth" | "curseforge", slug: string): string {
+  return `${source}:${slug}`
+}
+
+export function normalizeSearchQuery(query: string | null | undefined): string {
+  return (query ?? "").trim()
+}
+
 export type ResultState = "available" | "installed" | "added"
 
 export function getResultState(
   result: { slug?: string; projectId?: string; installed?: boolean },
   installedMods: Array<{ slug?: string; update?: Record<string, unknown> }> | undefined,
-  addedSlugs: readonly string[],
+  addedKeys: readonly string[],
+  source: "modrinth" | "curseforge",
 ): ResultState {
-  if (result.slug && addedSlugs.includes(result.slug)) {
+  if (result.slug && addedKeys.includes(addedKey(source, result.slug))) {
     return "added"
   }
   return isSearchResultInstalled(result, installedMods) ? "installed" : "available"
@@ -109,7 +122,8 @@ export function searchEmptyState(query: string, loading: boolean, resultCount: n
   if (loading || resultCount > 0) {
     return "none"
   }
-  if (!query || query.length < 2) {
+  const trimmed = normalizeSearchQuery(query)
+  if (trimmed.length < 2) {
     return "short-query"
   }
   return hasSearched ? "no-results" : "none"

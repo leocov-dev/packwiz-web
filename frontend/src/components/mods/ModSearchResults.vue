@@ -3,14 +3,15 @@ import type {Mod, ModDependency, ModSearchResult} from "@/interfaces/pack.ts";
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import {getResultState, modPageUrl} from "@/lib/mod-source.ts";
 
-const {results, source, installedMods, addedSlugs, addingSlug, selectedSlug, dependencies} = defineProps<{
+const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage} = defineProps<{
   results: ModSearchResult[]
   source: "modrinth" | "curseforge"
-  installedMods?: Mod[]
-  addedSlugs: string[]
+  installedMods: Mod[]
+  addedKeys: string[]
   addingSlug: string
   selectedSlug: string
   dependencies: ModDependency[]
+  errorMessage: string
 }>()
 
 const emit = defineEmits<{
@@ -18,13 +19,15 @@ const emit = defineEmits<{
   add: [result: ModSearchResult]
 }>()
 
-const stateOf = (result: ModSearchResult) => getResultState(result, installedMods, addedSlugs)
+const stateOf = (result: ModSearchResult) => getResultState(result, installedMods, addedKeys, source)
 
 const onRowClick = (result: ModSearchResult) => {
-  if (stateOf(result) === "available") {
+  if (isAvailable(result)) {
     emit("select", result)
   }
 }
+
+const isAvailable = (result: ModSearchResult) => stateOf(result) === "available"
 
 const addLabel = computed(() =>
   dependencies.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
@@ -42,6 +45,7 @@ const addLabel = computed(() =>
     >
       <v-list-item
         :active="result.slug === selectedSlug"
+        :link="isAvailable(result)"
         @click="onRowClick(result)"
       >
         <template #prepend>
@@ -75,6 +79,7 @@ const addLabel = computed(() =>
           />
           <v-btn
             v-tooltip="'Open in new tab'"
+            :aria-label="`Open ${result.title} in new tab`"
             icon="mdi-open-in-new"
             variant="text"
             size="small"
@@ -89,13 +94,21 @@ const addLabel = computed(() =>
       </v-list-item>
 
       <div
-        v-if="result.slug === selectedSlug && stateOf(result) === 'available'"
+        v-if="result.slug === selectedSlug && isAvailable(result)"
         class="px-4 pb-4"
       >
         <MissingDependencies
           v-if="dependencies.length > 0"
           class="mb-3"
           :missing="dependencies"
+        />
+        <v-alert
+          v-if="errorMessage"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
+          :text="errorMessage"
         />
         <div class="d-flex justify-end">
           <v-btn

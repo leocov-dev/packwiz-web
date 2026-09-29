@@ -5,7 +5,7 @@ import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import ModSearchResults from "@/components/mods/ModSearchResults.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, searchEmptyState, type ModSource} from "@/lib/mod-source.ts";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, searchEmptyState, addedKey, normalizeSearchQuery, type ModSource} from "@/lib/mod-source.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import axios from "axios";
 
@@ -20,6 +20,7 @@ const error = ref(false)
 const errorMsg = ref("")
 const isValid = ref(false)
 const loading = ref(false)
+const depsLoading = ref(false)
 const dependencies = ref<ModDependency[]>([])
 const addModButtonText = computed(() =>
   dependencies.value.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
@@ -34,13 +35,14 @@ const searchError = ref("")
 const hasSearched = ref(false)
 const selectedProjectSlug = ref("")
 const addingSlug = ref("")
-const addedSlugs = ref<string[]>([])
+const addedKeys = ref<string[]>([])
 const modUrl = ref("")
 
 const searchSource = computed<"modrinth" | "curseforge">(() =>
   mode.value === "curseforge" ? "curseforge" : "modrinth"
 )
-const modSource = computed<ModSource>(() => parseModSourceUrl(modUrl.value))
+const trimmedUrl = computed(() => (modUrl.value ?? "").trim())
+const modSource = computed<ModSource>(() => parseModSourceUrl(trimmedUrl.value))
 const emptyState = computed(() =>
   searchEmptyState(searchQuery.value, searchLoading.value, searchResults.value.length, hasSearched.value)
 )
@@ -56,8 +58,8 @@ onMounted(async () => {
 })
 
 const rules = {
-  urlRequired: (value: string) => !!value || "Mod Url is required",
-  urlSupported: (value: string) => !value || parseModSourceUrl(value) !== "" || "URL must be a Modrinth, CurseForge or GitHub link",
+  urlRequired: (value: string) => !!value?.trim() || "Mod Url is required",
+  urlSupported: (value: string) => !value?.trim() || parseModSourceUrl(value.trim()) !== "" || "URL must be a Modrinth, CurseForge or GitHub link",
 }
 
 let requestSeq = 0
@@ -92,6 +94,10 @@ const checkForDependencies = async (request: AddModRequest, seq: number) => {
     }
   } catch (e) {
     console.error("Failed to check dependencies:", e)
+  } finally {
+    if (seq === requestSeq) {
+      depsLoading.value = false
+    }
   }
 }
 
@@ -103,7 +109,7 @@ const submitRequest = async (request: AddModRequest, title: string): Promise<boo
 
   try {
     await addMod(pack.id, request)
-    snackbar.showSnackbar(`Added ${title}`, "success")
+    snackbar.showSnackbar(title === "mod" ? "Mod added" : `Added ${title}`, "success")
     return true
   } catch (e) {
     showError(errorMessage(e))
@@ -113,15 +119,18 @@ const submitRequest = async (request: AddModRequest, title: string): Promise<boo
 }
 
 const submitForm = async () => {
-  const request = requestFor(modSource.value, modUrl.value)
+  if (mode.value !== "url") {
+    return
+  }
+
+  const request = requestFor(modSource.value, trimmedUrl.value)
 
   if (request === undefined) {
     return
   }
 
   loading.value = true
-  const url = modUrl.value
-  const ok = await submitRequest(request, url)
+  const ok = await submitRequest(request, "mod")
   loading.value = false
 
   if (ok) {
@@ -136,13 +145,18 @@ const addResult = async (result: ModSearchResult) => {
     return
   }
 
+  const key = addedKey(searchSource.value, result.slug)
+
   addingSlug.value = result.slug
   const ok = await submitRequest(request, result.title)
   addingSlug.value = ""
 
   if (ok) {
-    addedSlugs.value.push(result.slug)
-    clearSelection()
+    addedKeys.value.push(key)
+
+    if (selectedProjectSlug.value === result.slug) {
+      clearSelection()
+    }
   }
 }
 
@@ -152,6 +166,7 @@ const cancelForm = async () => {
 
 const clearSelection = () => {
   requestSeq++
+  depsLoading.value = false
   selectedProjectSlug.value = ""
   dependencies.value = []
 }
@@ -178,6 +193,11 @@ let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 let searchRequestSeq = 0
 
+onBeforeUnmount(() => {
+  clearTimeout(debounceTimer)
+  clearTimeout(searchDebounceTimer)
+})
+
 const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => {
   searchResults.value = []
   searchError.value = ""
@@ -195,7 +215,9 @@ const executeSearch = (query: string, searchMode: "modrinth" | "curseforge") => 
     return
   }
 
-  if (!query || query.length < 2) {
+  query = normalizeSearchQuery(query)
+
+  if (query.length < 2) {
     searchLoading.value = false
     return
   }
@@ -245,14 +267,17 @@ watch(mode, (newMode) => {
     searchError.value = ""
     hasSearched.value = false
     searchRequestSeq++
+    clearTimeout(searchDebounceTimer)
     searchLoading.value = false
   } else {
     executeSearch(searchQuery.value, newMode)
   }
 })
 
-watch(modUrl, (newUrl: string | null) => {
+watch(modUrl, (rawUrl: string | null) => {
+  const newUrl = (rawUrl ?? "").trim()
   dependencies.value = []
+  depsLoading.value = false
   error.value = false
 
   if (debounceTimer) {
@@ -265,10 +290,14 @@ watch(modUrl, (newUrl: string | null) => {
     return
   }
 
+  depsLoading.value = true
+
   debounceTimer = setTimeout(async () => {
     const request = requestFor(modSource.value, newUrl)
     if (request !== undefined) {
       await checkForDependencies(request, seq)
+    } else if (seq === requestSeq) {
+      depsLoading.value = false
     }
   }, 400)
 })
@@ -301,7 +330,7 @@ watch(modUrl, (newUrl: string | null) => {
       </v-card-title>
 
       <v-alert
-        v-if="error"
+        v-if="error && mode === 'url'"
         v-model="error"
         class="mb-6 ms-6 me-6"
         :text="'Error: ' + (errorMsg || 'failed to add new mod...')"
@@ -314,11 +343,7 @@ watch(modUrl, (newUrl: string | null) => {
         <h3>Add New Mod</h3>
       </v-card-subtitle>
 
-      <v-form
-        v-model="isValid"
-        class="ma-6"
-        @submit.prevent="submitForm"
-      >
+      <div class="ma-6">
         <v-btn-toggle
           v-model="mode"
           class="mb-4"
@@ -340,7 +365,11 @@ watch(modUrl, (newUrl: string | null) => {
           />
         </v-btn-toggle>
 
-        <template v-if="mode === 'url'">
+        <v-form
+          v-if="mode === 'url'"
+          v-model="isValid"
+          @submit.prevent="submitForm"
+        >
           <v-text-field
             v-model="modUrl"
             label="Mod URL"
@@ -359,10 +388,10 @@ watch(modUrl, (newUrl: string | null) => {
               :text="addModButtonText"
               color="primary"
               type="submit"
-              :disabled="loading || !isValid || !modUrl"
+              :disabled="loading || depsLoading || !isValid || !trimmedUrl"
             />
           </div>
-        </template>
+        </v-form>
 
         <div v-else>
           <v-alert
@@ -397,11 +426,12 @@ watch(modUrl, (newUrl: string | null) => {
               v-if="searchResults.length > 0"
               :results="searchResults"
               :source="searchSource"
-              :installed-mods="pack.mods"
-              :added-slugs="addedSlugs"
+              :installed-mods="pack.mods ?? []"
+              :added-keys="addedKeys"
               :adding-slug="addingSlug"
               :selected-slug="selectedProjectSlug"
               :dependencies="dependencies"
+              :error-message="error ? errorMsg : ''"
               @select="selectSearchResult"
               @add="addResult"
             />
@@ -423,7 +453,7 @@ watch(modUrl, (newUrl: string | null) => {
             @click="cancelForm"
           />
         </div>
-      </v-form>
+      </div>
 
 
       <v-overlay
