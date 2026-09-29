@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import type {Mod} from "@/interfaces/pack.ts"
 import {
-  applyModListState, buildDependentsMap, buildModListQuery, countMods, DEFAULT_MOD_LIST_STATE, dependencyTooltip,
+  applyModListState, applyPinOverrides, buildDependentNamesMap, buildOrphanNamesMap, buildDependentsMap, buildModListQuery, countMods, DEFAULT_MOD_LIST_STATE, dependencyTooltip,
   dependentNames, filterModsBySide, filterModsByShow, findOrphanedDependencies, formatFilteredCount, formatModCounts,
   hasActiveModFilters, matchesSide, modSideLabel, modSourceLabel, parseModListQuery, removeModMessage, searchMods,
   sortMods,
@@ -83,7 +83,7 @@ describe("dependents", () => {
   })
   it("formats tooltip", () => {
     expect(dependencyTooltip(["A", "B"])).toBe("Required by A, B")
-    expect(dependencyTooltip([])).toBe("Installed automatically as a dependency")
+    expect(dependencyTooltip([])).toBe("No mod requires this dependency anymore")
   })
   it("finds orphaned dependencies only", () => {
     expect(findOrphanedDependencies(a, mods, map).map(m => m.name)).toEqual(["Lib"])
@@ -99,12 +99,65 @@ describe("dependents", () => {
     expect(removeModMessage("X", [])).toBe("Are you sure you want to remove X?")
     expect(removeModMessage("X", ["Lib"])).toContain("also leave 1 dependency unused: Lib")
     expect(removeModMessage("X", ["A", "B"])).toContain("2 dependencies unused: A, B")
+    expect(removeModMessage("Lib", [], true)).toBe("Remove unused dependency Lib? No mod requires this dependency anymore.")
+  })
+  it("ignores self-references and dedupes duplicate ids", () => {
+    const lib = full({id: 1, name: "Lib", isDependency: true, dependencyIds: [1]})
+    const x = full({id: 2, name: "X", dependencyIds: [1, 1]})
+    const ms = [lib, x]
+    const m = buildDependentsMap(ms)
+    expect(dependentNames(lib, m)).toEqual(["X"])
+    expect(m.get(1)).toHaveLength(1)
+    expect(findOrphanedDependencies(x, ms, m).map(o => o.name)).toEqual(["Lib"])
+    expect(findOrphanedDependencies(lib, ms, m)).toEqual([])
+    expect(buildDependentNamesMap(buildDependentsMap([lib, x, full({id: 4, name: "X", dependencyIds: [1]})])).get(1)).toEqual(["X"])
+  })
+  it("does not orphan a dep also required by a regular mod", () => {
+    const lib = full({id: 1, name: "Lib", isDependency: true})
+    const x = full({id: 2, name: "X", dependencyIds: [1]})
+    const y = full({id: 3, name: "Y", dependencyIds: [1]})
+    const ms = [lib, x, y]
+    expect(findOrphanedDependencies(x, ms, buildDependentsMap(ms))).toEqual([])
+  })
+  it("orphans a dep whose only other requirer is being removed via another dep chain", () => {
+    const lib = full({id: 1, name: "Lib", isDependency: true})
+    const mid = full({id: 2, name: "Mid", isDependency: true, dependencyIds: [1]})
+    const x = full({id: 3, name: "X", dependencyIds: [1, 2]})
+    const ms = [lib, mid, x]
+    // Mid still requires Lib, so removing X strands Mid only.
+    expect(findOrphanedDependencies(x, ms, buildDependentsMap(ms)).map(m => m.name)).toEqual(["Mid"])
+  })
+  it("builds per-mod name maps once", () => {
+    const lib = full({id: 1, name: "Lib", isDependency: true})
+    const x = full({id: 2, name: "X", dependencyIds: [1]})
+    const ms = [lib, x]
+    const d = buildDependentsMap(ms)
+    expect(buildDependentNamesMap(d).get(1)).toEqual(["X"])
+    expect(buildDependentNamesMap(d).get(2)).toBeUndefined()
+    expect(buildOrphanNamesMap(ms, d).get(2)).toEqual(["Lib"])
+    expect(buildOrphanNamesMap([], new Map()).size).toBe(0)
+  })
+  it("handles empty mods", () => {
+    expect(buildDependentsMap([]).size).toBe(0)
+    expect(applyModListState([], DEFAULT_MOD_LIST_STATE)).toEqual([])
+  })
+  it("applies pin overrides without mutating", () => {
+    const a = full({id: 1, pinned: false})
+    const b = full({id: 2, pinned: true})
+    const ms = [a, b]
+    expect(applyPinOverrides(ms, new Map())).toBe(ms)
+    const out = applyPinOverrides(ms, new Map([[1, true], [2, true], [99, true]]))
+    expect(out.map(m => m.pinned)).toEqual([true, true])
+    expect(out[1]).toBe(b)
+    expect(a.pinned).toBe(false)
+    const pinnedOnly = applyModListState(out, {...DEFAULT_MOD_LIST_STATE, show: ["pinned"]})
+    expect(pinnedOnly.map(m => m.id)).toEqual([1, 2])
   })
 })
 
 describe("search, show filters and sort", () => {
   const mods = [
-    full({id: 1, name: "Sodium", slug: "sodium", fileName: "sodium-1.jar", pinned: true, updatedAt: "2024-03-01T00:00:00Z"}),
+    full({id: 1, name: "Sodium", slug: "sodium", fileName: "sodium-1.jar", pinned: true, updatedAt: "2024-06-01T00:00:00Z"}),
     full({id: 2, name: "Iris", slug: "iris-shaders", fileName: "iris.jar", option: {optional: true, description: "", default: true}, updatedAt: "2024-05-01T00:00:00Z"}),
     full({id: 3, name: "Lib", slug: "lib", fileName: "lib.jar", isDependency: true, updatedAt: "2024-09-01T00:00:00Z"}),
   ]
@@ -123,15 +176,32 @@ describe("search, show filters and sort", () => {
     expect(sortMods(mods, "name").map(m => m.id)).toEqual([2, 1, 3])
   })
   it("sorts by recently updated and keeps dependencies last", () => {
-    expect(sortMods(mods, "updated").map(m => m.id)).toEqual([2, 1, 3])
-    const swapped = [{...mods[0], updatedAt: "2025-01-01T00:00:00Z"} as Mod, mods[1], mods[2]]
-    expect(sortMods(swapped, "updated").map(m => m.id)).toEqual([1, 2, 3])
+    // Sodium (newest) sorts before Iris here, unlike name order (Iris, Sodium).
+    expect(sortMods(mods, "updated").map(m => m.id)).toEqual([1, 2, 3])
+    expect(sortMods(mods, "name").map(m => m.id)).toEqual([2, 1, 3])
+    const swapped = [mods[0], {...mods[1], updatedAt: "2025-01-01T00:00:00Z"} as Mod, mods[2]]
+    expect(sortMods(swapped, "updated").map(m => m.id)).toEqual([2, 1, 3])
+  })
+  it("treats invalid updatedAt as oldest", () => {
+    const ms = [
+      full({id: 1, name: "A", updatedAt: "garbage"}),
+      full({id: 2, name: "B", updatedAt: "2024-01-01T00:00:00Z"}),
+      full({id: 3, name: "C", updatedAt: undefined as unknown as string}),
+    ]
+    expect(sortMods(ms, "updated").map(m => m.id)).toEqual([2, 1, 3])
+  })
+  it("copes with garbage q and empty strings", () => {
+    expect(searchMods(mods, undefined as unknown as string)).toHaveLength(3)
+    expect(parseModListQuery({q: [1], sort: "", show: ""}))
+      .toEqual({q: "", sort: "name", side: "", show: []})
   })
   it("applies whole state and reports activity", () => {
     const state = {...DEFAULT_MOD_LIST_STATE, show: ["pinned" as const]}
     expect(applyModListState(mods, state).map(m => m.id)).toEqual([1])
     expect(hasActiveModFilters(state)).toBe(true)
     expect(hasActiveModFilters(DEFAULT_MOD_LIST_STATE)).toBe(false)
+    expect(hasActiveModFilters({...DEFAULT_MOD_LIST_STATE, side: "both"})).toBe(false)
+    expect(hasActiveModFilters({...DEFAULT_MOD_LIST_STATE, side: "client"})).toBe(true)
   })
 })
 
@@ -148,6 +218,10 @@ describe("list query persistence", () => {
   it("ignores invalid values and takes first of arrays", () => {
     expect(parseModListQuery({sort: "zzz", side: "x", show: "pinned,bogus,pinned", q: ["a", "b"]}))
       .toEqual({q: "a", sort: "name", side: "", show: ["pinned"]})
+  })
+  it("merges repeated show params", () => {
+    expect(parseModListQuery({show: ["pinned", "optional,dependencies", "bogus"]}).show)
+      .toEqual(["pinned", "optional", "dependencies"])
   })
   it("formats filtered count", () => {
     expect(formatFilteredCount(2, 10)).toBe("2 of 10 mods")

@@ -15,15 +15,19 @@ const {packId, mod, canEdit, dependentNames, orphanNames} = defineProps<{
   orphanNames: string[],
 }>()
 
-const emit = defineEmits(['reload'])
+const emit = defineEmits<{
+  reload: []
+  pinned: [id: number, value: boolean]
+}>()
 
 const snackbar = useSnackbarStore()
 
-// Local optimistic copy: props are read-only, so re-sync when the parent refreshes.
+// Local optimistic copy: props are read-only, so re-sync when the parent refreshes
+// (but never while a request is in flight).
 const pinned = ref(mod.pinned)
 const pinning = ref(false)
 watch(() => mod.pinned, (value) => {
-  pinned.value = value
+  if (!pinning.value) pinned.value = value
 })
 
 const showRemoveDialog = ref(false)
@@ -62,8 +66,14 @@ const onRemove = async () => {
 
 const sourceLabel = computed(() => modSourceLabel(mod.source))
 const sideLabel = computed(() => modSideLabel(mod.side))
-const removeText = computed(() => removeModMessage(mod.name, orphanNames))
+const removeText = computed(() => removeModMessage(mod.name, orphanNames, mod.isDependency))
 const dependencyHint = computed(() => dependencyTooltip(dependentNames))
+// A dependency can only be removed once no mod requires it anymore.
+const removeBlocked = computed(() => mod.isDependency && dependentNames.length > 0)
+const editHint = computed(() => mod.isDependency
+  ? (dependentNames.length > 0 ? dependencyHint.value : `Dependencies can't be edited. ${dependencyHint.value}`)
+  : "")
+const removeHint = computed(() => removeBlocked.value ? dependencyHint.value : "")
 const modRoute = computed(() => `/packs/${packId}/mod/${mod.id}`)
 const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
 const typeLabel = computed(() => mod.type || "mod")
@@ -78,6 +88,7 @@ const onTogglePin = async () => {
     } else {
       await pinMod(packId, mod.id)
     }
+    emit('pinned', mod.id, !previous)
   } catch (e) {
     pinned.value = previous
     const detail = axios.isAxiosError(e) ? e.response?.data?.error : undefined
@@ -93,7 +104,7 @@ const onTogglePin = async () => {
   <v-card class="ma-1 ps-5 pe-5 pt-3 pb-3 elevation-4">
     <ConfirmationDialog
       v-model="showRemoveDialog"
-      title="Remove Mod"
+      :title="mod.isDependency ? 'Remove Dependency' : 'Remove Mod'"
       :text="removeText"
       accept-text="Remove"
       @accepted="onRemove"
@@ -113,6 +124,7 @@ const onTogglePin = async () => {
     <div class="d-flex flex-wrap align-center ga-2">
       <v-icon
         v-tooltip="typeLabel"
+        tabindex="0"
         :aria-label="`Type: ${typeLabel}`"
         role="img"
         :icon="modTypeIconMap[mod.type] || 'mdi-puzzle-outline'"
@@ -120,6 +132,7 @@ const onTogglePin = async () => {
 
       <div
         v-tooltip="mod.fileName"
+        tabindex="0"
         class="text-body-1 font-weight-medium"
       >
         {{ mod.name }}
@@ -141,6 +154,7 @@ const onTogglePin = async () => {
       <v-chip
         v-if="mod.option?.optional"
         v-tooltip="mod.option?.description || 'Optional mod'"
+        tabindex="0"
         size="small"
         label
         color="info"
@@ -150,6 +164,7 @@ const onTogglePin = async () => {
       <v-chip
         v-if="mod.isDependency"
         v-tooltip="dependencyHint"
+        tabindex="0"
         size="small"
         label
         color="primary"
@@ -161,9 +176,9 @@ const onTogglePin = async () => {
       <v-spacer />
 
       <div class="d-flex align-center ga-2">
-        <template v-if="!mod.isDependency">
+        <template v-if="!mod.isDependency || mod.pinned">
           <v-btn
-            v-if="canEdit"
+            v-if="canEdit && !mod.isDependency"
             v-tooltip="pinTooltip"
             density="comfortable"
             variant="text"
@@ -179,6 +194,7 @@ const onTogglePin = async () => {
             v-tooltip="'Pinned (skipped on Update All)'"
             aria-label="Pinned"
             role="img"
+            tabindex="0"
             icon="mdi-pin"
           />
         </template>
@@ -186,14 +202,15 @@ const onTogglePin = async () => {
         <template v-if="canEdit">
           <v-tooltip
             :disabled="!mod.isDependency"
-            :text="dependencyHint"
+            :text="editHint"
             location="top"
           >
             <template #activator="{props: tipProps}">
               <span
                 v-bind="tipProps"
+                :role="mod.isDependency ? 'group' : undefined"
                 :tabindex="mod.isDependency ? 0 : undefined"
-                :aria-label="mod.isDependency ? `Edit unavailable. ${dependencyHint}` : undefined"
+                :aria-label="mod.isDependency ? `Edit unavailable. ${editHint}` : undefined"
               >
                 <v-btn
                   density="comfortable"
@@ -208,15 +225,16 @@ const onTogglePin = async () => {
           </v-tooltip>
 
           <v-tooltip
-            :disabled="!mod.isDependency"
-            :text="dependencyHint"
+            :disabled="!removeBlocked"
+            :text="removeHint"
             location="top"
           >
             <template #activator="{props: tipProps}">
               <span
                 v-bind="tipProps"
-                :tabindex="mod.isDependency ? 0 : undefined"
-                :aria-label="mod.isDependency ? `Remove unavailable. ${dependencyHint}` : undefined"
+                :role="removeBlocked ? 'group' : undefined"
+                :tabindex="removeBlocked ? 0 : undefined"
+                :aria-label="removeBlocked ? `Remove unavailable. ${removeHint}` : undefined"
               >
                 <v-btn
                   density="comfortable"
@@ -224,7 +242,7 @@ const onTogglePin = async () => {
                   variant="outlined"
                   icon="mdi-delete-outline"
                   aria-label="Remove mod"
-                  :disabled="loading || mod.isDependency"
+                  :disabled="loading || removeBlocked"
                   @click="showRemoveDialog = true"
                 />
               </span>
