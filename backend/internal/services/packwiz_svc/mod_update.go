@@ -24,6 +24,11 @@ type modSnapshot struct {
 	update   string
 }
 
+// Version is deliberately not part of the snapshot: mods loaded from the DB
+// carry it only after a DoUpdate refresh, so including it would report every
+// no-op update as changed. A refreshed version is persisted separately
+// (persistModVersion) without counting as an update.
+
 // takeModSnapshot deep-captures the update-relevant fields of mod. The update
 // map is JSON-encoded (map keys sorted) because the updaters may mutate it in
 // place, and because JSON normalizes numeric types (uint32 vs float64 from a

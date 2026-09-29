@@ -153,3 +153,34 @@ func TestFilterFreshCheckRows(t *testing.T) {
 		t.Errorf("pack changed during check should drop all rows, got %+v", got)
 	}
 }
+
+func TestLatestVersionStoredAndExposed(t *testing.T) {
+	now := time.Now()
+	mods := map[string]tables.Mod{"a": {ID: 1, Slug: "a"}, "b": {ID: 2, Slug: "b"}}
+	rows := buildCheckRows(9, mods, []core.UpdateCheckResult{
+		{Mod: &core.Mod{Slug: "a"}, UpdateAvailable: true, UpdateString: "1 -> 2", LatestVersion: "2.0.0"},
+		{Mod: &core.Mod{Slug: "b"}, Err: errors.New("boom"), LatestVersion: "ignored"},
+	}, now)
+	if rows[0].LatestVersion != "2.0.0" {
+		t.Errorf("latest version not stored: %+v", rows[0])
+	}
+	if rows[1].LatestVersion != "" {
+		t.Errorf("failed check must not store latest version: %+v", rows[1])
+	}
+
+	resp := buildUpdateChecksResponse(nil, []checkRow{{ModUpdateCheck: rows[0]}, {ModUpdateCheck: tables.ModUpdateCheck{ModID: 3, CheckedAt: now}}}, now)
+	out, err := json.Marshal(resp.Results)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got[0]["latestVersion"] != "2.0.0" {
+		t.Errorf("latestVersion missing in JSON: %s", out)
+	}
+	if _, ok := got[1]["latestVersion"]; ok {
+		t.Errorf("empty latestVersion must be omitted: %s", out)
+	}
+}

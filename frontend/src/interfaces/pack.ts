@@ -56,6 +56,8 @@ export class Mod {
   name!: string;
   type!: string;
   fileName!: string;
+  /** Installed version; DB-only, absent for legacy mods until their next update. */
+  version?: string;
   side!: "client" | "server" | "both";
   pinned!: boolean;
   source!: string;
@@ -194,6 +196,8 @@ export class UpdateCheckItem {
   modId!: number;
   updateAvailable!: boolean;
   updateString?: string;
+  /** Latest available version, when the source reports one. */
+  latestVersion?: string;
   error?: string;
 }
 

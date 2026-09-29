@@ -1,4 +1,5 @@
 import type {Mod, UpdateCheckItem, UpdateCheckStatus} from "@/interfaces/pack.ts"
+import {modVersion} from "@/lib/mod-filters.ts"
 
 export type UpdateChecksMap = ReadonlyMap<number, UpdateCheckItem>
 
@@ -85,11 +86,14 @@ export interface ModUpdateBadge {
 }
 
 // What (if anything) a mod card shows for its check result.
-export function modUpdateBadge(mod: Pick<Mod, "pinned">, check: UpdateCheckItem | undefined): ModUpdateBadge | null {
+export function modUpdateBadge(mod: Pick<Mod, "pinned"> & Partial<Pick<Mod, "version">>, check: UpdateCheckItem | undefined): ModUpdateBadge | null {
   if (!check) return null
   if (check.error) return {kind: "error", tooltip: `Update check failed: ${check.error}`}
   if (!check.updateAvailable) return null
-  const tooltip = check.updateString || "A newer version is available"
+  // "1.2.3 -> 1.3.0" only when both versions are known (never the file-name fallback)
+  const installed = modVersion(mod)
+  const latest = (check.latestVersion ?? "").trim()
+  const tooltip = installed && latest ? `${installed} -> ${latest}` : check.updateString || "A newer version is available"
   return {kind: mod.pinned ? "pinned" : "available", tooltip}
 }
 

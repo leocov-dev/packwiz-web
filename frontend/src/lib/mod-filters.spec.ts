@@ -3,7 +3,7 @@ import type {Mod} from "@/interfaces/pack.ts"
 import {
   applyModListState, applyPinOverrides, buildDependentNamesMap, buildOrphanNamesMap, buildDependentsMap, buildModListQuery, countMods, DEFAULT_MOD_LIST_STATE, dependencyTooltip,
   dependentNames, filterModsBySide, filterModsByShow, findOrphanedDependencies, formatFilteredCount, formatModCounts,
-  hasActiveModFilters, matchesSide, modSideLabel, modSourceLabel, parseModListQuery, removeModMessage, searchMods,
+  displayVersion, hasActiveModFilters, modVersion, matchesSide, modSideLabel, modSourceLabel, parseModListQuery, removeModMessage, searchMods,
   sortMods,
 } from "./mod-filters.ts"
 
@@ -167,6 +167,10 @@ describe("search, show filters and sort", () => {
     expect(searchMods(mods, "lib.jar").map(m => m.id)).toEqual([3])
     expect(searchMods(mods, "  ")).toHaveLength(3)
   })
+  it("searches version", () => {
+    const withVersion = [{id: 1, name: "A", slug: "a", fileName: "a.jar", version: "1.20.4-0.5.8"}, {id: 2, name: "B", slug: "b", fileName: "b.jar"}] as Mod[]
+    expect(searchMods(withVersion, "0.5.8").map(m => m.id)).toEqual([1])
+  })
   it("filters by updates using the provided ids, unioned with other categories", () => {
     expect(filterModsByShow(mods, ["updates"], new Set([2])).map(m => m.id)).toEqual([2])
     expect(filterModsByShow(mods, ["updates"]).map(m => m.id)).toEqual([])
@@ -235,5 +239,21 @@ describe("list query persistence", () => {
   })
   it("formats filtered count", () => {
     expect(formatFilteredCount(2, 10)).toBe("2 of 10 mods")
+  })
+})
+
+describe("displayVersion", () => {
+  it("prefers the stored version", () => {
+    expect(displayVersion({version: " 1.2.3 ", fileName: "a-1.0.jar"})).toBe("1.2.3")
+    expect(modVersion({version: undefined})).toBe("")
+  })
+  it("falls back to file name without .jar/.zip", () => {
+    expect(displayVersion({fileName: "sodium-0.5.jar"})).toBe("sodium-0.5")
+    expect(displayVersion({version: "", fileName: "pack.ZIP"})).toBe("pack")
+    expect(displayVersion({fileName: "notes.txt"})).toBe("notes.txt")
+  })
+  it("is empty when nothing is known", () => {
+    expect(displayVersion({fileName: ""})).toBe("")
+    expect(displayVersion({} as Mod)).toBe("")
   })
 })

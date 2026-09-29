@@ -61,16 +61,19 @@ func (o *OptionInfo) Scan(value interface{}) error {
 }
 
 type Mod struct {
-	ID            uint                      `gorm:"primaryKey" json:"id"`
-	Slug          string                    `json:"slug"`
-	PackID        uint                      `json:"packId"`
-	Name          string                    `json:"name"`
-	FileName      string                    `json:"fileName"`
-	Side          core.ModSide              `json:"side"`
-	Pinned        bool                      `json:"pinned"`
-	Download      DownloadInfo              `gorm:"type:json"  json:"download"`
-	HashFormat    string                    `gorm:"default:sha256" json:"hashFormat"`
-	Alias         string                    `json:"alias"`
+	ID         uint         `gorm:"primaryKey" json:"id"`
+	Slug       string       `json:"slug"`
+	PackID     uint         `json:"packId"`
+	Name       string       `json:"name"`
+	FileName   string       `json:"fileName"`
+	Side       core.ModSide `json:"side"`
+	Pinned     bool         `json:"pinned"`
+	Download   DownloadInfo `gorm:"type:json"  json:"download"`
+	HashFormat string       `gorm:"default:sha256" json:"hashFormat"`
+	Alias      string       `json:"alias"`
+	// Version is the human-readable installed version. DB-only: it is never
+	// written to the generated pack files (see AsMeta). NULL for legacy rows.
+	Version       string                    `json:"version,omitempty"`
 	Type          string                    `gorm:"default:mods" json:"type"`
 	Source        string                    `json:"source"`
 	Update        UpdateInfo                `gorm:"type:json"  json:"update"`

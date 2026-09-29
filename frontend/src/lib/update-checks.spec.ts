@@ -68,6 +68,11 @@ describe("modUpdateBadge", () => {
     expect(modUpdateBadge(mod(1), chk(1, {updateAvailable: true, updateString: "a -> b"})))
       .toEqual({kind: "available", tooltip: "a -> b"})
     expect(modUpdateBadge(mod(1, true), chk(1, {updateAvailable: true}))?.kind).toBe("pinned")
+    expect(modUpdateBadge({...mod(1), version: "1.2.3"}, chk(1, {updateAvailable: true, updateString: "a -> b", latestVersion: "1.3.0"})))
+      .toEqual({kind: "available", tooltip: "1.2.3 -> 1.3.0"})
+    // latest alone (no installed version) keeps the server string
+    expect(modUpdateBadge(mod(1), chk(1, {updateAvailable: true, updateString: "a -> b", latestVersion: "1.3.0"})))
+      .toEqual({kind: "available", tooltip: "a -> b"})
     expect(modUpdateBadge(mod(1), chk(1, {error: "rate limited"})))
       .toEqual({kind: "error", tooltip: "Update check failed: rate limited"})
   })

@@ -144,6 +144,7 @@ func buildUpdateChecksResponse(run *tables.PackUpdateCheckRun, rows []checkRow, 
 			ModId:           r.ModID,
 			UpdateAvailable: r.UpdateAvailable,
 			UpdateString:    r.UpdateString,
+			LatestVersion:   r.LatestVersion,
 			Error:           r.Error,
 		})
 		if r.UpdateAvailable && !r.Pinned && r.Error == "" {
@@ -172,6 +173,7 @@ func buildCheckRows(packId uint, modsBySlug map[string]tables.Mod, results []cor
 		} else {
 			row.UpdateAvailable = r.UpdateAvailable
 			row.UpdateString = r.UpdateString
+			row.LatestVersion = r.LatestVersion
 		}
 		rows = append(rows, row)
 	}

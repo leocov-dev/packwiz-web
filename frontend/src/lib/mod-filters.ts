@@ -54,6 +54,21 @@ export function modSideLabel(side: string | undefined): string {
   }
 }
 
+// ---- version display ----
+
+const ARCHIVE_EXT = /\.(jar|zip)$/i
+
+// Stored version, trimmed; "" when unknown (legacy mods before their next update).
+export function modVersion(mod: Pick<Mod, "version">): string {
+  return (mod.version ?? "").trim()
+}
+
+// Version shown on cards: the stored version, else the file name without its
+// .jar/.zip extension, else "".
+export function displayVersion(mod: Pick<Mod, "version" | "fileName">): string {
+  return modVersion(mod) || (mod.fileName ?? "").trim().replace(ARCHIVE_EXT, "")
+}
+
 // ---- dependency relationships ----
 // `mod.dependencyIds` lists the mods THIS mod depends on (set on the
 // requiring mod at add time), so "required by" is the inverse lookup.
@@ -144,7 +159,7 @@ export function searchMods(mods: Mod[], query: string): Mod[] {
   const q = (query ?? "").trim().toLowerCase()
   if (!q) return mods
   return mods.filter(mod =>
-    [mod.name, mod.slug, mod.fileName].some(field => (field ?? "").toLowerCase().includes(q)))
+    [mod.name, mod.slug, mod.fileName, mod.version].some(field => (field ?? "").toLowerCase().includes(q)))
 }
 
 // Mod ids with a known available update (from an update check).
