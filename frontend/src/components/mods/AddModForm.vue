@@ -5,9 +5,8 @@ import type {AddModRequest} from "@/interfaces/requests.ts";
 import type {ModDependency, ModSearchResult} from "@/interfaces/pack.ts"
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import ModSearchResults from "@/components/mods/ModSearchResults.vue";
-import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, addedKey, type ModSource} from "@/lib/mod-source.ts";
+import {parseUrl as parseModSourceUrl, buildRequest as buildModRequest, modPageUrl, addedKey, normalizeUrl, searchFilterCaption, type ModSource} from "@/lib/mod-source.ts";
 import {useModSearch, type SearchMode} from "@/composables/useModSearch.ts";
-import {toTitleCase} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import axios from "axios";
 
@@ -39,7 +38,7 @@ const modUrl = ref("")
 const searchSource = computed<"modrinth" | "curseforge">(() =>
   mode.value === "curseforge" ? "curseforge" : "modrinth"
 )
-const trimmedUrl = computed(() => (modUrl.value ?? "").trim())
+const trimmedUrl = computed(() => normalizeUrl(modUrl.value ?? ""))
 const modSource = computed<ModSource>(() => parseModSourceUrl(trimmedUrl.value))
 
 const {
@@ -56,11 +55,9 @@ const {
   onReset: () => clearSelection(),
 })
 
-const filterCaption = computed(() => {
-  const loader = pack.loader ? toTitleCase(pack.loader) : ""
-  const parts = [pack.mcVersion ? `Minecraft ${pack.mcVersion}` : "", loader].filter(Boolean)
-  return parts.length > 0 ? `Filtering for ${parts.join(" \u00b7 ")}` : ""
-})
+const filterCaption = computed(() =>
+  searchFilterCaption(searchSource.value, pack.mcVersion, pack.loader)
+)
 
 onMounted(async () => {
   try {
@@ -74,7 +71,7 @@ onMounted(async () => {
 
 const rules = {
   urlRequired: (value: string) => !!value?.trim() || "Mod Url is required",
-  urlSupported: (value: string) => !value?.trim() || parseModSourceUrl(value.trim()) !== "" || "URL must be a Modrinth, CurseForge or GitHub link",
+  urlSupported: (value: string) => !value?.trim() || parseModSourceUrl(value.trim()) !== "" || "Enter a Modrinth, CurseForge or GitHub link, e.g. https://modrinth.com/mod/sodium",
 }
 
 let requestSeq = 0
@@ -187,8 +184,8 @@ const cancelForm = async () => {
 }
 
 const retryDependencies = () => {
-  if (lastDepsRequest !== undefined) {
-    void checkForDependencies(lastDepsRequest, requestSeq)
+  if (lastDepsRequest !== undefined && !depsLoading.value) {
+    void checkForDependencies(lastDepsRequest, ++requestSeq)
   }
 }
 
@@ -232,7 +229,7 @@ watch(mode, () => {
 })
 
 watch(modUrl, (rawUrl: string | null) => {
-  const newUrl = (rawUrl ?? "").trim()
+  const newUrl = normalizeUrl(rawUrl ?? "")
   dependencies.value = []
   depsLoading.value = false
   depsError.value = false
@@ -319,7 +316,13 @@ watch(modUrl, (rawUrl: string | null) => {
             text="CurseForge search needs a server API key (PWW_CF_API_KEY)"
           >
             <template #activator="{props: tooltipProps}">
-              <span v-bind="tooltipProps">
+              <span
+                v-bind="tooltipProps"
+                :tabindex="curseforgeAvailable === false ? 0 : undefined"
+                :role="curseforgeAvailable === false ? 'button' : undefined"
+                :aria-disabled="curseforgeAvailable === false ? 'true' : undefined"
+                :aria-label="curseforgeAvailable === false ? 'Search CurseForge (unavailable: needs a server API key, PWW_CF_API_KEY)' : undefined"
+              >
                 <v-btn
                   value="curseforge"
                   text="Search CurseForge"
@@ -365,6 +368,7 @@ watch(modUrl, (rawUrl: string | null) => {
                 text="Retry"
                 variant="text"
                 size="small"
+                :disabled="depsLoading"
                 @click="retryDependencies"
               />
             </template>

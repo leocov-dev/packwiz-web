@@ -15,7 +15,11 @@ export interface ModSearchOptions {
   query: Ref<string | null | undefined>
   /** null while the status is still loading */
   curseforgeAvailable: Ref<boolean | null>
-  /** called whenever results are reset (new query / mode change) */
+  /**
+   * Called whenever results are reset: every query change (i.e. each keystroke)
+   * and mode change. Intentional: typing collapses any selected result row and
+   * drops its dependency state, since the result list is replaced anyway.
+   */
   onReset?: () => void
 }
 
@@ -110,6 +114,14 @@ export function useModSearch(options: ModSearchOptions) {
       reset()
     } else {
       run(newMode, query.value ?? "")
+    }
+  })
+
+  // CurseForge status loads async: if the user picked CurseForge and typed before
+  // it resolved, run() bailed. Re-run once it becomes available.
+  watch(curseforgeAvailable, (available, prev) => {
+    if (mode.value === "curseforge" && available === true && prev !== true) {
+      run("curseforge", query.value ?? "")
     }
   })
 
