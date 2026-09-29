@@ -40,14 +40,20 @@ const onAddMod = () => {
   router.push({path: `/packs/${pack.id}/add-mod`})
 }
 
-const chipList = computed<string[]>(() => [
-  `Slug: ${pack.slug}`,
-  `Version: ${pack.version}`,
-  `Minecraft: ${pack.mcVersion}`,
-  `${toTitleCase(pack.loader)}: ${pack.loaderVersion}`,
-  pack.packFormat ? `Format: ${pack.packFormat}` : '',
-  `Game versions: ${(pack.acceptableGameVersions?.length ? pack.acceptableGameVersions : [pack.mcVersion]).join(', ')}`,
-].filter(text => !text.endsWith(': ') && text !== ''))
+const chipList = computed<string[]>(() => {
+  const chips: string[] = []
+  if (pack.slug) chips.push(`Slug: ${pack.slug}`)
+  if (pack.version) chips.push(`Version: ${pack.version}`)
+  if (pack.mcVersion) chips.push(`Minecraft: ${pack.mcVersion}`)
+  if (pack.loader && pack.loaderVersion) chips.push(`${toTitleCase(pack.loader)}: ${pack.loaderVersion}`)
+  if (pack.packFormat) chips.push(`Format: ${pack.packFormat}`)
+
+  const gameVersions = pack.acceptableGameVersions ?? []
+  const repeatsMinecraft = gameVersions.length === 0
+    || (gameVersions.length === 1 && gameVersions[0] === pack.mcVersion)
+  if (!repeatsMinecraft) chips.push(`Game versions: ${gameVersions.join(', ')}`)
+  return chips
+})
 
 
 const convertToDraft = async () => {
@@ -191,7 +197,7 @@ const updateAll = async () => {
               v-bind="props"
               icon="mdi-refresh"
               variant="text"
-              color="disabled"
+              class="text-medium-emphasis"
               aria-label="Reload pack"
               @click="$emit('reload')"
             />

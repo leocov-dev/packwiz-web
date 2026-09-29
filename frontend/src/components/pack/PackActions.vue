@@ -66,6 +66,9 @@ const actions = computed<{
       <div
         v-bind="props"
         class="d-flex align-center"
+        tabindex="0"
+        role="group"
+        aria-label="Links unavailable: publish this pack to enable links"
       >
         <v-btn
           v-for="actionItem in actions"
