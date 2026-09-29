@@ -3,7 +3,7 @@
 import type {Mod, UpdateCheckItem} from "@/interfaces/pack.ts";
 import {modUpdateBadge} from "@/lib/update-checks.ts";
 import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
-import {dependencyTooltip, modSideLabel, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
+import {dependencyTooltip, displayVersion, modSideLabel, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import axios from "axios";
@@ -79,7 +79,8 @@ const removeHint = computed(() => removeBlocked.value ? dependencyHint.value : "
 const modRoute = computed(() => `/packs/${packId}/mod/${mod.id}`)
 const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
 // uses the optimistic pin state so the badge follows a pin toggle immediately
-const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value}, updateCheck))
+const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value, version: mod.version}, updateCheck))
+const versionText = computed(() => displayVersion(mod))
 const typeLabel = computed(() => mod.type || "mod")
 
 const onTogglePin = async () => {
@@ -140,6 +141,16 @@ const onTogglePin = async () => {
         class="text-body-1 font-weight-medium"
       >
         {{ mod.name }}
+      </div>
+
+      <div
+        v-if="versionText"
+        v-tooltip="mod.fileName || versionText"
+        tabindex="0"
+        :aria-label="`Version: ${versionText}`"
+        class="text-body-2 text-medium-emphasis text-truncate mod-version"
+      >
+        {{ versionText }}
       </div>
 
       <v-chip
@@ -290,3 +301,9 @@ const onTogglePin = async () => {
     </div>
   </v-card>
 </template>
+
+<style scoped>
+.mod-version {
+  max-width: min(24ch, 100%);
+}
+</style>

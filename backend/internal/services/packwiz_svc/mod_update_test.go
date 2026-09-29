@@ -143,3 +143,20 @@ func TestUpdateResponseJSONShape(t *testing.T) {
 		t.Fatalf("unexpected json: %s", b)
 	}
 }
+
+// Version is display-only: a refreshed version alone must not count as an update.
+func TestModSnapshotIgnoresVersion(t *testing.T) {
+	m := &core.Mod{FileName: "a.jar", Update: core.ModUpdate{"modrinth": {"version": "v1"}}}
+	snap, err := takeModSnapshot(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Version = "1.0.0"
+	changed, err := snap.changedSince(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed {
+		t.Error("version-only change must not count as changed")
+	}
+}

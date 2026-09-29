@@ -10,6 +10,7 @@ type ModUpdateCheck struct {
 	ModID           uint      `json:"modId"`
 	UpdateAvailable bool      `json:"updateAvailable"`
 	UpdateString    string    `json:"updateString"`
+	LatestVersion   string    `json:"latestVersion"`
 	Error           string    `json:"error"`
 	CheckedAt       time.Time `json:"checkedAt"`
 }

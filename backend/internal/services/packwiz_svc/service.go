@@ -361,6 +361,7 @@ func createMod(mod *core.Mod, dbPack tables.Pack, user tables.User, db *gorm.DB,
 		PackID:   dbPack.ID,
 		Name:     mod.Name,
 		FileName: mod.FileName,
+		Version:  mod.Version,
 		Side:     mod.Side,
 		Pinned:   mod.Pin,
 		Type:     mod.ModType,
@@ -589,6 +590,7 @@ func applyCheckedUpdate(db *gorm.DB, check core.UpdateCheckResult, item dto.Upda
 		return
 	}
 	if !changed {
+		persistModVersion(db, item.ModId, mod.Version)
 		summary.addUpToDate()
 		return
 	}
@@ -665,10 +667,15 @@ func (ps *PackwizService) RehashAll(ctx context.Context, packId uint, format str
 func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.User) error {
 	source, update := tables.ExtractModSource(updated)
 
-	return tx.Model(&tables.Mod{ID: dbModID}).Select(
-		"FileName", "Download", "Source", "Update", "UpdatedBy",
-	).Updates(tables.Mod{
+	columns := []string{"FileName", "Download", "Source", "Update", "UpdatedBy"}
+	// never overwrite a stored version with an empty one
+	if updated.Version != "" {
+		columns = append(columns, "Version")
+	}
+
+	return tx.Model(&tables.Mod{ID: dbModID}).Select(columns).Updates(tables.Mod{
 		FileName: updated.FileName,
+		Version:  updated.Version,
 		Download: tables.DownloadInfo{
 			URL:        updated.Download.URL,
 			Mode:       updated.Download.Mode,
@@ -679,6 +686,20 @@ func applyModUpdate(tx *gorm.DB, dbModID uint, updated *core.Mod, user tables.Us
 		Update:    update,
 		UpdatedBy: user.ID,
 	}).Error
+}
+
+// persistModVersion stores a freshly resolved version without touching
+// updated_at, for updates that resolved to the identical file (so the mod is
+// not reported as changed). No-op for an empty version. Best effort: the
+// version is display-only, so failure is logged, not returned.
+func persistModVersion(db *gorm.DB, dbModID uint, version string) {
+	if version == "" {
+		return
+	}
+	if err := db.Model(&tables.Mod{}).Where("id = ?", dbModID).
+		UpdateColumn("version", version).Error; err != nil {
+		log.Error("failed to store mod version:", err)
+	}
 }
 
 // ModExistsById
@@ -768,6 +789,7 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 		return dto.UpdateModResponse{}, response.Wrap(cmpErr)
 	}
 	if !changed {
+		persistModVersion(ps.db, modInfo.ID, mod.Version)
 		invalidateModChecks(ps.db, modInfo.ID)
 		return dto.UpdateModResponse{Updated: false}, nil
 	}

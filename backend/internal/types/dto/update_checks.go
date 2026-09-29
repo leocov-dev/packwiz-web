@@ -22,6 +22,8 @@ type UpdateCheckItem struct {
 	ModId           uint   `json:"modId"`
 	UpdateAvailable bool   `json:"updateAvailable"`
 	UpdateString    string `json:"updateString,omitempty"`
+	// LatestVersion is the latest available version, when the source reports one.
+	LatestVersion string `json:"latestVersion,omitempty"`
 	// Error is set when checking this mod failed; UpdateAvailable is then false.
 	Error string `json:"error,omitempty"`
 }

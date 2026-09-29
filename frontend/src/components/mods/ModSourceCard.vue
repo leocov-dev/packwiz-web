@@ -2,7 +2,7 @@
 import type {Mod} from "@/interfaces/pack.ts"
 import {updateModFromSource} from "@/services/mods.service.ts"
 import {apiErrorMessage} from "@/services/utils.ts"
-import {modSourceLabel} from "@/lib/mod-filters.ts"
+import {displayVersion, modSourceLabel} from "@/lib/mod-filters.ts"
 
 const {packId, mod, hasUnsavedChanges, pinned, disabled = false} = defineProps<{
   packId: number
@@ -22,6 +22,7 @@ const confirmOpen = ref(false)
 const loading = ref(false)
 const errorMsg = ref("")
 
+const versionText = computed(() => displayVersion(mod))
 const sourceLabel = computed(() => modSourceLabel(mod.source))
 const confirmText = computed(() => {
   const base = `Update ${displayName.value} from ${sourceLabel.value}? This may change the installed file.`
@@ -65,6 +66,9 @@ const doUpdate = async () => {
         @click:close="errorMsg = ''"
       />
       <div>Source: {{ sourceLabel }}</div>
+      <div v-if="versionText">
+        Installed version: {{ versionText }}
+      </div>
       <div v-if="mod.fileName">
         File: {{ mod.fileName }}
       </div>

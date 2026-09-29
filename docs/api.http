@@ -105,7 +105,7 @@ POST {{apiRoot}}/v1/packwiz/pack/packA/updates/check?force=false
 
 ### GET stored update check state (viewers). {status: idle|queued|running|done|failed, checkedAt (when results were produced; kept after a failed run),
 # runFinishedAt (latest run, ok or failed), error? (latest run's failure),
-# results: [{modId, updateAvailable, updateString?, error?}], availableCount (excludes pinned)}
+# results: [{modId, updateAvailable, updateString?, latestVersion?, error?}], availableCount (excludes pinned)}
 GET {{apiRoot}}/v1/packwiz/pack/packA/updates
 
 ### PATCH update a mods side
