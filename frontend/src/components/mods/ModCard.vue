@@ -3,7 +3,7 @@
 import type {Mod, UpdateCheckItem} from "@/interfaces/pack.ts";
 import {modUpdateBadge} from "@/lib/update-checks.ts";
 import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
-import {dependencyTooltip, displayVersion, modSideLabel, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
+import {dependencyTooltip, displayVersion, modSideLabel, modVersion, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import axios from "axios";
@@ -81,6 +81,7 @@ const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update 
 // uses the optimistic pin state so the badge follows a pin toggle immediately
 const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value, version: mod.version}, updateCheck))
 const versionText = computed(() => displayVersion(mod))
+const hasVersion = computed(() => modVersion(mod) !== "")
 const typeLabel = computed(() => mod.type || "mod")
 
 const onTogglePin = async () => {
@@ -147,10 +148,9 @@ const onTogglePin = async () => {
         v-if="versionText"
         v-tooltip="mod.fileName || versionText"
         tabindex="0"
-        :aria-label="`Version: ${versionText}`"
         class="text-body-2 text-medium-emphasis text-truncate mod-version"
       >
-        {{ versionText }}
+        <span class="mod-version-prefix">{{ hasVersion ? "Version " : "File " }}</span>{{ versionText }}
       </div>
 
       <v-chip
@@ -305,5 +305,13 @@ const onTogglePin = async () => {
 <style scoped>
 .mod-version {
   max-width: min(24ch, 100%);
+}
+.mod-version-prefix {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 </style>

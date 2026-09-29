@@ -2,7 +2,7 @@
 import type {Mod} from "@/interfaces/pack.ts"
 import {updateModFromSource} from "@/services/mods.service.ts"
 import {apiErrorMessage} from "@/services/utils.ts"
-import {displayVersion, modSourceLabel} from "@/lib/mod-filters.ts"
+import {modSourceLabel, modVersion} from "@/lib/mod-filters.ts"
 
 const {packId, mod, hasUnsavedChanges, pinned, disabled = false} = defineProps<{
   packId: number
@@ -22,7 +22,7 @@ const confirmOpen = ref(false)
 const loading = ref(false)
 const errorMsg = ref("")
 
-const versionText = computed(() => displayVersion(mod))
+const versionText = computed(() => modVersion(mod))
 const sourceLabel = computed(() => modSourceLabel(mod.source))
 const confirmText = computed(() => {
   const base = `Update ${displayName.value} from ${sourceLabel.value}? This may change the installed file.`

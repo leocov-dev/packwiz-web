@@ -160,3 +160,27 @@ func TestModSnapshotIgnoresVersion(t *testing.T) {
 		t.Error("version-only change must not count as changed")
 	}
 }
+
+func TestNextStoredVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		old, new    string
+		fileChanged bool
+		wantVersion string
+		wantWrite   bool
+	}{
+		{"new wins, file changed", "1", "2", true, "2", true},
+		{"new wins, file same", "1", "2", false, "2", true},
+		{"no new, file changed clears", "1", "", true, "", true},
+		{"no new, file same keeps", "1", "", false, "1", false},
+		{"nothing stored, file changed", "", "", true, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, w := nextStoredVersion(tt.old, tt.new, tt.fileChanged)
+			if v != tt.wantVersion || w != tt.wantWrite {
+				t.Errorf("got (%q,%v) want (%q,%v)", v, w, tt.wantVersion, tt.wantWrite)
+			}
+		})
+	}
+}
