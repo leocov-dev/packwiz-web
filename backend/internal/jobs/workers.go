@@ -5,13 +5,15 @@ import (
 )
 
 // NewWorkers builds the set of registered River workers. resolver implements
-// the job-facing logic for jobs that need it (see MigrateModsResolver).
+// the migrate job logic, checker the update-check job logic. Every process
+// that runs jobs (web --worker, worker) builds its workers through here.
 // Add new river.AddWorker(workers, &SomeWorker{...}) calls here as real jobs
 // are added.
-func NewWorkers(resolver MigrateModsResolver) *river.Workers {
+func NewWorkers(resolver MigrateModsResolver, checker UpdateChecker) *river.Workers {
 	workers := river.NewWorkers()
 
 	river.AddWorker(workers, &MigrateModsWorker{resolver: resolver})
+	river.AddWorker(workers, &CheckUpdatesWorker{checker: checker})
 
 	return workers
 }

@@ -134,10 +134,10 @@ export function removeModMessage(modName: string, orphanNames: string[], isDepen
 
 // ---- search / show-filters / sorting ----
 
-export type ModShow = "pinned" | "optional" | "dependencies"
+export type ModShow = "pinned" | "optional" | "dependencies" | "updates"
 export type ModSort = "name" | "updated"
 
-export const MOD_SHOW_VALUES: ModShow[] = ["pinned", "optional", "dependencies"]
+export const MOD_SHOW_VALUES: ModShow[] = ["pinned", "optional", "dependencies", "updates"]
 export const MOD_SORT_VALUES: ModSort[] = ["name", "updated"]
 
 export function searchMods(mods: Mod[], query: string): Mod[] {
@@ -147,19 +147,23 @@ export function searchMods(mods: Mod[], query: string): Mod[] {
     [mod.name, mod.slug, mod.fileName].some(field => (field ?? "").toLowerCase().includes(q)))
 }
 
-function matchesShow(mod: Mod, show: ModShow): boolean {
+// Mod ids with a known available update (from an update check).
+export type UpdateIds = ReadonlySet<number>
+
+function matchesShow(mod: Mod, show: ModShow, updateIds: UpdateIds): boolean {
   switch (show) {
     case "pinned": return !!mod.pinned
     case "optional": return !!mod.option?.optional
     case "dependencies": return !!mod.isDependency
+    case "updates": return updateIds.has(mod.id)
   }
 }
 
 // Union semantics: a mod is kept if it matches ANY selected category.
 // No selection keeps everything.
-export function filterModsByShow(mods: Mod[], show: ModShow[]): Mod[] {
+export function filterModsByShow(mods: Mod[], show: ModShow[], updateIds: UpdateIds = new Set()): Mod[] {
   if (show.length === 0) return mods
-  return mods.filter(mod => show.some(s => matchesShow(mod, s)))
+  return mods.filter(mod => show.some(s => matchesShow(mod, s, updateIds)))
 }
 
 const timeOf = (iso: string | undefined) => {
@@ -194,9 +198,9 @@ export interface ModListState {
 
 export const DEFAULT_MOD_LIST_STATE: ModListState = {q: "", sort: "name", side: "", show: []}
 
-export function applyModListState(mods: Mod[], state: ModListState): Mod[] {
+export function applyModListState(mods: Mod[], state: ModListState, updateIds: UpdateIds = new Set()): Mod[] {
   return sortMods(
-    filterModsByShow(filterModsBySide(searchMods(mods, state.q), state.side), state.show),
+    filterModsByShow(filterModsBySide(searchMods(mods, state.q), state.side), state.show, updateIds),
     state.sort,
   )
 }

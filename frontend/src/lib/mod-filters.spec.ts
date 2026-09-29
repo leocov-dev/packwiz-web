@@ -167,6 +167,16 @@ describe("search, show filters and sort", () => {
     expect(searchMods(mods, "lib.jar").map(m => m.id)).toEqual([3])
     expect(searchMods(mods, "  ")).toHaveLength(3)
   })
+  it("filters by updates using the provided ids, unioned with other categories", () => {
+    expect(filterModsByShow(mods, ["updates"], new Set([2])).map(m => m.id)).toEqual([2])
+    expect(filterModsByShow(mods, ["updates"]).map(m => m.id)).toEqual([])
+    expect(filterModsByShow(mods, ["pinned", "updates"], new Set([3])).map(m => m.id)).toEqual([1, 3])
+  })
+  it("persists updates in the route query", () => {
+    const state = {...DEFAULT_MOD_LIST_STATE, show: ["updates" as const]}
+    expect(buildModListQuery(state)).toEqual({show: "updates"})
+    expect(parseModListQuery({show: "updates"}).show).toEqual(["updates"])
+  })
   it("filters by show with union semantics", () => {
     expect(filterModsByShow(mods, [])).toHaveLength(3)
     expect(filterModsByShow(mods, ["pinned"]).map(m => m.id)).toEqual([1])

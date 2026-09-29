@@ -24,7 +24,7 @@ var (
 
 			db := database.GetClient()
 			resolver := packwiz_svc.NewPackwizService(db, nil)
-			client, err := jobs.NewClient(db, jobs.NewWorkers(resolver))
+			client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver))
 			if err != nil {
 				log.Error("failed to create river client:", err)
 				return

@@ -28,6 +28,8 @@ func NewClient(gdb *gorm.DB, workers *river.Workers) (*river.Client[*sql.Tx], er
 			// Updaters (sources/*.go) are verified safe for concurrent use
 			// across simultaneous migrations.
 			QueueMigrateMods: {MaxWorkers: 1},
+			// update_checks: same 1-worker cap, plus third-party API rate limits.
+			QueueUpdateChecks: {MaxWorkers: 1},
 		},
 		Workers: workers,
 		Logger:  newSlogLogger(),

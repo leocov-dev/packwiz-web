@@ -182,3 +182,26 @@ export class UpdateAllResponse {
   upToDate!: number;
   notChecked!: number;
 }
+
+export type UpdateCheckStatus = "idle" | "queued" | "running" | "done" | "failed"
+
+export class UpdateCheckJobResponse {
+  jobId!: number;
+  status!: UpdateCheckStatus;
+}
+
+export class UpdateCheckItem {
+  modId!: number;
+  updateAvailable!: boolean;
+  updateString?: string;
+  error?: string;
+}
+
+export class UpdateChecksResponse {
+  status!: UpdateCheckStatus;
+  checkedAt?: string | null;
+  error?: string;
+  @Type(() => UpdateCheckItem)
+  results!: UpdateCheckItem[];
+  availableCount!: number;
+}
