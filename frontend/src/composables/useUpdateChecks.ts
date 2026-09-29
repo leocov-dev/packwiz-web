@@ -4,6 +4,8 @@ import {checkForUpdates, fetchUpdateChecks} from "@/services/packs.service.ts"
 import {apiErrorMessage} from "@/services/utils.ts"
 import {
   buildResultsMap,
+  checkCooldownMs,
+  shouldGiveUpPolling,
   isActiveStatus,
   nextPollDelay,
   shouldContinuePolling,
@@ -21,9 +23,23 @@ export function useUpdateChecks(packId: () => number) {
   const availableCount = ref(0)
   const checkedAt = ref<string | null>(null)
   const error = ref("")
+  // true while the server would reject a new check (minimum interval)
+  const coolingDown = ref(false)
 
   let timer: ReturnType<typeof setTimeout> | undefined
+  let cooldownTimer: ReturnType<typeof setTimeout> | undefined
   let generation = 0
+
+  const updateCooldown = (runFinishedAt: string | null | undefined) => {
+    clearTimeout(cooldownTimer)
+    const remaining = checkCooldownMs(runFinishedAt)
+    coolingDown.value = remaining > 0
+    if (remaining > 0) {
+      cooldownTimer = setTimeout(() => {
+        coolingDown.value = false
+      }, remaining)
+    }
+  }
 
   const isChecking = computed(() => isActiveStatus(status.value))
 
@@ -37,25 +53,33 @@ export function useUpdateChecks(packId: () => number) {
     results.value = buildResultsMap(r.results)
     availableCount.value = r.availableCount
     checkedAt.value = r.checkedAt ?? null
+    updateCooldown(r.runFinishedAt)
     error.value = r.status === "failed" ? (r.error || "Update check failed") : ""
   }
 
-  const poll = (gen: number, startedAt: number, attempt: number) => {
+  const poll = (gen: number, startedAt: number, attempt: number, failures = 0) => {
     timer = setTimeout(async () => {
       if (gen !== generation) return
       try {
         const r = await fetchUpdateChecks(packId())
         if (gen !== generation) return
         apply(r)
+        failures = 0
       } catch (e) {
         if (gen !== generation) return
-        status.value = "failed"
-        error.value = apiErrorMessage(e, "Failed to load update check")
+        failures++
+        if (shouldGiveUpPolling(failures)) {
+          status.value = "failed"
+          error.value = apiErrorMessage(e, "Failed to load update check")
+          return
+        }
+        // transient failure: keep polling
+        poll(gen, startedAt, attempt + 1, failures)
         return
       }
       const elapsed = Date.now() - startedAt
       if (shouldContinuePolling(status.value, elapsed)) {
-        poll(gen, startedAt, attempt + 1)
+        poll(gen, startedAt, attempt + 1, failures)
       } else if (isActiveStatus(status.value)) {
         status.value = "failed"
         error.value = "Update check is taking too long; try again later"
@@ -108,12 +132,16 @@ export function useUpdateChecks(packId: () => number) {
     availableCount.value = 0
     checkedAt.value = null
     error.value = ""
+    // a reset (Update All) does not change the server's rate-limit window
   }
 
   if (getCurrentInstance()) {
     onMounted(refresh)
-    onBeforeUnmount(stopPolling)
+    onBeforeUnmount(() => {
+      stopPolling()
+      clearTimeout(cooldownTimer)
+    })
   }
 
-  return {status, results, availableCount, checkedAt, error, isChecking, start, refresh, reset}
+  return {status, results, availableCount, checkedAt, error, isChecking, coolingDown, start, refresh, reset}
 }

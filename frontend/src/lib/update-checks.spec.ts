@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
+  CHECK_MIN_INTERVAL_MS, CHECK_TTL_MS, checkCooldownMs, shouldForceCheck, shouldGiveUpPolling,
   buildResultsMap, countUpdatable, formatCheckedAgo, modUpdateBadge, nextPollDelay,
   POLL_MAX_DELAY_MS, POLL_MAX_DURATION_MS, shouldContinuePolling, updateAvailableIds, updateAllLabel, updatesAvailableText,
 } from "@/lib/update-checks.ts"
@@ -76,5 +77,32 @@ describe("updateAvailableIds", () => {
   it("collects mods with a successful available update", () => {
     const map = buildResultsMap([chk(1, {updateAvailable: true}), chk(2, {updateAvailable: true, error: "x"}), chk(3)])
     expect([...updateAvailableIds(map)]).toEqual([1])
+  })
+})
+
+describe("poll failure tolerance", () => {
+  it("tolerates up to 3 consecutive failures", () => {
+    expect(shouldGiveUpPolling(1)).toBe(false)
+    expect(shouldGiveUpPolling(3)).toBe(false)
+    expect(shouldGiveUpPolling(4)).toBe(true)
+  })
+})
+
+describe("check cooldown and force", () => {
+  const now = Date.parse("2026-01-01T12:00:00Z")
+  const ago = (ms: number) => new Date(now - ms).toISOString()
+
+  it("cooldown counts down from the last run", () => {
+    expect(checkCooldownMs(ago(10_000), now)).toBe(CHECK_MIN_INTERVAL_MS - 10_000)
+    expect(checkCooldownMs(ago(CHECK_MIN_INTERVAL_MS), now)).toBe(0)
+    expect(checkCooldownMs(null, now)).toBe(0)
+    expect(checkCooldownMs("garbage", now)).toBe(0)
+  })
+
+  it("forces only after the cached result expired", () => {
+    expect(shouldForceCheck("done", ago(60_000), now)).toBe(false)
+    expect(shouldForceCheck("done", ago(CHECK_TTL_MS), now)).toBe(true)
+    expect(shouldForceCheck("idle", ago(CHECK_TTL_MS * 2), now)).toBe(false)
+    expect(shouldForceCheck("done", null, now)).toBe(false)
   })
 })

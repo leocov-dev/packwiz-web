@@ -25,7 +25,60 @@ const (
 	// updateCheckStaleAfter is how long a queued/running check may go without
 	// finishing before it is treated as dead (crashed worker) and replaceable.
 	updateCheckStaleAfter = 30 * time.Minute
+	// updateCheckMinInterval is the minimum time between two check runs of a
+	// pack, enforced server side even for force=true (third-party API rate
+	// limits; GitHub allows 60 req/h unauthenticated).
+	updateCheckMinInterval = 60 * time.Second
 )
+
+// lastRunActivity is when run last started or finished.
+func lastRunActivity(run *tables.PackUpdateCheckRun) time.Time {
+	if run.FinishedAt != nil && run.FinishedAt.After(run.StartedAt) {
+		return *run.FinishedAt
+	}
+	return run.StartedAt
+}
+
+// shouldEnqueueCheck decides whether a new check job may be started. It
+// returns false (serve the existing state, HTTP 200) when a check is active,
+// when the last run started/finished less than updateCheckMinInterval ago
+// (even if force), or when a fresh result is cached and force is false.
+func shouldEnqueueCheck(run *tables.PackUpdateCheckRun, now time.Time, force bool) bool {
+	if run == nil {
+		return true
+	}
+	if isActiveRun(run, now) {
+		return false
+	}
+	if now.Sub(lastRunActivity(run)) < updateCheckMinInterval {
+		return false
+	}
+	return force || !isFreshDone(run, now)
+}
+
+// changedSince reports whether a mod (or pack) changed after a check
+// started, so the check's result for it may describe outdated state.
+func changedSince(updatedAt, started time.Time) bool {
+	return updatedAt.After(started)
+}
+
+// filterFreshCheckRows drops rows for mods that no longer exist, or that were
+// modified (e.g. by Update All) after the check started. If the pack itself
+// changed after the start (migration, edit), all rows are dropped.
+func filterFreshCheckRows(rows []tables.ModUpdateCheck, modUpdatedAt map[uint]time.Time, packUpdatedAt, started time.Time) []tables.ModUpdateCheck {
+	if changedSince(packUpdatedAt, started) {
+		return nil
+	}
+	out := make([]tables.ModUpdateCheck, 0, len(rows))
+	for _, r := range rows {
+		updatedAt, ok := modUpdatedAt[r.ModID]
+		if !ok || changedSince(updatedAt, started) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
 
 // isActiveRun reports whether run is a live queued/running check at now.
 func isActiveRun(run *tables.PackUpdateCheckRun, now time.Time) bool {
@@ -70,17 +123,23 @@ type checkRow struct {
 
 // buildUpdateChecksResponse assembles the API response from stored state. The
 // available count excludes pinned mods and mods whose check failed, using the
-// mods' current pinned flag.
+// mods' current pinned flag. CheckedAt is the newest checked_at of the stored
+// rows (nil without results), so it stays meaningful after a failed run, whose
+// own time and error are reported as RunFinishedAt and Error.
 func buildUpdateChecksResponse(run *tables.PackUpdateCheckRun, rows []checkRow, now time.Time) dto.UpdateChecksResponse {
 	out := dto.UpdateChecksResponse{
 		Status:  runStatus(run, now),
 		Results: make([]dto.UpdateCheckItem, 0, len(rows)),
 	}
 	if run != nil {
-		out.CheckedAt = run.FinishedAt
+		out.RunFinishedAt = run.FinishedAt
 		out.Error = run.Error
 	}
 	for _, r := range rows {
+		if out.CheckedAt == nil || r.CheckedAt.After(*out.CheckedAt) {
+			t := r.CheckedAt
+			out.CheckedAt = &t
+		}
 		out.Results = append(out.Results, dto.UpdateCheckItem{
 			ModId:           r.ModID,
 			UpdateAvailable: r.UpdateAvailable,
@@ -155,7 +214,8 @@ func (ps *PackwizService) GetUpdateChecks(ctx context.Context, packId uint) (dto
 
 // RequestUpdateCheck enqueues an update-check job for the pack. It returns
 // enqueued=false (and the existing job) when a check is already queued or
-// running, or when a check finished within updateCheckTTL and force is false.
+// running, when the last run is younger than updateCheckMinInterval (even with
+// force), or when a check finished within updateCheckTTL and force is false.
 func (ps *PackwizService) RequestUpdateCheck(ctx context.Context, packId uint, user tables.User, force bool) (dto.UpdateCheckJobResponse, bool, response.ServerError) {
 	if ps.riverClient == nil {
 		return dto.UpdateCheckJobResponse{}, false, response.New(http.StatusInternalServerError, "background jobs are not available")
@@ -166,7 +226,7 @@ func (ps *PackwizService) RequestUpdateCheck(ctx context.Context, packId uint, u
 	if err != nil {
 		return dto.UpdateCheckJobResponse{}, false, response.Wrap(err)
 	}
-	if isActiveRun(run, now) || (!force && isFreshDone(run, now)) {
+	if !shouldEnqueueCheck(run, now, force) {
 		return dto.UpdateCheckJobResponse{JobId: run.JobID, Status: runStatus(run, now)}, false, nil
 	}
 
@@ -221,8 +281,9 @@ func (ps *PackwizService) markCheckFailed(packId uint, jobId int64, cause error)
 // not returned, so River does not retry and burn API rate limit.
 //
 // It deliberately does not take the per-pack update lock: checks only read.
-// A check overlapping Update All may report already-applied updates until the
-// next check; UpdateAll clears the stored results when it finishes.
+// To avoid overwriting newer state after an overlapping Update All (or
+// migration/edit), the final write drops results for mods (or the whole pack)
+// modified after the check started; see filterFreshCheckRows.
 func (ps *PackwizService) RunUpdateCheck(ctx context.Context, args jobs.CheckUpdatesArgs, jobId int64) error {
 	started := time.Now()
 	if err := ps.db.WithContext(ctx).Clauses(clause.OnConflict{
@@ -231,17 +292,23 @@ func (ps *PackwizService) RunUpdateCheck(ctx context.Context, args jobs.CheckUpd
 	}).Select("*").Create(&tables.PackUpdateCheckRun{
 		PackID: args.PackID, JobID: jobId, Status: tables.UpdateCheckRunning, StartedAt: started,
 	}).Error; err != nil {
-		return fmt.Errorf("mark update check running: %w", err)
+		// e.g. the pack was deleted after enqueue (FK error): record the failure
+		// so the run does not sit queued until it goes stale. Not returned, so
+		// River does not retry.
+		markErr := fmt.Errorf("mark update check running: %w", err)
+		log.Error(markErr)
+		ps.markCheckFailed(args.PackID, jobId, markErr)
+		return nil
 	}
 
-	if err := ps.runUpdateCheck(ctx, args.PackID, jobId); err != nil {
+	if err := ps.runUpdateCheck(ctx, args.PackID, jobId, started); err != nil {
 		log.Error(fmt.Errorf("update check failed for pack %d: %w", args.PackID, err))
 		ps.markCheckFailed(args.PackID, jobId, err)
 	}
 	return nil
 }
 
-func (ps *PackwizService) runUpdateCheck(ctx context.Context, packId uint, jobId int64) error {
+func (ps *PackwizService) runUpdateCheck(ctx context.Context, packId uint, jobId int64, started time.Time) error {
 	dbPack, srvErr := ps.GetPackById(packId)
 	if srvErr != nil {
 		return srvErr
@@ -261,6 +328,20 @@ func (ps *PackwizService) runUpdateCheck(ctx context.Context, packId uint, jobId
 	rows := buildCheckRows(packId, modsBySlug, results, now)
 
 	return ps.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var currentMods []tables.Mod
+		if err := tx.Select("id", "updated_at").Where("pack_id = ?", packId).Find(&currentMods).Error; err != nil {
+			return err
+		}
+		modUpdatedAt := make(map[uint]time.Time, len(currentMods))
+		for _, m := range currentMods {
+			modUpdatedAt[m.ID] = m.UpdatedAt
+		}
+		var currentPack tables.Pack
+		if err := tx.Select("id", "updated_at").First(&currentPack, packId).Error; err != nil {
+			return err
+		}
+		rows = filterFreshCheckRows(rows, modUpdatedAt, currentPack.UpdatedAt, started)
+
 		if err := tx.Where("pack_id = ?", packId).Delete(&tables.ModUpdateCheck{}).Error; err != nil {
 			return err
 		}
@@ -287,16 +368,24 @@ func invalidateModChecks(db *gorm.DB, modIDs ...uint) {
 }
 
 // invalidatePackChecks drops all stored check results of a pack and resets its
-// run to idle, unless a check is currently queued/running (its results will
-// replace these anyway).
+// run to idle. It does nothing while a check is queued/running: that check
+// discards results for mods changed after it started (filterFreshCheckRows)
+// and replaces the rest.
 func invalidatePackChecks(db *gorm.DB, packId uint) {
+	var run tables.PackUpdateCheckRun
+	err := db.Where("pack_id = ?", packId).First(&run).Error
+	if err == nil && isActiveRun(&run, time.Now()) {
+		return
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Error("failed to read update check run:", err)
+		return
+	}
 	if err := db.Where("pack_id = ?", packId).Delete(&tables.ModUpdateCheck{}).Error; err != nil {
 		log.Error("failed to invalidate pack update checks:", err)
 		return
 	}
-	if err := db.Where("pack_id = ? AND status NOT IN ?", packId,
-		[]string{tables.UpdateCheckQueued, tables.UpdateCheckRunning}).
-		Delete(&tables.PackUpdateCheckRun{}).Error; err != nil {
+	if err := db.Where("pack_id = ?", packId).Delete(&tables.PackUpdateCheckRun{}).Error; err != nil {
 		log.Error("failed to reset update check run:", err)
 	}
 }

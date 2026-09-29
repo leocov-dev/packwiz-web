@@ -22,7 +22,14 @@ import type {UpdateAllResponse} from "@/interfaces/pack.ts";
 import {apiErrorMessage} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {useUpdateChecks} from "@/composables/useUpdateChecks.ts";
-import {countUpdatable, formatCheckedAgo, updateAllLabel, updatesAvailableText} from "@/lib/update-checks.ts";
+import {
+  countUpdatable,
+  formatCheckedAgo,
+  shouldForceCheck,
+  updateAllLabel,
+  updatesAvailableText
+} from "@/lib/update-checks.ts";
+import {applyPinOverrides} from "@/lib/mod-filters.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -48,7 +55,14 @@ const router = useRouter()
 const {canEdit, hasEditAccess} = usePackPermissions(() => pack)
 
 const updateChecks = useUpdateChecks(() => pack.id)
-const updatableCount = computed(() => countUpdatable(pack.mods ?? [], updateChecks.results.value))
+// Optimistic pin changes reported by ModsList (not yet in pack.mods); applied so
+// "Update All (N)" matches the badges without a reload.
+const pinOverrides = ref<ReadonlyMap<number, boolean>>(new Map())
+watch(() => pack.mods, () => {
+  pinOverrides.value = new Map()
+})
+const effectiveMods = computed(() => applyPinOverrides(pack.mods ?? [], pinOverrides.value))
+const updatableCount = computed(() => countUpdatable(effectiveMods.value, updateChecks.results.value))
 const hasCompletedCheck = computed(() => updateChecks.status.value === "done")
 const updateAllText = computed(() => hasCompletedCheck.value ? updateAllLabel(updatableCount.value) : "Update All")
 const checkedText = computed(() => {
@@ -57,7 +71,10 @@ const checkedText = computed(() => {
   if (!hasCompletedCheck.value) return ""
   return `${updatesAvailableText(updatableCount.value)} · ${formatCheckedAgo(updateChecks.checkedAt.value)}`
 })
-const onCheckUpdates = () => updateChecks.start(hasCompletedCheck.value)
+// Force only once the cached result expired; within the TTL the server serves the
+// cache, and it enforces a minimum interval between runs regardless of force.
+const onCheckUpdates = () =>
+  updateChecks.start(shouldForceCheck(updateChecks.status.value, updateChecks.checkedAt.value))
 
 const onAddMod = () => {
   router.push({path: `/packs/${pack.id}/add-mod`})
@@ -265,7 +282,7 @@ const updateAll = async () => {
           />
           <span
             v-if="checkedText"
-            class="text-body-2 me-auto"
+            class="text-body-2 flex-grow-1 flex-sm-grow-0 text-end text-sm-start me-sm-auto"
             :class="updateChecks.error.value ? 'text-warning' : 'text-medium-emphasis'"
             role="status"
           >
@@ -275,7 +292,7 @@ const updateAll = async () => {
             prepend-icon="mdi-cloud-search-outline"
             text="Check for updates"
             :loading="updateChecks.isChecking.value"
-            :disabled="updateChecks.isChecking.value || updateAllLoading"
+            :disabled="updateChecks.isChecking.value || updateChecks.coolingDown.value || updateAllLoading"
             @click="onCheckUpdates"
           />
           <v-btn
@@ -386,6 +403,7 @@ const updateAll = async () => {
       :can-edit="canEdit"
       :update-checks="updateChecks.results.value"
       @add-mod="onAddMod"
+      @pin-overrides="pinOverrides = $event"
       @reload="$emit('reload')"
     />
   </div>
