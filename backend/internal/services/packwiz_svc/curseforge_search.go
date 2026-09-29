@@ -31,7 +31,9 @@ type cfSearchItem struct {
 	Authors []struct {
 		Name string `json:"name"`
 	} `json:"authors"`
-	DownloadCount      float64 `json:"downloadCount"`
+	// DownloadCount is a json.Number so an integer (documented) or a float
+	// (e.g. 1.0e6) both decode; a strict uint64 would fail the whole search.
+	DownloadCount      json.Number `json:"downloadCount"`
 	LatestFilesIndexes []struct {
 		ModLoader int `json:"modLoader"`
 	} `json:"latestFilesIndexes"`
@@ -147,18 +149,7 @@ func (ps *PackwizService) SearchCurseforgeProjects(packId uint, query string, ve
 			(projId != "" && projectIDs[projId]) ||
 			(projId != "" && slugs[strings.ToLower(projId)])
 
-		results = append(results, dto.ModSearchResult{
-			Author:      cfAuthor(item),
-			Downloads:   cfDownloads(item),
-			Loaders:     cfLoaders(item),
-			Categories:  cfCategories(item),
-			Slug:        slug,
-			Title:       item.Name,
-			Description: item.Summary,
-			IconUrl:     iconUrl,
-			ProjectId:   projId,
-			Installed:   isInstalled,
-		})
+		results = append(results, curseforgeResultFromItem(item, projId, iconUrl, isInstalled))
 	}
 
 	return results, nil

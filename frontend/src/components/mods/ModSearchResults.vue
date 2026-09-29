@@ -2,7 +2,7 @@
 import type {Mod, ModDependency, ModSearchResult} from "@/interfaces/pack.ts";
 import MissingDependencies from "@/components/mods/MissingDependencies.vue";
 import {getResultState, modPageUrl} from "@/lib/mod-source.ts";
-import {formatAuthorLine, isPackLoader, limitChips} from "@/lib/search-meta.ts";
+import {formatAuthorLine, isPackLoader, limitChips, prettyCategory} from "@/lib/search-meta.ts";
 
 const {results, source, installedMods, addedKeys, addingSlug, selectedSlug, dependencies, errorMessage, dependenciesFailed, packLoader = ""} = defineProps<{
   results: ModSearchResult[]
@@ -33,8 +33,24 @@ const onRowClick = (result: ModSearchResult) => {
 
 const isAvailable = (result: ModSearchResult) => stateOf(result) === "available"
 
-const loaderChips = (result: ModSearchResult) => limitChips(result.loaders, 3).shown
-const categoryChips = (result: ModSearchResult) => limitChips(result.categories, 2).shown
+const MAX_LOADERS = 3
+const MAX_CATEGORIES = 2
+
+// Per-row display data, computed once per results change.
+const rows = computed(() => results.map(result => {
+  const allLoaders = result.loaders ?? []
+  const allCategories = source === "modrinth"
+    ? (result.categories ?? []).map(prettyCategory)
+    : result.categories ?? []
+  return {
+    result,
+    authorLine: formatAuthorLine(result.author, result.downloads),
+    loaders: limitChips(allLoaders, MAX_LOADERS).shown,
+    hiddenLoaders: allLoaders.slice(MAX_LOADERS),
+    categories: limitChips(allCategories, MAX_CATEGORIES).shown,
+    hiddenCategories: allCategories.slice(MAX_CATEGORIES),
+  }
+}))
 
 const addLabel = computed(() =>
   dependencies.length > 0 ? "Add Mod and Dependencies" : "Add Mod"
@@ -47,7 +63,7 @@ const addLabel = computed(() =>
     class="overflow-y-auto mb-4"
   >
     <template
-      v-for="result in results"
+      v-for="{result, authorLine, loaders, hiddenLoaders, categories, hiddenCategories} in rows"
       :key="result.projectId"
     >
       <v-list-item
@@ -70,33 +86,71 @@ const addLabel = computed(() =>
           {{ result.description }}
         </v-list-item-subtitle>
         <v-list-item-subtitle
-          v-if="formatAuthorLine(result.author, result.downloads)"
+          v-if="authorLine"
           class="text-truncate"
         >
-          {{ formatAuthorLine(result.author, result.downloads) }}
+          {{ authorLine }}
         </v-list-item-subtitle>
         <div
-          v-if="loaderChips(result).length > 0 || categoryChips(result).length > 0"
-          class="d-flex flex-nowrap ga-1 mt-1 overflow-hidden"
+          v-if="loaders.length > 0 || categories.length > 0"
+          class="d-flex flex-wrap ga-1 mt-1"
+          style="min-width: 0"
         >
-          <v-chip
-            v-for="loader in loaderChips(result)"
-            :key="`l-${loader}`"
-            size="x-small"
-            label
-            class="flex-shrink-0"
-            :color="isPackLoader(loader, packLoader) ? 'primary' : undefined"
-            :variant="isPackLoader(loader, packLoader) ? 'flat' : 'tonal'"
-            :text="loader"
-          />
-          <v-chip
-            v-for="category in categoryChips(result)"
-            :key="`c-${category}`"
-            size="x-small"
-            variant="tonal"
-            class="text-truncate"
-            :text="category"
-          />
+          <div
+            v-if="loaders.length > 0"
+            role="list"
+            aria-label="Loaders"
+            class="d-flex flex-wrap ga-1"
+            style="min-width: 0"
+          >
+            <v-chip
+              v-for="loader in loaders"
+              :key="`l-${loader}`"
+              role="listitem"
+              size="x-small"
+              label
+              :color="isPackLoader(loader, packLoader) ? 'primary' : undefined"
+              :variant="isPackLoader(loader, packLoader) ? 'flat' : 'tonal'"
+              :text="loader"
+            />
+            <v-chip
+              v-if="hiddenLoaders.length > 0"
+              v-tooltip="hiddenLoaders.join(', ')"
+              role="listitem"
+              size="x-small"
+              label
+              variant="outlined"
+              :aria-label="`${hiddenLoaders.length} more loaders: ${hiddenLoaders.join(', ')}`"
+              :text="`+${hiddenLoaders.length}`"
+            />
+          </div>
+          <div
+            v-if="categories.length > 0"
+            role="list"
+            aria-label="Categories"
+            class="d-flex flex-wrap ga-1"
+            style="min-width: 0"
+          >
+            <v-chip
+              v-for="category in categories"
+              :key="`c-${category}`"
+              role="listitem"
+              size="x-small"
+              variant="tonal"
+              style="max-width: 10rem"
+              :title="category"
+              :text="category"
+            />
+            <v-chip
+              v-if="hiddenCategories.length > 0"
+              v-tooltip="hiddenCategories.join(', ')"
+              role="listitem"
+              size="x-small"
+              variant="outlined"
+              :aria-label="`${hiddenCategories.length} more categories: ${hiddenCategories.join(', ')}`"
+              :text="`+${hiddenCategories.length}`"
+            />
+          </div>
         </div>
         <template #append>
           <v-chip

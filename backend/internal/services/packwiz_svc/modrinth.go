@@ -217,19 +217,7 @@ func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, vers
 			(projId != "" && projectIDs[projId]) ||
 			(projId != "" && slugs[strings.ToLower(projId)])
 
-		loaders, categories := splitModrinthCategories(hit.Categories)
-		results = append(results, dto.ModSearchResult{
-			Author:      strPtr(hit.Author),
-			Downloads:   downloadsPtr(hit.Downloads),
-			Loaders:     loaders,
-			Categories:  categories,
-			Slug:        slug,
-			Title:       strPtr(hit.Title),
-			Description: strPtr(hit.Description),
-			IconUrl:     strPtr(hit.IconURL),
-			ProjectId:   projId,
-			Installed:   isInstalled,
-		})
+		results = append(results, modrinthResultFromHit(hit, isInstalled))
 	}
 
 	return results, nil

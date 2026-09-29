@@ -24,3 +24,12 @@ export function limitChips<T>(items: T[] | undefined, max: number): { shown: T[]
   const list = items ?? []
   return {shown: list.slice(0, max), hidden: Math.max(0, list.length - max)}
 }
+
+/** "game-mechanics" -> "Game Mechanics". Only for slug-style names (Modrinth). */
+export function prettyCategory(slug: string): string {
+  return slug
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
