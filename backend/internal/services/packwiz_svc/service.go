@@ -482,10 +482,26 @@ func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcce
 // UpdateAll
 // update all the mods in a pack with partial success: pinned mods are skipped,
 // per-mod failures are collected and do not abort the run. Mods are checked in
-// one pass (CheckAllMods, per-mod errors) then updated sequentially (the nxt
-// updaters are not verified concurrency-safe). Only mods that actually changed
-// are written to the DB, so unchanged rows keep their updated_at.
+// one pass (CheckAllMods, per-mod errors) and each available update is applied
+// straight from that check result (no second network check). Updates are
+// sequential (the nxt updaters are not verified concurrency-safe). Only mods
+// that actually changed are written to the DB, so unchanged rows keep their
+// updated_at.
+//
+// The work runs detached from ctx's cancellation: a client disconnect or
+// timeout must not leave a half-applied update answered with an error, so the
+// run always completes and its result is simply dropped if nobody listens.
+// Only one update per pack may run at a time; a concurrent call gets 409.
 func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user tables.User) (dto.UpdateAllResponse, response.ServerError) {
+	unlock, lockErr := lockPackUpdate(packId)
+	if lockErr != nil {
+		return dto.UpdateAllResponse{}, lockErr
+	}
+	defer unlock()
+
+	ctx = context.WithoutCancel(ctx)
+	db := ps.db.WithContext(ctx)
+
 	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
 		return dto.UpdateAllResponse{}, err
@@ -507,10 +523,6 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 	checked := make(map[string]bool, len(checks))
 
 	for _, check := range checks {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return dto.UpdateAllResponse{}, response.Wrap(ctxErr)
-		}
-
 		dbMod, ok := dbModsBySlug[check.Mod.Slug]
 		if !ok {
 			continue
@@ -519,49 +531,66 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 		item := dto.UpdateAllItem{ModId: dbMod.ID, Slug: dbMod.Slug, Name: dbMod.Name}
 
 		switch {
+		case check.Err != nil && dbMod.Pinned:
+			// pinned mods are never updated; the failed check is not actionable,
+			// but we did not verify the mod so it is not "up to date" either
+			log.Debug(fmt.Errorf("update check failed for pinned mod %s: %w", dbMod.Slug, check.Err))
+			summary.addNotChecked()
 		case check.Err != nil:
-			if dbMod.Pinned {
-				// pinned mods are never updated; a failed check changes nothing for the user
-				log.Debug(fmt.Errorf("update check failed for pinned mod %s: %w", dbMod.Slug, check.Err))
-				summary.addUpToDate()
-				continue
-			}
 			summary.addFailed(item, check.Err)
 		case !check.UpdateAvailable:
 			summary.addUpToDate()
 		case dbMod.Pinned:
 			summary.addSkipped(item, SkipReasonPinned)
 		default:
-			ps.updateOneOfMany(pack, check.Mod, item, user, summary)
+			applyCheckedUpdate(db, check, item, user, summary)
 		}
 	}
 
-	// mods without a registered updater are never checked; they count as up to date
+	// mods without a registered updater (e.g. manual URL sources) are never checked
 	for slug := range dbModsBySlug {
 		if !checked[slug] {
-			summary.addUpToDate()
+			summary.addNotChecked()
 		}
 	}
 
 	return summary.response(), nil
 }
 
-// updateOneOfMany updates a single mod during UpdateAll, recording the outcome
-// in summary. Failures are recorded, not returned.
-func (ps *PackwizService) updateOneOfMany(pack core.Pack, mod *core.Mod, item dto.UpdateAllItem, user tables.User, summary *updateAllSummary) {
-	before := takeModSnapshot(mod)
+// applyCheckedUpdate applies the update found by CheckAllMods for a single mod
+// using the check's cached state, recording the outcome in summary. Failures
+// are recorded, not returned.
+func applyCheckedUpdate(db *gorm.DB, check core.UpdateCheckResult, item dto.UpdateAllItem, user tables.User, summary *updateAllSummary) {
+	updater, ok := core.GetUpdater(check.Source)
+	if !ok {
+		summary.addFailed(item, fmt.Errorf("no updater registered for source: %s", check.Source))
+		return
+	}
 
-	if updateErr := core.UpdateSingleMod(nil, pack, mod); updateErr != nil {
+	mod := check.Mod
+	before, snapErr := takeModSnapshot(mod)
+	if snapErr != nil {
+		summary.addFailed(item, snapErr)
+		return
+	}
+
+	if updateErr := updater.DoUpdate([]*core.Mod{mod}, []any{check.CachedState}); updateErr != nil {
 		summary.addFailed(item, updateErr)
 		return
 	}
 
-	if !before.changedSince(mod) {
+	// DoUpdate may resolve to the identical file; don't write (and bump updated_at) then
+	changed, cmpErr := before.changedSince(mod)
+	if cmpErr != nil {
+		summary.addFailed(item, cmpErr)
+		return
+	}
+	if !changed {
 		summary.addUpToDate()
 		return
 	}
 
-	if dbErr := applyModUpdate(ps.db, item.ModId, mod, user); dbErr != nil {
+	if dbErr := applyModUpdate(db, item.ModId, mod, user); dbErr != nil {
 		summary.addFailed(item, fmt.Errorf("failed to save update: %w", dbErr))
 		return
 	}
@@ -704,6 +733,12 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 		return dto.UpdateModResponse{}, response.New(http.StatusBadRequest, "cannot update pinned mod")
 	}
 
+	unlock, lockErr := lockPackUpdate(modInfo.PackID)
+	if lockErr != nil {
+		return dto.UpdateModResponse{}, lockErr
+	}
+	defer unlock()
+
 	dbPack, err := ps.GetPackById(modInfo.PackID)
 	if err != nil {
 		return dto.UpdateModResponse{}, err
@@ -716,13 +751,20 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 		return dto.UpdateModResponse{}, response.New(http.StatusNotFound, fmt.Sprintf("mod '%s' not found in pack", modInfo.Slug))
 	}
 
-	before := takeModSnapshot(mod)
+	before, snapErr := takeModSnapshot(mod)
+	if snapErr != nil {
+		return dto.UpdateModResponse{}, response.Wrap(snapErr)
+	}
 
 	if updateErr := core.UpdateSingleMod(nil, pack, mod); updateErr != nil {
 		return dto.UpdateModResponse{}, response.Wrap(updateErr)
 	}
 
-	if !before.changedSince(mod) {
+	changed, cmpErr := before.changedSince(mod)
+	if cmpErr != nil {
+		return dto.UpdateModResponse{}, response.Wrap(cmpErr)
+	}
+	if !changed {
 		return dto.UpdateModResponse{Updated: false}, nil
 	}
 

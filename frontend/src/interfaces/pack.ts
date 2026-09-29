@@ -180,4 +180,5 @@ export class UpdateAllResponse {
   @Type(() => UpdateAllItem)
   failed!: UpdateAllItem[];
   upToDate!: number;
+  notChecked!: number;
 }
