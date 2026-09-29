@@ -17,7 +17,7 @@ import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import PackMigrateDialog from "@/components/pack/PackMigrateDialog.vue";
 import RehashDialog from "@/components/pack/RehashDialog.vue";
 import UpdateAllResultDialog from "@/components/pack/UpdateAllResultDialog.vue";
-import {updateAllOutcome} from "@/lib/update-summary.ts";
+import {summarizeUpdateAll, updateAllOutcome} from "@/lib/update-summary.ts";
 import type {UpdateAllResponse} from "@/interfaces/pack.ts";
 import {apiErrorMessage} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
@@ -100,16 +100,17 @@ const updateAll = async () => {
   try {
     const result = await updateAllMods(pack.id)
     if (updateAllOutcome(result) === "up-to-date") {
-      snackbar.showSnackbar("All mods are up to date", "success")
+      snackbar.showSnackbar(summarizeUpdateAll(result), "success")
     } else {
       updateAllResult.value = result
       showUpdateAllResult.value = true
     }
-    emit('reload')
   } catch (e) {
     snackbar.showSnackbar(apiErrorMessage(e, "Failed to update mods"), "error")
   } finally {
     updateAllLoading.value = false
+    // always reload: a failed/timed-out run may still have applied some updates
+    emit('reload')
   }
 }
 

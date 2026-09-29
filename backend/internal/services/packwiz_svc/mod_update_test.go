@@ -3,11 +3,13 @@ package packwiz_svc
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
 
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 )
 
 func TestModSnapshotChangedSince(t *testing.T) {
@@ -34,13 +36,63 @@ func TestModSnapshotChangedSince(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newMod()
-			snap := takeModSnapshot(m)
+			snap, err := takeModSnapshot(m)
+			if err != nil {
+				t.Fatal(err)
+			}
 			tt.mutate(m)
-			if got := snap.changedSince(m); got != tt.want {
+			got, err := snap.changedSince(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
 				t.Fatalf("changedSince = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func TestModSnapshotNumericTypeNormalized(t *testing.T) {
+	// same logical value, different Go numeric types (e.g. TOML vs JSON decode)
+	m := &core.Mod{Update: core.ModUpdate{"curseforge": {"file-id": uint32(42), "project-id": uint32(7)}}}
+	snap, err := takeModSnapshot(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Update = core.ModUpdate{"curseforge": {"file-id": float64(42), "project-id": float64(7)}}
+	changed, err := snap.changedSince(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed {
+		t.Fatal("uint32 vs float64 with equal value must not count as changed")
+	}
+}
+
+func TestLockPackUpdate(t *testing.T) {
+	unlock, err := lockPackUpdate(9001)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err2 := lockPackUpdate(9001)
+	var he *response.HttpError
+	if !errors.As(err2, &he) || he.Code != http.StatusConflict {
+		t.Fatalf("second lock: want 409 HttpError, got %v", err2)
+	}
+
+	other, err := lockPackUpdate(9002)
+	if err != nil {
+		t.Fatalf("different pack must not be blocked: %v", err)
+	}
+	other()
+
+	unlock()
+	again, err := lockPackUpdate(9001)
+	if err != nil {
+		t.Fatalf("lock after unlock: %v", err)
+	}
+	again()
 }
 
 func TestUpdateAllSummaryResponse(t *testing.T) {
@@ -49,7 +101,7 @@ func TestUpdateAllSummaryResponse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(b) != `{"updated":[],"skipped":[],"failed":[],"upToDate":0}` {
+		if string(b) != `{"updated":[],"skipped":[],"failed":[],"upToDate":0,"notChecked":0}` {
 			t.Fatalf("unexpected json: %s", b)
 		}
 	})
@@ -62,6 +114,7 @@ func TestUpdateAllSummaryResponse(t *testing.T) {
 		s.addFailed(dto.UpdateAllItem{ModId: 4, Slug: "bad", Name: "Bad"}, errors.New("boom"))
 		s.addUpToDate()
 		s.addUpToDate()
+		s.addNotChecked()
 
 		r := s.response()
 		if len(r.Updated) != 2 || r.Updated[0].Slug != "alpha" || r.Updated[1].Slug != "zed" {
@@ -73,8 +126,8 @@ func TestUpdateAllSummaryResponse(t *testing.T) {
 		if len(r.Failed) != 1 || r.Failed[0].Error != "boom" {
 			t.Fatalf("failed: %+v", r.Failed)
 		}
-		if r.UpToDate != 2 {
-			t.Fatalf("upToDate = %d", r.UpToDate)
+		if r.UpToDate != 2 || r.NotChecked != 1 {
+			t.Fatalf("upToDate = %d notChecked = %d", r.UpToDate, r.NotChecked)
 		}
 	})
 }

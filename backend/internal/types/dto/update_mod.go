@@ -21,8 +21,12 @@ type UpdateAllItem struct {
 
 // UpdateAllResponse is the partial-success summary of updating a whole pack.
 type UpdateAllResponse struct {
-	Updated  []UpdateAllItem `json:"updated"`
-	Skipped  []UpdateAllItem `json:"skipped"`
-	Failed   []UpdateAllItem `json:"failed"`
-	UpToDate int             `json:"upToDate"`
+	Updated []UpdateAllItem `json:"updated"`
+	Skipped []UpdateAllItem `json:"skipped"`
+	Failed  []UpdateAllItem `json:"failed"`
+	// UpToDate counts mods that were checked and are current.
+	UpToDate int `json:"upToDate"`
+	// NotChecked counts mods whose status is unknown: manual sources with no
+	// updater, or pinned mods whose update check failed.
+	NotChecked int `json:"notChecked"`
 }

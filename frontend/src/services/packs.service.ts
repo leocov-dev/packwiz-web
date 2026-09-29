@@ -145,8 +145,15 @@ export async function makePackPrivate(packId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/private`)
 }
 
+// update-all checks every mod against remote APIs; allow far longer than the global default
+const UPDATE_ALL_TIMEOUT_MS = 5 * 60 * 1000
+
 export async function updateAllMods(packId: number): Promise<UpdateAllResponse> {
-  const response = await apiClient.patch(`v1/packwiz/pack/${packId}/update-all`)
+  const response = await apiClient.patch(
+    `v1/packwiz/pack/${packId}/update-all`,
+    undefined,
+    {timeout: UPDATE_ALL_TIMEOUT_MS},
+  )
   return plainToInstance(UpdateAllResponse, response.data)
 }
 
