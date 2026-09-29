@@ -25,7 +25,11 @@ const {packId, mods, canEdit, updateChecks = new Map()} = defineProps<{
   updateChecks?: UpdateChecksMap,
 }>()
 
-defineEmits(['add-mod', 'reload'])
+const emit = defineEmits<{
+  (e: 'add-mod'): void
+  (e: 'reload'): void
+  (e: 'pin-overrides', overrides: ReadonlyMap<number, boolean>): void
+}>()
 
 const route = useRoute()
 const router = useRouter()
@@ -74,11 +78,13 @@ watch(listState, (state) => {
 const pinOverrides = ref(new Map<number, boolean>())
 watch(() => mods, () => {
   pinOverrides.value = new Map()
+  emit('pin-overrides', pinOverrides.value)
 })
 const onPinned = (id: number, value: boolean) => {
   const next = new Map(pinOverrides.value)
   next.set(id, value)
   pinOverrides.value = next
+  emit('pin-overrides', next)
 }
 const effectiveMods = computed(() => applyPinOverrides(mods, pinOverrides.value))
 
@@ -110,6 +116,8 @@ const countLabel = computed(() => hasActiveFilters.value
   : formatModCounts(counts.value))
 
 const hasMods = computed(() => mods.length > 0)
+// "Updates available" selected but nothing was ever checked (or results were reset)
+const needsCheckHint = computed(() => show.value.includes('updates') && updateChecks.size === 0)
 
 const clearFilters = () => {
   search.value = ''
@@ -245,6 +253,12 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
         />
         <div class="text-h6 mb-4">
           No mods match your filters
+        </div>
+        <div
+          v-if="needsCheckHint"
+          class="text-body-2 text-medium-emphasis mb-4"
+        >
+          {{ canEdit ? "No update check results yet. Run 'Check for updates' first." : "No update check results yet." }}
         </div>
         <v-btn
           v-if="hasActiveFilters"

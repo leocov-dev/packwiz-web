@@ -605,11 +605,16 @@ func (pc *PackwizController) CheckForUpdates(c *gin.Context) {
 		return
 	}
 
+	c.JSON(checkForUpdatesStatus(enqueued), result)
+}
+
+// checkForUpdatesStatus maps the service outcome to an HTTP status: 202 when
+// a job was enqueued, 200 when the existing job/state is returned instead.
+func checkForUpdatesStatus(enqueued bool) int {
 	if enqueued {
-		c.JSON(http.StatusAccepted, result)
-		return
+		return http.StatusAccepted
 	}
-	dataOK(c, result)
+	return http.StatusOK
 }
 
 // GetUpdateChecks returns the stored update-check state and per-mod results.

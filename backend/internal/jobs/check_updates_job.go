@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -50,6 +51,10 @@ type UpdateChecker interface {
 	RunUpdateCheck(ctx context.Context, args CheckUpdatesArgs, jobId int64) error
 }
 
+// CheckUpdatesTimeout bounds one check run. River cancels the job context
+// after this; the client's RescueStuckJobsAfter (client.go) must exceed it.
+const CheckUpdatesTimeout = 10 * time.Minute
+
 type CheckUpdatesWorker struct {
 	river.WorkerDefaults[CheckUpdatesArgs]
 	checker UpdateChecker
@@ -57,4 +62,10 @@ type CheckUpdatesWorker struct {
 
 func (w *CheckUpdatesWorker) Work(ctx context.Context, job *river.Job[CheckUpdatesArgs]) error {
 	return w.checker.RunUpdateCheck(ctx, job.Args, job.ID)
+}
+
+// Timeout overrides River's 1 minute default job timeout: checking a large
+// pack against rate-limited third-party APIs can take longer.
+func (w *CheckUpdatesWorker) Timeout(*river.Job[CheckUpdatesArgs]) time.Duration {
+	return CheckUpdatesTimeout
 }

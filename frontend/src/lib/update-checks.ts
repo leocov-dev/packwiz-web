@@ -6,6 +6,13 @@ export const POLL_BASE_MS = 2000
 export const POLL_MAX_DELAY_MS = 8000
 export const POLL_MAX_DURATION_MS = 5 * 60 * 1000
 
+// Mirrors the server: results younger than the TTL are served from cache, and
+// no pack is re-checked within the minimum interval (even when forced).
+export const CHECK_TTL_MS = 10 * 60 * 1000
+export const CHECK_MIN_INTERVAL_MS = 60 * 1000
+// Consecutive failed polls tolerated before the check is shown as failed.
+export const MAX_POLL_FAILURES = 3
+
 export const isActiveStatus = (status: UpdateCheckStatus): boolean =>
   status === "queued" || status === "running"
 
@@ -16,6 +23,26 @@ export function nextPollDelay(attempt: number): number {
 
 export function shouldContinuePolling(status: UpdateCheckStatus, elapsedMs: number): boolean {
   return isActiveStatus(status) && elapsedMs < POLL_MAX_DURATION_MS
+}
+
+// True once too many consecutive poll requests failed (a single blip is tolerated).
+export function shouldGiveUpPolling(consecutiveFailures: number): boolean {
+  return consecutiveFailures > MAX_POLL_FAILURES
+}
+
+// Remaining ms before the server accepts another check (0 = allowed now).
+export function checkCooldownMs(runFinishedAt: string | null | undefined, now: number = Date.now()): number {
+  const t = Date.parse(runFinishedAt ?? "")
+  if (Number.isNaN(t)) return 0
+  return Math.max(0, CHECK_MIN_INTERVAL_MS - Math.max(0, now - t))
+}
+
+// Only force a re-check when the cached result has expired; within the TTL the
+// server serves the cached result and force would just spend API rate limit.
+export function shouldForceCheck(status: UpdateCheckStatus, checkedAt: string | null | undefined, now: number = Date.now()): boolean {
+  if (status !== "done") return false
+  const t = Date.parse(checkedAt ?? "")
+  return !Number.isNaN(t) && now - t >= CHECK_TTL_MS
 }
 
 export function buildResultsMap(results: UpdateCheckItem[] | undefined): Map<number, UpdateCheckItem> {

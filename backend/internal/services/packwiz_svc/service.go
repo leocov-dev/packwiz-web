@@ -1049,6 +1049,11 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		return response.Wrap(err)
 	}
 
+	before := struct {
+		mc, loader, loaderVersion string
+		acceptable                []string
+	}{pack.MCVersion, pack.Loader, pack.LoaderVersion, append([]string(nil), pack.AcceptableGameVersions...)}
+
 	if request.Name != "" {
 		pack.Name = request.Name
 	}
@@ -1085,8 +1090,18 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		pack.AcceptableGameVersions = request.AcceptableVersions
 	}
 
+	targetChanged := pack.MCVersion != before.mc ||
+		pack.Loader != before.loader ||
+		pack.LoaderVersion != before.loaderVersion ||
+		!slices.Equal([]string(pack.AcceptableGameVersions), before.acceptable)
+
 	if err := ps.db.Save(pack).Error; err != nil {
 		return response.Wrap(err)
+	}
+
+	if targetChanged {
+		// update availability depends on the MC version/loader/acceptable versions
+		invalidatePackChecks(ps.db, packId)
 	}
 
 	return nil
@@ -1272,6 +1287,9 @@ func (ps *PackwizService) Migrate(ctx context.Context, packId uint, request dto.
 		return dto.MigrateResponse{}, response.Wrap(err)
 	}
 
+	// stored update checks were made against the old target
+	invalidatePackChecks(ps.db, packId)
+
 	if !request.UpdateMods {
 		return dto.MigrateResponse{}, nil
 	}
@@ -1360,7 +1378,7 @@ func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.Mig
 		}
 	}
 
-	return ps.db.Transaction(func(tx *gorm.DB) error {
+	txErr := ps.db.Transaction(func(tx *gorm.DB) error {
 		for _, r := range results {
 			dbMod, ok := bySlug[r.Mod.Slug]
 			if !ok {
@@ -1400,6 +1418,11 @@ func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.Mig
 		}
 		return nil
 	})
+	if txErr == nil {
+		// mods were updated; stored update checks no longer describe the pack
+		invalidatePackChecks(ps.db, args.PackID)
+	}
+	return txErr
 }
 
 // GetMigrateJobStatus reports a MigrateModsArgs job's lifecycle state, plus

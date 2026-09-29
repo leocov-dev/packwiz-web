@@ -29,9 +29,15 @@ type UpdateCheckItem struct {
 // UpdateChecksResponse is the stored state of a pack's update check.
 type UpdateChecksResponse struct {
 	// Status is one of idle, queued, running, done, failed.
-	Status    string     `json:"status"`
+	Status string `json:"status"`
+	// CheckedAt is when the returned Results were produced (newest per-row
+	// checked_at); null without results. After a failed run it still refers
+	// to the last successful results.
 	CheckedAt *time.Time `json:"checkedAt"`
-	// Error is the reason a whole check run failed.
+	// RunFinishedAt is when the latest run finished, successfully or not;
+	// null while none has finished.
+	RunFinishedAt *time.Time `json:"runFinishedAt"`
+	// Error is the reason the latest run failed.
 	Error   string            `json:"error,omitempty"`
 	Results []UpdateCheckItem `json:"results"`
 	// AvailableCount counts mods with an update that are not pinned.

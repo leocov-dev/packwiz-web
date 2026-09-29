@@ -199,7 +199,10 @@ export class UpdateCheckItem {
 
 export class UpdateChecksResponse {
   status!: UpdateCheckStatus;
+  /** When the returned results were produced; kept after a failed run. */
   checkedAt?: string | null;
+  /** When the latest run finished, successfully or not. */
+  runFinishedAt?: string | null;
   error?: string;
   @Type(() => UpdateCheckItem)
   results!: UpdateCheckItem[];

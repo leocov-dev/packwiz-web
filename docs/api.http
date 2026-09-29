@@ -99,10 +99,12 @@ PATCH {{apiRoot}}/v1/packwiz/pack/packA/update-all
 
 ### POST start an async update check (editors). 202 {jobId, status} when a job was enqueued;
 # 200 with the existing job when one is already queued/running, or a check finished < 10 min ago
-# (add ?force=true to bypass that cache). Poll GET .../updates for results.
+# (add ?force=true to bypass that cache). Regardless of force, a pack is not re-checked within 60s of
+# the last run starting/finishing (200 with the existing state). Poll GET .../updates for results.
 POST {{apiRoot}}/v1/packwiz/pack/packA/updates/check?force=false
 
-### GET stored update check state (viewers). {status: idle|queued|running|done|failed, checkedAt, error?,
+### GET stored update check state (viewers). {status: idle|queued|running|done|failed, checkedAt (when results were produced; kept after a failed run),
+# runFinishedAt (latest run, ok or failed), error? (latest run's failure),
 # results: [{modId, updateAvailable, updateString?, error?}], availableCount (excludes pinned)}
 GET {{apiRoot}}/v1/packwiz/pack/packA/updates
 
