@@ -7,6 +7,9 @@ import {
   buildOptionRequest,
   describeSaveFailure,
   diffModEdit,
+  runSaveSteps,
+  type ModSnapshot,
+  type SaveStep,
   editValuesFromMod,
   MAX_OPTION_DESCRIPTION,
   type ModEditValues,
@@ -14,7 +17,7 @@ import {
 
 const {pack, mod} = defineProps<{ pack: Pack, mod: Mod }>()
 
-const emit = defineEmits<{ reload: [] }>()
+const emit = defineEmits<{ reload: [before: ModSnapshot] }>()
 
 const router = useRouter()
 const snackbar = useSnackbarStore()
@@ -22,6 +25,8 @@ const snackbar = useSnackbarStore()
 const errorMsg = ref("")
 const isValid = ref<boolean | null>(null)
 const loading = ref(false)
+const updating = ref(false)
+const busy = computed(() => loading.value || updating.value)
 const allowLeave = ref(false)
 
 // Baseline the form is compared against; advanced as individual saves succeed.
@@ -30,16 +35,11 @@ const data = ref<ModEditValues>({...initial.value})
 
 const diff = computed(() => diffModEdit(initial.value, data.value))
 const isDirty = computed(() => diff.value.any)
-const canSave = computed(() => isDirty.value && isValid.value !== false && !loading.value)
+const canSave = computed(() => isDirty.value && isValid.value !== false && !busy.value)
 
 const rules = {
   description: (v: string) => (v ?? "").length <= MAX_OPTION_DESCRIPTION
     || `Max ${MAX_OPTION_DESCRIPTION} characters`,
-}
-
-interface SaveStep {
-  label: string
-  run: () => Promise<void>
 }
 
 const buildSteps = (): SaveStep[] => {
@@ -47,7 +47,7 @@ const buildSteps = (): SaveStep[] => {
   const target = {...data.value}
   if (diff.value.side) {
     steps.push({
-      label: "Side",
+      label: "Side change",
       run: async () => {
         await changeModSide(pack.id, mod.id, {side: target.side})
         initial.value = {...initial.value, side: target.side}
@@ -82,7 +82,11 @@ const buildSteps = (): SaveStep[] => {
 
 const leaveToPack = async () => {
   allowLeave.value = true
-  await router.push({path: `/packs/${pack.id}`})
+  try {
+    await router.push({path: `/packs/${pack.id}`})
+  } finally {
+    allowLeave.value = false
+  }
 }
 
 const submitForm = async () => {
@@ -90,18 +94,11 @@ const submitForm = async () => {
   errorMsg.value = ""
   loading.value = true
 
-  const steps = buildSteps()
-  const saved: string[] = []
   try {
-    for (const [i, step] of steps.entries()) {
-      try {
-        await step.run()
-        saved.push(step.label)
-      } catch (e) {
-        const remaining = steps.slice(i + 1).map(s => s.label)
-        errorMsg.value = describeSaveFailure(saved, step.label, apiErrorMessage(e, "request failed"), remaining)
-        return
-      }
+    const results = await runSaveSteps(buildSteps(), e => apiErrorMessage(e, "request failed"))
+    if (results.some(r => !r.ok)) {
+      errorMsg.value = describeSaveFailure(results)
+      return
     }
     snackbar.showSnackbar(`Saved ${mod.name || mod.slug}`, "success")
     await leaveToPack()
@@ -124,6 +121,18 @@ const settleLeave = (ok: boolean) => {
   resolveLeave = null
 }
 
+const warnUnload = (e: BeforeUnloadEvent) => {
+  e.preventDefault()
+  e.returnValue = ""
+}
+
+watch(isDirty, dirty => {
+  if (dirty) window.addEventListener("beforeunload", warnUnload)
+  else window.removeEventListener("beforeunload", warnUnload)
+}, {immediate: true})
+
+onBeforeUnmount(() => window.removeEventListener("beforeunload", warnUnload))
+
 onBeforeRouteLeave(() => {
   if (allowLeave.value || !isDirty.value) return true
   settleLeave(false)
@@ -135,7 +144,7 @@ onBeforeRouteLeave(() => {
 </script>
 
 <template>
-  <div class="ma-6">
+  <div class="ma-6 position-relative">
     <v-card>
       <v-card-title class="d-flex align-center">
         <v-btn
@@ -143,7 +152,7 @@ onBeforeRouteLeave(() => {
           variant="text"
           aria-label="Back to pack"
           class="me-2"
-          :disabled="loading"
+          :disabled="busy"
           @click="cancelForm"
         />
         <h1 class="text-h5">
@@ -211,7 +220,7 @@ onBeforeRouteLeave(() => {
         <div class="d-flex justify-end mt-6">
           <v-btn
             text="Cancel"
-            :disabled="loading"
+            :disabled="busy"
             class="me-6"
             @click="cancelForm"
           />
@@ -223,27 +232,33 @@ onBeforeRouteLeave(() => {
           />
         </div>
       </v-form>
-
-      <v-overlay
-        v-model="loading"
-        class="align-center justify-center"
-        persistent
-        contained
-      >
-        <v-progress-circular
-          color="primary"
-          size="64"
-          indeterminate
-        />
-      </v-overlay>
     </v-card>
 
     <ModSourceCard
       :pack-id="pack.id"
       :mod="mod"
+      :pinned="initial.pinned"
+      :disabled="loading"
       :has-unsaved-changes="isDirty"
-      @updated="emit('reload')"
+      @busy="updating = $event"
+      @updated="emit('reload', $event)"
     />
+
+    <v-overlay
+      :model-value="busy"
+      class="align-center justify-center"
+      persistent
+      contained
+      role="status"
+      :aria-label="loading ? 'Saving' : 'Updating'"
+    >
+      <v-progress-circular
+        color="primary"
+        size="64"
+        indeterminate
+      />
+      <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">{{ loading ? "Saving…" : "Updating…" }}</span>
+    </v-overlay>
 
     <ConfirmationDialog
       v-model="leaveDialog"
