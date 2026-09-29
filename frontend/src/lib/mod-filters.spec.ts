@@ -1,6 +1,11 @@
 import {describe, expect, it} from "vitest"
 import type {Mod} from "@/interfaces/pack.ts"
-import {countMods, filterModsBySide, formatModCounts, matchesSide} from "./mod-filters.ts"
+import {
+  applyModListState, buildDependentsMap, buildModListQuery, countMods, DEFAULT_MOD_LIST_STATE, dependencyTooltip,
+  dependentNames, filterModsBySide, filterModsByShow, findOrphanedDependencies, formatFilteredCount, formatModCounts,
+  hasActiveModFilters, matchesSide, modSideLabel, modSourceLabel, parseModListQuery, removeModMessage, searchMods,
+  sortMods,
+} from "./mod-filters.ts"
 
 const mod = (side: Mod["side"], isDependency = false) => ({side, isDependency}) as Mod
 
@@ -39,5 +44,112 @@ describe("formatModCounts", () => {
 
   it("handles plural", () => {
     expect(formatModCounts({total: 5, dependencies: 2})).toBe("5 mods · 2 dependencies")
+  })
+})
+
+const full = (o: Partial<Mod> & {id: number}) => ({
+  name: `mod${o.id}`, slug: `slug${o.id}`, fileName: `file${o.id}.jar`, side: "both",
+  isDependency: false, pinned: false, updatedAt: "2024-01-01T00:00:00Z", ...o,
+}) as Mod
+
+describe("source and side labels", () => {
+  it("maps backend source values", () => {
+    expect(modSourceLabel("modrinth")).toBe("Modrinth")
+    expect(modSourceLabel("curseforge")).toBe("CurseForge")
+    expect(modSourceLabel("github")).toBe("GitHub")
+    expect(modSourceLabel("")).toBe("")
+    expect(modSourceLabel("other")).toBe("")
+  })
+  it("labels sides", () => {
+    expect(modSideLabel("client")).toBe("Client")
+    expect(modSideLabel("server")).toBe("Server")
+    expect(modSideLabel("both")).toBe("Client + Server")
+    expect(modSideLabel("x")).toBe("")
+  })
+})
+
+describe("dependents", () => {
+  const dep = full({id: 1, name: "Lib", isDependency: true})
+  const shared = full({id: 2, name: "Shared", isDependency: true})
+  const a = full({id: 3, name: "Alpha", dependencyIds: [1, 2]})
+  const b = full({id: 4, name: "Beta", dependencyIds: [2]})
+  const mods = [dep, shared, a, b]
+  const map = buildDependentsMap(mods)
+
+  it("builds inverse map", () => {
+    expect(dependentNames(shared, map)).toEqual(["Alpha", "Beta"])
+    expect(dependentNames(dep, map)).toEqual(["Alpha"])
+    expect(dependentNames(a, map)).toEqual([])
+  })
+  it("formats tooltip", () => {
+    expect(dependencyTooltip(["A", "B"])).toBe("Required by A, B")
+    expect(dependencyTooltip([])).toBe("Installed automatically as a dependency")
+  })
+  it("finds orphaned dependencies only", () => {
+    expect(findOrphanedDependencies(a, mods, map).map(m => m.name)).toEqual(["Lib"])
+    expect(findOrphanedDependencies(b, mods, map)).toEqual([])
+  })
+  it("ignores non-dependency and missing ids", () => {
+    const regular = full({id: 5, name: "Reg"})
+    const c = full({id: 6, dependencyIds: [5, 99]})
+    const ms = [regular, c]
+    expect(findOrphanedDependencies(c, ms, buildDependentsMap(ms))).toEqual([])
+  })
+  it("builds remove message", () => {
+    expect(removeModMessage("X", [])).toBe("Are you sure you want to remove X?")
+    expect(removeModMessage("X", ["Lib"])).toContain("also leave 1 dependency unused: Lib")
+    expect(removeModMessage("X", ["A", "B"])).toContain("2 dependencies unused: A, B")
+  })
+})
+
+describe("search, show filters and sort", () => {
+  const mods = [
+    full({id: 1, name: "Sodium", slug: "sodium", fileName: "sodium-1.jar", pinned: true, updatedAt: "2024-03-01T00:00:00Z"}),
+    full({id: 2, name: "Iris", slug: "iris-shaders", fileName: "iris.jar", option: {optional: true, description: "", default: true}, updatedAt: "2024-05-01T00:00:00Z"}),
+    full({id: 3, name: "Lib", slug: "lib", fileName: "lib.jar", isDependency: true, updatedAt: "2024-09-01T00:00:00Z"}),
+  ]
+  it("searches name, slug and file name", () => {
+    expect(searchMods(mods, "SOD").map(m => m.id)).toEqual([1])
+    expect(searchMods(mods, "shaders").map(m => m.id)).toEqual([2])
+    expect(searchMods(mods, "lib.jar").map(m => m.id)).toEqual([3])
+    expect(searchMods(mods, "  ")).toHaveLength(3)
+  })
+  it("filters by show with union semantics", () => {
+    expect(filterModsByShow(mods, [])).toHaveLength(3)
+    expect(filterModsByShow(mods, ["pinned"]).map(m => m.id)).toEqual([1])
+    expect(filterModsByShow(mods, ["optional", "dependencies"]).map(m => m.id)).toEqual([2, 3])
+  })
+  it("sorts by name and keeps dependencies last", () => {
+    expect(sortMods(mods, "name").map(m => m.id)).toEqual([2, 1, 3])
+  })
+  it("sorts by recently updated and keeps dependencies last", () => {
+    expect(sortMods(mods, "updated").map(m => m.id)).toEqual([2, 1, 3])
+    const swapped = [{...mods[0], updatedAt: "2025-01-01T00:00:00Z"} as Mod, mods[1], mods[2]]
+    expect(sortMods(swapped, "updated").map(m => m.id)).toEqual([1, 2, 3])
+  })
+  it("applies whole state and reports activity", () => {
+    const state = {...DEFAULT_MOD_LIST_STATE, show: ["pinned" as const]}
+    expect(applyModListState(mods, state).map(m => m.id)).toEqual([1])
+    expect(hasActiveModFilters(state)).toBe(true)
+    expect(hasActiveModFilters(DEFAULT_MOD_LIST_STATE)).toBe(false)
+  })
+})
+
+describe("list query persistence", () => {
+  it("omits defaults", () => {
+    expect(buildModListQuery(DEFAULT_MOD_LIST_STATE)).toEqual({})
+  })
+  it("round-trips", () => {
+    const state = {q: "iris", sort: "updated" as const, side: "client" as const, show: ["pinned" as const, "optional" as const]}
+    const query = buildModListQuery(state)
+    expect(query).toEqual({q: "iris", sort: "updated", side: "client", show: "pinned,optional"})
+    expect(parseModListQuery(query)).toEqual(state)
+  })
+  it("ignores invalid values and takes first of arrays", () => {
+    expect(parseModListQuery({sort: "zzz", side: "x", show: "pinned,bogus,pinned", q: ["a", "b"]}))
+      .toEqual({q: "a", sort: "name", side: "", show: ["pinned"]})
+  })
+  it("formats filtered count", () => {
+    expect(formatFilteredCount(2, 10)).toBe("2 of 10 mods")
   })
 })

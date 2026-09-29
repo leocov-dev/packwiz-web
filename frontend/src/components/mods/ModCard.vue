@@ -1,13 +1,30 @@
 <script setup lang="ts">
 
 import type {Mod} from "@/interfaces/pack.ts";
-import {removeMod} from "@/services/mods.service.ts";
+import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
+import {dependencyTooltip, modSideLabel, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
+import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import axios from "axios";
 
-const {packId, mod, canEdit} = defineProps<{ packId: number, mod: Mod, canEdit: boolean }>()
+const {packId, mod, canEdit, dependentNames, orphanNames} = defineProps<{
+  packId: number,
+  mod: Mod,
+  canEdit: boolean,
+  dependentNames: string[],
+  orphanNames: string[],
+}>()
 
 const emit = defineEmits(['reload'])
+
+const snackbar = useSnackbarStore()
+
+// Local optimistic copy: props are read-only, so re-sync when the parent refreshes.
+const pinned = ref(mod.pinned)
+const pinning = ref(false)
+watch(() => mod.pinned, (value) => {
+  pinned.value = value
+})
 
 const showRemoveDialog = ref(false)
 const loading = ref(false)
@@ -43,6 +60,33 @@ const onRemove = async () => {
   }
 }
 
+const sourceLabel = computed(() => modSourceLabel(mod.source))
+const sideLabel = computed(() => modSideLabel(mod.side))
+const removeText = computed(() => removeModMessage(mod.name, orphanNames))
+const dependencyHint = computed(() => dependencyTooltip(dependentNames))
+const modRoute = computed(() => `/packs/${packId}/mod/${mod.id}`)
+const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
+const typeLabel = computed(() => mod.type || "mod")
+
+const onTogglePin = async () => {
+  const previous = pinned.value
+  pinned.value = !previous
+  pinning.value = true
+  try {
+    if (previous) {
+      await unpinMod(packId, mod.id)
+    } else {
+      await pinMod(packId, mod.id)
+    }
+  } catch (e) {
+    pinned.value = previous
+    const detail = axios.isAxiosError(e) ? e.response?.data?.error : undefined
+    snackbar.showSnackbar(detail || `Failed to ${previous ? "unpin" : "pin"} ${mod.name}`, 'error')
+  } finally {
+    pinning.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -50,7 +94,7 @@ const onRemove = async () => {
     <ConfirmationDialog
       v-model="showRemoveDialog"
       title="Remove Mod"
-      :text="`Are you sure you want to remove ${mod.name}?`"
+      :text="removeText"
       accept-text="Remove"
       @accepted="onRemove"
     />
@@ -66,84 +110,127 @@ const onRemove = async () => {
       @click:close="error = false"
     />
 
-    <div class="d-flex align-center">
+    <div class="d-flex flex-wrap align-center ga-2">
       <v-icon
-        v-tooltip="mod.type"
-        class="me-2"
+        v-tooltip="typeLabel"
+        :aria-label="`Type: ${typeLabel}`"
+        role="img"
         :icon="modTypeIconMap[mod.type] || 'mdi-puzzle-outline'"
       />
 
-      <div>
+      <div
+        v-tooltip="mod.fileName"
+        class="text-body-1 font-weight-medium"
+      >
         {{ mod.name }}
       </div>
 
+      <v-chip
+        v-if="sourceLabel"
+        size="small"
+        label
+        :text="sourceLabel"
+      />
+      <v-chip
+        v-if="sideLabel"
+        size="small"
+        label
+        variant="outlined"
+        :text="sideLabel"
+      />
+      <v-chip
+        v-if="mod.option?.optional"
+        v-tooltip="mod.option?.description || 'Optional mod'"
+        size="small"
+        label
+        color="info"
+        variant="tonal"
+        text="Optional"
+      />
+      <v-chip
+        v-if="mod.isDependency"
+        v-tooltip="dependencyHint"
+        size="small"
+        label
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-graph"
+        text="Dependency"
+      />
+
       <v-spacer />
 
-      <div
-        class="ms-4 me-8 text-subtitle-2 text-disabled text-truncate"
-      >
-        {{ mod.fileName }}
-      </div>
+      <div class="d-flex align-center ga-2">
+        <template v-if="!mod.isDependency">
+          <v-btn
+            v-if="canEdit"
+            v-tooltip="pinTooltip"
+            density="comfortable"
+            variant="text"
+            :icon="pinned ? 'mdi-pin' : 'mdi-pin-off-outline'"
+            :color="pinned ? 'primary' : undefined"
+            :aria-label="pinTooltip"
+            :aria-pressed="pinned"
+            :disabled="pinning"
+            @click="onTogglePin"
+          />
+          <v-icon
+            v-else-if="pinned"
+            v-tooltip="'Pinned (skipped on Update All)'"
+            aria-label="Pinned"
+            role="img"
+            icon="mdi-pin"
+          />
+        </template>
 
-      <div class="d-flex justify-end">
-        <v-icon
-          v-if="mod.side === 'client'"
-          v-tooltip="'client'"
-          class="me-2"
-          icon="mdi-account-outline"
-        />
-        <v-icon
-          v-if="mod.side === 'server'"
-          v-tooltip="'server'"
-          class="me-2"
-          icon="mdi-server-outline"
-        />
-        <v-icon
-          v-if="mod.side === 'both'"
-          v-tooltip="'server+client'"
-          class="me-2"
-          icon="mdi-circle-double"
-        />
-        <v-icon
-          v-if="mod.option?.optional"
-          v-tooltip="mod.option?.description || 'optional'"
-          class="me-2"
-          icon="mdi-checkbox-marked-circle-outline"
-        />
-        <v-icon
-          v-if="mod.isDependency"
-          v-tooltip="'Dependency'"
-          class="me-2"
-          icon="mdi-graph"
-          color="primary"
-        />
-        <v-icon
-          v-if="!mod.isDependency"
-          v-tooltip="mod.pinned ? 'pinned' : 'unpinned'"
-          class="me-2"
-          :icon="mod.pinned ? 'mdi-pin' : 'mdi-pin-off-outline'"
-        />
+        <template v-if="canEdit">
+          <v-tooltip
+            :disabled="!mod.isDependency"
+            :text="dependencyHint"
+            location="top"
+          >
+            <template #activator="{props: tipProps}">
+              <span
+                v-bind="tipProps"
+                :tabindex="mod.isDependency ? 0 : undefined"
+                :aria-label="mod.isDependency ? `Edit unavailable. ${dependencyHint}` : undefined"
+              >
+                <v-btn
+                  density="comfortable"
+                  color="warning"
+                  variant="outlined"
+                  text="Edit"
+                  :to="modRoute"
+                  :disabled="mod.isDependency"
+                />
+              </span>
+            </template>
+          </v-tooltip>
 
-        <v-btn
-          v-if="canEdit"
-          density="comfortable"
-          color="warning"
-          variant="outlined"
-          text="Edit"
-          :to="`${packId}/mod/${mod.id}`"
-          :disabled="mod.isDependency"
-        />
-
-        <v-btn
-          v-if="canEdit"
-          class="ms-2"
-          density="comfortable"
-          color="error"
-          variant="outlined"
-          icon="mdi-delete-outline"
-          :disabled="loading || mod.isDependency"
-          @click="showRemoveDialog = true"
-        />
+          <v-tooltip
+            :disabled="!mod.isDependency"
+            :text="dependencyHint"
+            location="top"
+          >
+            <template #activator="{props: tipProps}">
+              <span
+                v-bind="tipProps"
+                :tabindex="mod.isDependency ? 0 : undefined"
+                :aria-label="mod.isDependency ? `Remove unavailable. ${dependencyHint}` : undefined"
+              >
+                <v-btn
+                  density="comfortable"
+                  color="error"
+                  variant="outlined"
+                  icon="mdi-delete-outline"
+                  aria-label="Remove mod"
+                  :disabled="loading || mod.isDependency"
+                  @click="showRemoveDialog = true"
+                />
+              </span>
+            </template>
+          </v-tooltip>
+        </template>
       </div>
     </div>
   </v-card>
