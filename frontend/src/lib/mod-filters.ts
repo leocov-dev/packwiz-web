@@ -14,3 +14,15 @@ export function filterModsBySide(mods: Mod[], filterSide: ModSide): Mod[] {
   if (!filterSide) return mods
   return mods.filter(mod => matchesSide(mod.side, filterSide))
 }
+
+export interface ModCounts {
+  total: number
+  dependencies: number
+}
+
+export function countMods(mods: Mod[]): ModCounts {
+  return {
+    total: mods.length,
+    dependencies: mods.filter(mod => mod.isDependency).length,
+  }
+}

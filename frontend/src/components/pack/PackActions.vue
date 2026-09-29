@@ -63,40 +63,43 @@ const actions = computed<{
     location="bottom"
   >
     <template #activator="{ props }">
-      <div v-bind="props">
+      <div
+        v-bind="props"
+        class="d-flex align-center"
+      >
         <v-btn
-          link
+          v-for="actionItem in actions"
+          :key="actionItem.icon"
           density="comfortable"
-          color="default"
           variant="plain"
-          icon="mdi-dots-vertical"
-          :disabled="true"
+          :icon="actionItem.icon"
+          :aria-label="actionItem.title"
+          disabled
         />
       </div>
     </template>
   </v-tooltip>
 
-  <v-menu v-else>
-    <template #activator="{ props }">
-      <v-btn
-        link
-        density="comfortable"
-        color="default"
-        variant="plain"
-        v-bind="props"
-        icon="mdi-dots-vertical"
-        :disabled="actionsDisabled"
-      />
-    </template>
-
-    <v-list>
-      <v-list-item
-        v-for="actionItem in actions"
-        :key="actionItem.icon"
-        :prepend-icon="actionItem.icon"
-        :title="actionItem.title"
-        @click="actionItem.action"
-      />
-    </v-list>
-  </v-menu>
+  <div
+    v-else
+    class="d-flex align-center"
+  >
+    <v-tooltip
+      v-for="actionItem in actions"
+      :key="actionItem.icon"
+      :text="actionItem.title"
+      location="bottom"
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          density="comfortable"
+          variant="plain"
+          :icon="actionItem.icon"
+          :aria-label="actionItem.title"
+          @click="actionItem.action"
+        />
+      </template>
+    </v-tooltip>
+  </div>
 </template>
