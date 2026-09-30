@@ -24,6 +24,7 @@ type Config struct {
 	PGPort            int
 	PGDbName          string
 	JobWorkerPoolSize int
+	PublicURL         string
 }
 
 var (
@@ -44,6 +45,12 @@ const (
 	curseforgeApiKey  = "CF_API_KEY"
 	githubApiKey      = "GH_API_KEY"
 	jobWorkerPoolSize = "JOB_WORKER_POOL_SIZE"
+	envPublicURL      = "PUBLIC_URL"
+
+	// DefaultSessionSecret is the insecure fallback used when SESSION_SECRET is
+	// not set. Features that derive keys from the secret must refuse to work
+	// while it is in use.
+	DefaultSessionSecret = "insecure-session-secret"
 )
 
 func SetVersionTag(tag string) {
@@ -104,7 +111,9 @@ func init() {
 	config.SetDefault(pgDbName, "packwiz")
 
 	config.BindEnv(envSessionSecret)
-	config.SetDefault(envSessionSecret, "insecure-session-secret")
+	config.SetDefault(envSessionSecret, DefaultSessionSecret)
+
+	config.BindEnv(envPublicURL)
 
 	config.BindEnv(curseforgeApiKey)
 	config.BindEnv(githubApiKey)
@@ -132,6 +141,7 @@ func init() {
 		PGDbName:          config.GetString(pgDbName),
 		PGPort:            config.GetInt(pgPort),
 		JobWorkerPoolSize: config.GetInt(jobWorkerPoolSize),
+		PublicURL:         strings.TrimRight(strings.TrimSpace(config.GetString(envPublicURL)), "/"),
 	}
 
 	if C.AdminPassword == "" {
