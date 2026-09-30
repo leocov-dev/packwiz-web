@@ -11,4 +11,8 @@ var (
 	ModType  Param = "modType"
 	UserID   Param = "userId"
 	JobId    Param = "jobId"
+
+	OidcSlug   Param = "slug"
+	ProviderId Param = "providerId"
+	IdentityId Param = "identityId"
 )

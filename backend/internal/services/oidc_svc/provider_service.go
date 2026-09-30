@@ -98,8 +98,13 @@ func (s *ProviderService) List() ([]dto.OidcProviderResponse, response.ServerErr
 }
 
 // ListEnabled returns the providers that may be offered on the login page:
-// enabled and not broken.
+// enabled and not broken. Nothing is offered while PWW_PUBLIC_URL is unset,
+// because no redirect URI can be built and every login would fail.
 func (s *ProviderService) ListEnabled() ([]dto.OidcPublicProvider, response.ServerError) {
+	if s.publicURL == "" {
+		return []dto.OidcPublicProvider{}, nil
+	}
+
 	var providers []tables.OidcProvider
 	if err := s.db.Where("enabled = ?", true).Order("display_name ASC").Find(&providers).Error; err != nil {
 		return nil, response.New(http.StatusInternalServerError, "failed to list oidc providers")
