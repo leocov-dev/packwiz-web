@@ -97,7 +97,6 @@ watch(
           <v-btn
             text="Change Password"
             variant="text"
-            color="secondary"
             v-bind="activatorProps"
           />
         </template>
@@ -113,6 +112,9 @@ watch(
         v-if="user.isAdmin"
         :text="user.username === 'admin' ? 'Default Admin Account' : 'Admin Account'"
         color="warning"
+        size="small"
+        label
+        variant="tonal"
       />
     </div>
 
@@ -179,6 +181,3 @@ watch(
   </v-card>
 </template>
 
-<style scoped lang="sass">
-
-</style>

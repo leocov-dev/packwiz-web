@@ -78,6 +78,9 @@ watch(
       <v-chip
         :text="user.username === 'admin' ? 'Default Admin Account' : 'Admin Account'"
         color="warning"
+        size="small"
+        label
+        variant="tonal"
       />
     </div>
 

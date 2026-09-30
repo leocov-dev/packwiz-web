@@ -101,7 +101,6 @@ watch([
           min-width="120"
           text="Cancel"
           variant="text"
-          color="surface-variant"
           @click="emit('close')"
         />
 
@@ -120,6 +119,3 @@ watch([
   </v-card>
 </template>
 
-<style scoped lang="sass">
-
-</style>

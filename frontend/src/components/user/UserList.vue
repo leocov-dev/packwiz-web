@@ -63,7 +63,7 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
     :items-per-page="itemsPerPage"
     :page="page"
     :loading="isLoading"
-    class="pww-clickable-rows"
+    :row-props="{class: 'cursor-pointer'}"
     @update:options="onUpdateOptions"
     @click:row="onRowClick"
   >
@@ -118,6 +118,8 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
         :color="item.isAdmin ? 'primary' : undefined"
         :text="item.isAdmin ? 'Admin' : 'User'"
         size="small"
+        label
+        variant="tonal"
       />
     </template>
 
@@ -126,6 +128,8 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
         :color="item.isActive ? 'success' : 'error'"
         :text="item.isActive ? 'Active' : 'Deactivated'"
         size="small"
+        label
+        variant="tonal"
       />
     </template>
 
@@ -145,7 +149,3 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
   </v-data-table-server>
 </template>
 
-<style scoped lang="sass">
-.pww-clickable-rows :deep(tbody tr)
-  cursor: pointer
-</style>

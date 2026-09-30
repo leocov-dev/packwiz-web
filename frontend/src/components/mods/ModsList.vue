@@ -278,7 +278,7 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
         <v-list-item
           v-for="(item, index) in items"
           :key="item.raw.id"
-          :class="{'first-dependency': isFirstDependency(items, index)}"
+          :class="{'mt-6': isFirstDependency(items, index)}"
         >
           <ModCard
             :pack-id="packId"
@@ -319,8 +319,3 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
   </v-data-iterator>
 </template>
 
-<style scoped>
-.first-dependency {
-  margin-top: 24px !important;
-}
-</style>

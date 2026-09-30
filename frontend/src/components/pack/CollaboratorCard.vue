@@ -104,7 +104,7 @@ const onRemove = async () => {
         icon="mdi-account-remove"
         density="comfortable"
         color="error"
-        variant="outlined"
+        variant="text"
         :disabled="loading"
         @click="showRemoveDialog = true"
       />
