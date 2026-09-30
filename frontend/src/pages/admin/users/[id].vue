@@ -9,6 +9,7 @@ import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {User} from "@/interfaces/user.ts";
 import {deactivateUserById, fetchUserById, reactivateUserById} from "@/services/user.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
+import AdminUserIdentities from "@/components/user/AdminUserIdentities.vue";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {AxiosError} from "axios";
 
@@ -136,6 +137,8 @@ const reactivate = async () => {
           :subtitle="new Date(user.updatedAt).toLocaleString()"
         />
       </v-list>
+
+      <AdminUserIdentities :user-id="userId" />
 
       <v-card-actions class="ma-3">
         <v-btn

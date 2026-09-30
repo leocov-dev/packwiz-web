@@ -20,6 +20,11 @@ const items = [
     route: '/admin/users',
   },
   {
+    text: 'OIDC Providers',
+    icon: 'mdi-key-chain',
+    route: '/admin/oidc',
+  },
+  {
     text: 'Audit Log',
     icon: 'mdi-format-list-text',
     route: '/admin/audit',

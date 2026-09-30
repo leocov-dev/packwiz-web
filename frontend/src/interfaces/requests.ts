@@ -65,3 +65,20 @@ export interface ChangeModOptionRequest {
 export interface RehashRequest {
   format: "sha1" | "sha256" | "sha512";
 }
+
+export interface OidcProviderRequest {
+  slug: string;
+  displayName: string;
+  issuerUrl: string;
+  clientId: string;
+  // write-only; blank on update keeps the stored secret
+  clientSecret: string;
+  scopes: string;
+  enabled: boolean;
+  autoCreateUsers: boolean;
+  linkByEmail: boolean;
+}
+
+export interface OidcTestDiscoveryRequest {
+  issuerUrl: string;
+}
