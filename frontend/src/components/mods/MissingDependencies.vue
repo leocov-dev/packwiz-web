@@ -8,21 +8,22 @@ const {missing} = defineProps<{missing: ModDependency[]}>()
 
 <template>
   <v-card variant="tonal">
-    <v-card-title
-      class="mt-2 text-subtitle-2"
-    >
+    <v-card-title class="mt-2 text-subtitle-2">
       These additional dependencies will be installed
     </v-card-title>
 
-    <v-card-text>
-      <v-list>
-        <v-list-item
-          v-for="mod in missing"
-          :key="mod.slug"
-        >
-          - {{ mod.name }} ({{ mod.fileName }})
-        </v-list-item>
-      </v-list>
+    <v-card-text class="d-flex flex-wrap ga-2">
+      <v-chip
+        v-for="mod in missing"
+        :key="mod.slug"
+        v-tooltip="mod.fileName"
+        size="small"
+        label
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-graph"
+        :text="mod.name"
+      />
     </v-card-text>
   </v-card>
 </template>

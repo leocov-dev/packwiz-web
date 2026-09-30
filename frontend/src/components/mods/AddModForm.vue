@@ -106,7 +106,7 @@ const checkForDependencies = async (request: AddModRequest, seq: number) => {
     const deps = await listMissingDependencies(pack.id, request)
 
     if (seq === requestSeq) {
-      dependencies.value = deps.missing
+      dependencies.value = deps.missing ?? []
     }
   } catch (e) {
     if (seq === requestSeq) {
@@ -299,43 +299,39 @@ watch(modUrl, (rawUrl: string | null) => {
       </v-card-subtitle>
 
       <div class="ma-6">
-        <v-btn-toggle
+        <v-chip-group
           v-model="mode"
           class="mb-4"
           mandatory
-          density="comfortable"
-          variant="outlined"
+          selected-class="text-primary"
+          aria-label="Add mod method"
         >
-          <v-btn
+          <v-chip
             value="modrinth"
+            filter
+            label
+            variant="tonal"
+            prepend-icon="mdi-magnify"
             text="Search Modrinth"
           />
-          <v-tooltip
-            :disabled="curseforgeAvailable !== false"
-            location="bottom"
-            text="CurseForge search needs a server API key (PWW_CF_API_KEY)"
-          >
-            <template #activator="{props: tooltipProps}">
-              <span
-                v-bind="tooltipProps"
-                :tabindex="curseforgeAvailable === false ? 0 : undefined"
-                :role="curseforgeAvailable === false ? 'button' : undefined"
-                :aria-disabled="curseforgeAvailable === false ? 'true' : undefined"
-                :aria-label="curseforgeAvailable === false ? 'Search CurseForge (unavailable: needs a server API key, PWW_CF_API_KEY)' : undefined"
-              >
-                <v-btn
-                  value="curseforge"
-                  text="Search CurseForge"
-                  :disabled="curseforgeAvailable === false"
-                />
-              </span>
-            </template>
-          </v-tooltip>
-          <v-btn
+          <v-chip
+            value="curseforge"
+            filter
+            label
+            variant="tonal"
+            prepend-icon="mdi-magnify"
+            :class="{'text-medium-emphasis': curseforgeAvailable === false}"
+            text="Search CurseForge"
+          />
+          <v-chip
             value="url"
+            filter
+            label
+            variant="tonal"
+            prepend-icon="mdi-link-variant"
             text="Paste URL"
           />
-        </v-btn-toggle>
+        </v-chip-group>
 
         <v-form
           v-if="mode === 'url'"

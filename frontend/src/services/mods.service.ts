@@ -15,7 +15,9 @@ export async function addMod(packId: number, addModRequest: AddModRequest) {
 
 export async function listMissingDependencies(packId: number, addModRequest: AddModRequest): Promise<ModDependenciesResponse> {
   const response = await apiClient.post(`v1/packwiz/pack/${packId}/mod/missing-dependencies`, addModRequest)
-  return plainToInstance(ModDependenciesResponse, response.data)
+  const result = plainToInstance(ModDependenciesResponse, response.data)
+  result.missing ??= []
+  return result
 }
 
 export async function changeModSide(packId: number, modId: number, request: ChangeModSideRequest) {

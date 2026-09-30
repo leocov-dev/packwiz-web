@@ -190,25 +190,29 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
         <v-chip
           value="pinned"
           filter
-          variant="outlined"
+          label
+          variant="tonal"
           text="Pinned"
         />
         <v-chip
           value="optional"
           filter
-          variant="outlined"
+          label
+          variant="tonal"
           text="Optional"
         />
         <v-chip
           value="dependencies"
           filter
-          variant="outlined"
+          label
+          variant="tonal"
           text="Dependencies"
         />
         <v-chip
           value="updates"
           filter
-          variant="outlined"
+          label
+          variant="tonal"
           text="Updates available"
         />
       </v-chip-group>

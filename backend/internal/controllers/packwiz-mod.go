@@ -71,7 +71,7 @@ func (pc *PackwizModController) ListMissingDependencies(c *gin.Context) {
 		return
 	}
 
-	var data []dto.ModDependency
+	data := make([]dto.ModDependency, 0, len(missing))
 
 	for _, mod := range missing {
 		data = append(data, dto.ModDependency{

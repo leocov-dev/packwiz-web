@@ -60,7 +60,7 @@ const addLabel = computed(() =>
 <template>
   <v-list
     max-height="450"
-    class="overflow-y-auto mb-4"
+    class="overflow-y-auto mb-4 pa-0 bg-transparent"
   >
     <template
       v-for="{result, authorLine, loaders, hiddenLoaders, categories, hiddenCategories} in rows"
@@ -69,6 +69,9 @@ const addLabel = computed(() =>
       <v-list-item
         :active="result.slug === selectedSlug"
         :link="isAvailable(result)"
+        color="primary"
+        rounded="lg"
+        class="mb-2 elevation-2 bg-surface"
         @click="onRowClick(result)"
       >
         <template #prepend>
@@ -185,7 +188,7 @@ const addLabel = computed(() =>
 
       <div
         v-if="result.slug === selectedSlug && isAvailable(result)"
-        class="px-4 pb-4"
+        class="px-4 pb-4 mb-2"
       >
         <MissingDependencies
           v-if="dependencies.length > 0"
