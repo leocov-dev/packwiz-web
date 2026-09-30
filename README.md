@@ -22,7 +22,7 @@ Any changes are immediately available to users.
 4. [ ] Duplicate existing packs to test out changes
 5. [ ] Snapshot Modpacks and roll back to previous states
 6. [ ] Import existing Packwiz mod configurations
-7. [ ] OIDC authentication
+7. [x] OIDC authentication
 
 ## Deploy
 This is a web service intended to be deployed as a docker container.
@@ -41,6 +41,7 @@ See the deployment examples in [examples](examples):
 | PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account.       |
 | PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                          |
 | PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                    |
+| PWW_PUBLIC_URL      | external URL of the app                | Optional, only needed for OIDC login, e.g. `https://packwiz.example.com`. See [OIDC login](docs/oidc.md).                             |
 | PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.         |
 | PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits or download from private repositories from GitHub you can supply an API key. None is included by default.        |
 
@@ -70,6 +71,10 @@ Users access mods at the static file endpoint:
 ### Security
 
 By default, admins may create user accounts with passwords managed by the service.
+
+Users can also sign in with OpenID Connect providers such as Keycloak, Authentik or Google.
+Admins add and manage the providers in the web UI, and local password login always stays available.
+See [OIDC login](docs/oidc.md) for setup.
 
 #### Audit Logs
 
