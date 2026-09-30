@@ -60,29 +60,31 @@ func CanUnlinkIdentity(hasPassword bool, otherIdentities int64) bool {
 
 // FindIdentity returns the identity for a provider subject, or nil.
 func (s *UserService) FindIdentity(providerID uint, subject string) (*tables.UserIdentity, error) {
-	var identity tables.UserIdentity
-	err := s.db.Where("provider_id = ? AND subject = ?", providerID, subject).First(&identity).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	// Find+Limit rather than First: "not found" is the normal first-login case
+	// and must not be logged as a failed query
+	var found []tables.UserIdentity
+	if err := s.db.Where("provider_id = ? AND subject = ?", providerID, subject).
+		Limit(1).Find(&found).Error; err != nil {
 		return nil, fmt.Errorf("find identity: %w", err)
 	}
-	return &identity, nil
+	if len(found) == 0 {
+		return nil, nil
+	}
+	return &found[0], nil
 }
 
 // FindByEmail returns the non-deleted user with this email (case-insensitive),
 // or nil.
 func (s *UserService) FindByEmail(email string) (*tables.User, error) {
-	var user tables.User
-	err := s.db.Where("LOWER(email) = LOWER(?)", email).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	var found []tables.User
+	if err := s.db.Where("LOWER(email) = LOWER(?)", email).
+		Limit(1).Find(&found).Error; err != nil {
 		return nil, fmt.Errorf("find user by email: %w", err)
 	}
-	return &user, nil
+	if len(found) == 0 {
+		return nil, nil
+	}
+	return &found[0], nil
 }
 
 // HasIdentityAtProvider reports whether the user already has any identity at

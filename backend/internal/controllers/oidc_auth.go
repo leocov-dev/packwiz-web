@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -19,11 +20,12 @@ const (
 
 // setOidcStateCookie stores the sealed flow state. It is SameSite=Lax (not
 // Strict like the session cookie) because it must be sent when the IdP
-// redirects the browser back from another site.
+// redirects the browser back from another site. The value is query-escaped
+// because gin's Context.Cookie unescapes it when reading (base64 contains '+').
 func setOidcStateCookie(c *gin.Context, value string, maxAge int) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oidcStateCookie,
-		Value:    value,
+		Value:    url.QueryEscape(value),
 		Path:     oidcStateCookiePath,
 		MaxAge:   maxAge,
 		HttpOnly: true,
