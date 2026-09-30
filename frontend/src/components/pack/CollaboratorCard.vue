@@ -13,10 +13,13 @@ const loading = ref(false)
 const error = ref(false)
 const errorMsg = ref("")
 
+const isOwner = computed(() => collaborator.permission === PackPermission.OWNER)
+
 const permissionItems = [
   {title: 'Static (link only)', value: PackPermission.STATIC},
   {title: 'View', value: PackPermission.VIEW},
   {title: 'Edit', value: PackPermission.EDIT},
+  {title: 'Owner', value: PackPermission.OWNER, props: {disabled: true}},
 ]
 
 const handleError = (e: unknown, fallback: string) => {
@@ -96,7 +99,7 @@ const onRemove = async () => {
         hide-details
         max-width="220"
         class="me-3"
-        :disabled="loading"
+        :disabled="loading || isOwner"
         @update:model-value="onPermissionChange"
       />
 
@@ -105,7 +108,7 @@ const onRemove = async () => {
         density="comfortable"
         color="error"
         variant="text"
-        :disabled="loading"
+        :disabled="loading || isOwner"
         @click="showRemoveDialog = true"
       />
     </div>

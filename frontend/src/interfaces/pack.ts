@@ -47,6 +47,7 @@ export enum PackPermission {
   STATIC = 1,
   VIEW = 10,
   EDIT = 20,
+  OWNER = 30,
 }
 
 export class Mod {

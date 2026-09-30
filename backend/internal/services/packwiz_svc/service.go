@@ -155,7 +155,7 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 		if err := tx.Create(&tables.PackUsers{
 			PackID:     newPack.ID,
 			UserID:     author.ID,
-			Permission: types.PackPermissionEdit,
+			Permission: types.PackPermissionOwner,
 		}).Error; err != nil {
 			return err
 		}
@@ -1026,6 +1026,10 @@ func (ps *PackwizService) SearchPackUsers(packId uint, query string) ([]PackUser
 // GrantPackUser
 // grant a user access to a pack
 func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.PackPermission) response.ServerError {
+	if permission == types.PackPermissionOwner {
+		return response.New(http.StatusBadRequest, "owner permission cannot be assigned")
+	}
+
 	if _, err := ps.GetPackById(packId); err != nil {
 		return err
 	}
@@ -1067,9 +1071,31 @@ func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.Pa
 	return nil
 }
 
+// abortIfPackOwner
+// returns a forbidden error with msg if the user is the owner of the pack
+func (ps *PackwizService) abortIfPackOwner(packId, userId uint, msg string) response.ServerError {
+	var isOwner bool
+	if err := ps.db.Model(&tables.PackUsers{}).
+		Select("1").
+		Where("pack_id = ? AND user_id = ? AND permission = ?", packId, userId, types.PackPermissionOwner).
+		Limit(1).
+		Find(&isOwner).Error; err != nil {
+		return response.New(http.StatusInternalServerError, "failed to query db for pack user")
+	}
+	if isOwner {
+		return response.New(http.StatusForbidden, msg)
+	}
+
+	return nil
+}
+
 // RevokePackUser
 // revoke a user's access to a pack
 func (ps *PackwizService) RevokePackUser(packId, userId uint) response.ServerError {
+	if err := ps.abortIfPackOwner(packId, userId, "the pack owner cannot be removed"); err != nil {
+		return err
+	}
+
 	result := ps.db.Where("pack_id = ? AND user_id = ?", packId, userId).Delete(&tables.PackUsers{})
 	if result.Error != nil {
 		return response.Wrap(result.Error)
@@ -1084,6 +1110,13 @@ func (ps *PackwizService) RevokePackUser(packId, userId uint) response.ServerErr
 // ChangePackUserPermission
 // change a user's permission level for a pack
 func (ps *PackwizService) ChangePackUserPermission(packId, userId uint, permission types.PackPermission) response.ServerError {
+	if permission == types.PackPermissionOwner {
+		return response.New(http.StatusBadRequest, "owner permission cannot be assigned")
+	}
+	if err := ps.abortIfPackOwner(packId, userId, "the pack owner's permission cannot be changed"); err != nil {
+		return err
+	}
+
 	result := ps.db.Model(&tables.PackUsers{}).
 		Where("pack_id = ? AND user_id = ?", packId, userId).
 		Update("permission", permission)

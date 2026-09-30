@@ -8,6 +8,7 @@ const permissionMap = {
   [PackPermission.STATIC]: "-",
   [PackPermission.VIEW]: "View",
   [PackPermission.EDIT]: "Edit",
+  [PackPermission.OWNER]: "Owner",
 }
 </script>
 
