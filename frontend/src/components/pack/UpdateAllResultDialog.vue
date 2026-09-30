@@ -39,7 +39,7 @@ const summary = computed(() => summarizeUpdateAll(result))
               prepend-icon="mdi-alert-circle-outline"
             >
               <v-list-item-title>{{ item.name || item.slug }}</v-list-item-title>
-              <div class="text-body-2 text-medium-emphasis error-text">
+              <div class="text-body-2 text-medium-emphasis text-break">
                 {{ item.error }}
               </div>
             </v-list-item>
@@ -72,9 +72,3 @@ const summary = computed(() => summarizeUpdateAll(result))
   </v-dialog>
 </template>
 
-<style scoped>
-.error-text {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-</style>

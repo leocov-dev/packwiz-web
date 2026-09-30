@@ -50,6 +50,7 @@ const permissionMap = {
 </template>
 
 <style scoped>
+/* No Vuetify utility clamps to N lines (see STYLE_GUIDE.md) */
 .multiline-truncate {
   display: -webkit-box;
   line-clamp: 2;

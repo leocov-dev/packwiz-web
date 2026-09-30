@@ -74,7 +74,7 @@ const actions = computed<{
           v-for="actionItem in actions"
           :key="actionItem.icon"
           density="comfortable"
-          variant="plain"
+          variant="text"
           :icon="actionItem.icon"
           :aria-label="actionItem.title"
           disabled
@@ -97,7 +97,7 @@ const actions = computed<{
         <v-btn
           v-bind="props"
           density="comfortable"
-          variant="plain"
+          variant="text"
           :icon="actionItem.icon"
           :aria-label="actionItem.title"
           @click="actionItem.action"

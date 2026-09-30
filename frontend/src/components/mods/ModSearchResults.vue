@@ -97,20 +97,18 @@ const addLabel = computed(() =>
         <div
           v-if="loaders.length > 0 || categories.length > 0"
           class="d-flex flex-wrap ga-1 mt-1"
-          style="min-width: 0"
         >
           <div
             v-if="loaders.length > 0"
             role="list"
             aria-label="Loaders"
             class="d-flex flex-wrap ga-1"
-            style="min-width: 0"
           >
             <v-chip
               v-for="loader in loaders"
               :key="`l-${loader}`"
               role="listitem"
-              size="x-small"
+              size="small"
               label
               :color="isPackLoader(loader, packLoader) ? 'primary' : undefined"
               :variant="isPackLoader(loader, packLoader) ? 'flat' : 'tonal'"
@@ -120,9 +118,9 @@ const addLabel = computed(() =>
               v-if="hiddenLoaders.length > 0"
               v-tooltip="hiddenLoaders.join(', ')"
               role="listitem"
-              size="x-small"
+              size="small"
               label
-              variant="outlined"
+              variant="tonal"
               :aria-label="`${hiddenLoaders.length} more loaders: ${hiddenLoaders.join(', ')}`"
               :text="`+${hiddenLoaders.length}`"
             />
@@ -132,15 +130,13 @@ const addLabel = computed(() =>
             role="list"
             aria-label="Categories"
             class="d-flex flex-wrap ga-1"
-            style="min-width: 0"
           >
             <v-chip
               v-for="category in categories"
               :key="`c-${category}`"
               role="listitem"
-              size="x-small"
+              size="small"
               variant="tonal"
-              style="max-width: 10rem"
               :title="category"
               :text="category"
             />
@@ -148,8 +144,8 @@ const addLabel = computed(() =>
               v-if="hiddenCategories.length > 0"
               v-tooltip="hiddenCategories.join(', ')"
               role="listitem"
-              size="x-small"
-              variant="outlined"
+              size="small"
+              variant="tonal"
               :aria-label="`${hiddenCategories.length} more categories: ${hiddenCategories.join(', ')}`"
               :text="`+${hiddenCategories.length}`"
             />

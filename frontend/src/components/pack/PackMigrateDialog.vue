@@ -197,7 +197,7 @@ onUnmounted(stopJobPolling)
 
           <v-btn
             class="mt-2"
-            variant="outlined"
+            variant="tonal"
             size="small"
             :loading="dryRunLoading"
             :disabled="!isValid"
