@@ -121,6 +121,10 @@ func Decide(in ResolveInput) Decision {
 		switch {
 		case in.Claims.Email == "":
 			return reject(ReasonEmailMissing)
+		case !in.Claims.EmailVerified:
+			// the email becomes the user's email; an unverified claim would
+			// let someone squat an address and be linked to it later
+			return reject(ReasonEmailNotVerified)
 		case in.EmailUser != nil:
 			return reject(ReasonEmailInUse)
 		}

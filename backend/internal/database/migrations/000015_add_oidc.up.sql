@@ -29,4 +29,5 @@ CREATE TABLE user_identities
 );
 
 CREATE UNIQUE INDEX idx_user_identities_provider_subject ON user_identities (provider_id, subject);
-CREATE INDEX idx_user_identities_user_id ON user_identities (user_id);
+-- one identity per user per provider, enforced here to close check-then-insert races
+CREATE UNIQUE INDEX idx_user_identities_user_provider ON user_identities (user_id, provider_id);

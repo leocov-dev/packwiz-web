@@ -126,6 +126,14 @@ func TestDecideLogin(t *testing.T) {
 			want: Decision{Kind: OutcomeRejected, Reason: ReasonEmailMissing},
 		},
 		{
+			name: "auto-create needs a verified email",
+			in: ResolveInput{
+				Mode: ModeLogin, Claims: Claims{Subject: "sub", Email: "a@example.com"},
+				Policy: Policy{LinkByEmail: true, AutoCreateUsers: true},
+			},
+			want: Decision{Kind: OutcomeRejected, Reason: ReasonEmailNotVerified},
+		},
+		{
 			name: "auto-create refused when email belongs to another user",
 			in: ResolveInput{
 				Mode: ModeLogin, Claims: verified, EmailUser: facts(20),

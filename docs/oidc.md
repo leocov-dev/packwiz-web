@@ -53,7 +53,7 @@ The app uses the authorization code flow with PKCE, and a confidential client
 | Client ID / secret   | From your IdP. The secret is write-only: it is never shown again, and leaving it blank on edit keeps the stored value.    |
 | Scopes               | Must include `openid`. Default: `openid profile email`.                                                                   |
 | Enabled              | Disabled providers do not appear on the login page.                                                                       |
-| Create users         | Off by default. When on, a person the IdP authenticates who has no account yet gets a new non-admin user.                 |
+| Create users         | Off by default. When on, a person the IdP authenticates who has no account yet gets a new non-admin user. Needs a verified email. |
 | Link by email        | Off by default. When on, a sign-in whose email is **verified** by the IdP is linked to the existing user with that email. |
 
 Use **Test discovery** to check the issuer URL before saving.
@@ -72,7 +72,8 @@ For every successful IdP login, in order:
 1. An identity already linked for this provider and subject (`sub`) signs that user in.
 2. Otherwise, if **Link by email** is on and the IdP says the email is verified,
    the matching local user is linked and signed in.
-3. Otherwise, if **Create users** is on, a new user is created and signed in.
+3. Otherwise, if **Create users** is on and the IdP says the email is verified,
+   a new user is created and signed in.
 4. Otherwise the login is rejected.
 
 Identities are matched on provider plus `sub`, never on email alone. Deactivated
@@ -107,6 +108,9 @@ confirmation shows how many users would be left with no way to sign in.
 3. Create an application that uses the provider, and set its access policies to
    control who may sign in.
 4. Issuer URL: `https://<authentik-host>/application/o/<application-slug>`.
+5. Authentik's default email scope mapping reports `email_verified` as false. If you
+   use **Create users** or **Link by email**, customize the mapping so it returns
+   `true` for emails you trust.
 
 ### Google
 
