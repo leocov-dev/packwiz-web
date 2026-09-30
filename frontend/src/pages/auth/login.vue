@@ -6,6 +6,9 @@ meta:
 
 <script setup lang="ts">
 import {useAuthStore} from "@/stores/auth.ts";
+import type {OidcPublicProvider} from "@/interfaces/oidc.ts";
+import {fetchAuthConfig, oidcLoginUrl} from "@/services/oidc.service.ts";
+import {oidcErrorMessage} from "@/lib/oidc-errors.ts";
 
 const authStore = useAuthStore();
 const route = useRoute();
@@ -15,14 +18,15 @@ const showPassword = ref(false);
 const username = ref('');
 const password = ref('');
 const loading = ref(false);
-const showError = ref(false);
+const errorMessage = ref(oidcErrorMessage(route.query.error) ?? '');
+const providers = ref<OidcPublicProvider[]>([]);
 
 const rules = {
   required: (value: string) => !!value || 'This field is required',
 };
 
 const submitForm = async () => {
-  showError.value = false;
+  errorMessage.value = '';
 
   if (!username.value || !password.value) return;
 
@@ -32,7 +36,7 @@ const submitForm = async () => {
     await authStore.login(username.value, password.value);
     await redirect();
   } catch {
-    showError.value = true;
+    errorMessage.value = 'Username or password is incorrect.';
   } finally {
     loading.value = false;
   }
@@ -46,9 +50,23 @@ const redirect = async () => {
   return router.push((route.query.redirect as string) || '/');
 }
 
+const loginWithProvider = (provider: OidcPublicProvider) => {
+  const target = route.query.redirect
+  const redirectPath = typeof target === 'string' && !target.endsWith('logout') ? target : undefined
+  // full-page navigation: the browser leaves for the identity provider
+  window.location.assign(oidcLoginUrl(provider.slug, redirectPath))
+}
+
 onMounted(async () => {
   if (authStore.isAuthenticated) {
     return redirect();
+  }
+
+  try {
+    providers.value = await fetchAuthConfig()
+  } catch {
+    // local login must keep working if the provider list cannot be loaded
+    providers.value = []
   }
 })
 
@@ -73,13 +91,13 @@ onMounted(async () => {
       </div>
 
       <v-card
-        v-if="showError"
+        v-if="errorMessage"
         class="mb-5"
         color="error"
         variant="tonal"
       >
         <v-card-text>
-          Username or password is incorrect.
+          {{ errorMessage }}
         </v-card-text>
       </v-card>
 
@@ -115,6 +133,25 @@ onMounted(async () => {
           Login
         </v-btn>
       </v-form>
+
+      <template v-if="providers.length">
+        <div class="d-flex align-center ga-3 my-4 text-medium-emphasis">
+          <v-divider />
+          <span class="text-caption">or</span>
+          <v-divider />
+        </div>
+
+        <v-btn
+          v-for="provider in providers"
+          :key="provider.slug"
+          class="mb-2"
+          variant="tonal"
+          prepend-icon="mdi-login"
+          :text="`Sign in with ${provider.displayName}`"
+          block
+          @click="loginWithProvider(provider)"
+        />
+      </template>
     </v-responsive>
   </v-container>
 </template>

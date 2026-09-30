@@ -41,7 +41,8 @@ func flowErrorResponse(fe *oidc_svc.FlowError) response.ServerError {
 	status := http.StatusInternalServerError
 	switch fe.Code {
 	case oidc_svc.CodeNotPermitted:
-		status = http.StatusForbidden
+		// not 403: the SPA treats every 403 as "not an admin" and navigates away
+		status = http.StatusBadRequest
 	case oidc_svc.CodeUnavailable:
 		status = http.StatusServiceUnavailable
 	case oidc_svc.CodeAlreadyLinked:

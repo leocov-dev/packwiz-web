@@ -1,7 +1,8 @@
 import {plainToInstance} from "class-transformer";
-import {apiClient} from "@/services/api.service";
+import {apiClient, baseUrl} from "@/services/api.service";
 import {
   OidcDiscoveryResult,
+  LinkIdentityResult,
   OidcProvider,
   OidcPublicProvider,
   OrphanedUsers,
@@ -14,6 +15,27 @@ const PROVIDERS = 'v1/admin/oidc/providers'
 export async function fetchAuthConfig(): Promise<OidcPublicProvider[]> {
   const response = await apiClient.get('v1/auth/config')
   return plainToInstance(OidcPublicProvider, response.data as unknown[])
+}
+
+// Sign-in is a full-page navigation: the browser leaves for the IdP and comes
+// back through the backend callback, so this returns a URL rather than calling.
+export function oidcLoginUrl(slug: string, redirect?: string): string {
+  const url = `${baseUrl}/api/v1/auth/oidc/${encodeURIComponent(slug)}/login`
+  return redirect ? `${url}?${new URLSearchParams({redirect})}` : url
+}
+
+export async function fetchMyIdentities(): Promise<UserIdentity[]> {
+  const response = await apiClient.get('v1/user/identities')
+  return plainToInstance(UserIdentity, response.data as unknown[])
+}
+
+export async function startLinkIdentity(slug: string): Promise<string> {
+  const response = await apiClient.post(`v1/user/identities/${encodeURIComponent(slug)}/link`)
+  return plainToInstance(LinkIdentityResult, response.data).redirectUrl
+}
+
+export async function unlinkMyIdentity(identityId: number): Promise<void> {
+  await apiClient.delete(`v1/user/identities/${identityId}`)
 }
 
 export async function listOidcProviders(): Promise<OidcProvider[]> {
