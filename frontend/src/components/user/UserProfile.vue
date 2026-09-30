@@ -9,6 +9,7 @@ export interface UserProfileFormData {
 <script setup lang="ts">
 import type {User} from "@/interfaces/user.ts";
 import ChangePasswordForm from "@/components/user/ChangePasswordForm.vue";
+import LinkedAccounts from "@/components/user/LinkedAccounts.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import {useAuthStore} from "@/stores/auth.ts";
 
@@ -95,13 +96,14 @@ watch(
       >
         <template #activator="{ props: activatorProps }">
           <v-btn
-            text="Change Password"
+            :text="user.hasPassword === false ? 'Set Password' : 'Change Password'"
             variant="text"
             v-bind="activatorProps"
           />
         </template>
 
         <ChangePasswordForm
+          :has-password="user.hasPassword !== false"
           @close="showChangePassword = false"
         />
       </v-dialog>
@@ -163,6 +165,11 @@ watch(
       </div>
     </v-form>
   </v-card>
+
+  <LinkedAccounts
+    v-if="user.username !== 'admin'"
+    class="mt-4"
+  />
 
   <ConfirmationDialog
     v-model="showInvalidateDialog"

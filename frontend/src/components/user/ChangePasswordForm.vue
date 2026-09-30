@@ -4,6 +4,10 @@ import {useAuthStore} from "@/stores/auth.ts";
 
 const emit = defineEmits(['close'])
 
+// accounts created through an identity provider have no password yet: they
+// set a first one instead of changing an existing one
+const {hasPassword = true} = defineProps<{ hasPassword?: boolean }>()
+
 const form = ref()
 
 const isValid = ref(false)
@@ -20,14 +24,20 @@ const error = ref('')
 
 const rules = {
   required: (value: string) => !!value || 'This field is required.',
-  checkAgainstOld: (value: string) => value !== oldPassword.value || 'Passwords must be different.',
+  checkAgainstOld: (value: string) => !hasPassword || value !== oldPassword.value || 'Passwords must be different.',
   checkAgainstNew: (value: string) => value === newPassword.value || 'Does not match new password.',
 }
 
 const authStore = useAuthStore()
 
 const submitForm = async () => {
-  error.value = await authStore.changePassword(oldPassword.value, newPassword.value)
+  if (hasPassword) {
+    error.value = await authStore.changePassword(oldPassword.value, newPassword.value)
+    return
+  }
+
+  error.value = await authStore.setPassword(newPassword.value)
+  if (!error.value) emit('close')
 }
 
 watch([
@@ -43,8 +53,10 @@ watch([
 <template>
   <v-card
     prepend-icon="mdi-lock"
-    title="Change Password"
-    subtitle="You will be logged out after changing your password."
+    :title="hasPassword ? 'Change Password' : 'Set Password'"
+    :subtitle="hasPassword
+      ? 'You will be logged out after changing your password.'
+      : 'Add a password so you can also sign in without your identity provider.'"
   >
     <v-divider class="mt-3" />
     <v-form
@@ -60,6 +72,7 @@ watch([
           hidden
         >
         <v-text-field
+          v-if="hasPassword"
           v-model.trim="oldPassword"
           label="Old Password"
           :rules="[rules.required]"

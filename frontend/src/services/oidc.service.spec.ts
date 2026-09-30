@@ -10,11 +10,12 @@ const {get, post, put, del} = vi.hoisted(() => ({
 
 vi.mock("@/services/api.service", () => ({
   apiClient: {get, post, put, delete: del},
+  baseUrl: 'https://pw.example.com',
 }))
 
 import {
   createOidcProvider, deleteOidcProvider, fetchAuthConfig, fetchOrphanedUserCount,
-  fetchUserIdentities, listOidcProviders, testOidcDiscovery, unlinkUserIdentity, updateOidcProvider,
+  fetchMyIdentities, fetchUserIdentities, listOidcProviders, oidcLoginUrl, startLinkIdentity, unlinkMyIdentity, testOidcDiscovery, unlinkUserIdentity, updateOidcProvider,
 } from "@/services/oidc.service.ts"
 import {OidcProvider, OidcPublicProvider, UserIdentity} from "@/interfaces/oidc.ts"
 import type {OidcProviderRequest} from "@/interfaces/requests.ts"
@@ -80,5 +81,29 @@ describe("admin user identities", () => {
 
     await unlinkUserIdentity(5, 9)
     expect(del).toHaveBeenCalledWith('v1/admin/users/5/identities/9')
+  })
+})
+
+describe("self-service identities", () => {
+  it("builds a login url with an optional redirect", () => {
+    expect(oidcLoginUrl('kc')).toBe('https://pw.example.com/api/v1/auth/oidc/kc/login')
+    expect(oidcLoginUrl('kc', '/packs/1?x=y')).toMatch(/\/login\?redirect=%2Fpacks%2F1%3Fx%3Dy$/)
+    expect(oidcLoginUrl('a/b')).toContain('/oidc/a%2Fb/login')
+  })
+
+  it("lists, starts linking and unlinks", async () => {
+    get.mockResolvedValue({data: [{id: 1, providerSlug: 'kc'}]})
+    post.mockResolvedValue({data: {redirectUrl: 'https://idp.example.com/auth?x=1'}})
+    del.mockResolvedValue({})
+
+    const res = await fetchMyIdentities()
+    expect(get).toHaveBeenCalledWith('v1/user/identities')
+    expect(res[0]).toBeInstanceOf(UserIdentity)
+
+    expect(await startLinkIdentity('kc')).toBe('https://idp.example.com/auth?x=1')
+    expect(post).toHaveBeenCalledWith('v1/user/identities/kc/link')
+
+    await unlinkMyIdentity(1)
+    expect(del).toHaveBeenCalledWith('v1/user/identities/1')
   })
 })

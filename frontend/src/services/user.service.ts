@@ -32,6 +32,10 @@ export async function changePassword(oldPass: string, newPass: string): Promise<
   )
 }
 
+export async function setPassword(newPass: string): Promise<void> {
+  await apiClient.postForm('v1/user/password/set', {newPassword: newPass})
+}
+
 export async function updateCurrentUser(userData: UserProfileFormData): Promise<void> {
   await apiClient.post(`v1/user/update`, userData)
 }

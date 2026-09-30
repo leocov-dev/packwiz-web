@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import {
   changePassword,
+  setPassword,
   getCurrentUser,
   userLogin,
   userLogout,
@@ -29,6 +30,8 @@ interface AuthActions {
   logout(redirect: boolean): Promise<void>;
 
   changePassword(oldPassword: string, newPassword: string): Promise<string>;
+
+  setPassword(newPassword: string): Promise<string>;
 
   invalidateSessions(): Promise<void>;
 }
@@ -102,6 +105,18 @@ export const useAuthStore = defineStore<'auth', AuthState, AuthGetters, AuthActi
       } catch (e) {
         if (e instanceof AxiosError) {
           return e.response?.data?.msg || "Unknown error..."
+        }
+        return "Unknown error..."
+      }
+    },
+    async setPassword(newPassword: string) {
+      try {
+        await setPassword(newPassword)
+        await this.refreshUser()
+        return ""
+      } catch (e) {
+        if (e instanceof AxiosError) {
+          return e.response?.data?.error || "Unknown error..."
         }
         return "Unknown error..."
       }

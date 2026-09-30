@@ -5,7 +5,8 @@ export class User {
   username!: string;
   fullName!: string;
   email!: string;
-  identityProvider!: string;
+  // only sent on the signed-in user's own record (GET v1/user)
+  hasPassword?: boolean;
   isAdmin!: boolean;
   isActive!: boolean;
   createdAt!: string;
