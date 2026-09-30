@@ -126,6 +126,8 @@ responsibilities separate, mirroring the discipline already documented in
 
 ## 4. Vuetify/UI conventions
 
+Button, chip and custom-CSS rules live in [STYLE_GUIDE.md](STYLE_GUIDE.md) — follow it; avoid custom styles.
+
 - Build UI from Vuetify components (`v-card`, `v-text-field`, `v-form`,
   `v-btn`, etc.) rather than hand-rolled markup/CSS where an equivalent
   Vuetify component exists; use Vuetify's spacing/utility classes (`ma-`,
