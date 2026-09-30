@@ -113,7 +113,7 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
       </v-toolbar>
     </template>
 
-    <template #item.isAdmin="{ item }">
+    <template #[`item.isAdmin`]="{ item }">
       <v-chip
         :color="item.isAdmin ? 'primary' : undefined"
         :text="item.isAdmin ? 'Admin' : 'User'"
@@ -121,7 +121,7 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
       />
     </template>
 
-    <template #item.isActive="{ item }">
+    <template #[`item.isActive`]="{ item }">
       <v-chip
         :color="item.isActive ? 'success' : 'error'"
         :text="item.isActive ? 'Active' : 'Deactivated'"
@@ -129,7 +129,7 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
       />
     </template>
 
-    <template #item.createdAt="{ item }">
+    <template #[`item.createdAt`]="{ item }">
       {{ new Date(item.createdAt).toLocaleDateString() }}
     </template>
 

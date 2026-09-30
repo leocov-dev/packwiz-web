@@ -2,7 +2,7 @@
 
 const model = defineModel({required: true, type: String})
 
-const {density} = defineProps<{density?: 'default' | 'comfortable' | 'compact' }>()
+const {density = undefined} = defineProps<{density?: 'default' | 'comfortable' | 'compact' }>()
 
 const rawSearch = ref(model.value)
 

@@ -121,17 +121,17 @@ function formatParams(raw: string): string {
       </v-toolbar>
     </template>
 
-    <template #item.createdAt="{ item }">
+    <template #[`item.createdAt`]="{ item }">
       {{ new Date(item.createdAt).toLocaleString() }}
     </template>
 
-    <template #item.userId="{ item }">
+    <template #[`item.userId`]="{ item }">
       <router-link :to="`/admin/users/${item.userId}`">
         {{ item.userId }}
       </router-link>
     </template>
 
-    <template #item.actionParams="{ item }">
+    <template #[`item.actionParams`]="{ item }">
       <v-tooltip
         :text="formatParams(item.actionParams)"
         location="bottom"

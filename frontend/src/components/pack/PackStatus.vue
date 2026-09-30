@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-const { status, class: classDef } = defineProps<{
+const { status, class: classDef = undefined } = defineProps<{
   status: "draft" | "published" | "public" | "archived" | "warning",
   class?: string
 }>()
