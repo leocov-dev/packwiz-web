@@ -49,11 +49,10 @@ const backToPack = async () => {
         items-per-page="0"
       >
         <template #header>
-          <v-toolbar class="d-flex flex-wrap">
+          <div class="d-flex flex-wrap align-center ga-3 pa-4 bg-surface-light">
             <v-text-field
               v-model="search"
               max-width="300"
-              class="me-3"
               density="compact"
               placeholder="Search"
               prepend-inner-icon="mdi-magnify"
@@ -62,14 +61,13 @@ const backToPack = async () => {
               hide-details
             />
             <v-btn
-              class="me-3"
               color="primary"
               variant="flat"
               prepend-icon="mdi-account-plus"
               text="Add Collaborator"
               @click="showAddDialog = true"
             />
-          </v-toolbar>
+          </div>
         </template>
 
         <template #default="{items}">
