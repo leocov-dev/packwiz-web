@@ -110,3 +110,38 @@ responsibilities separate.
    logic or a direct DB call, did a service reach into `gin.Context` or read
    env vars directly, or did an error get swallowed instead of
    wrapped/returned?
+
+## 7. OIDC login
+
+Multi-provider OpenID Connect lives in `internal/services/oidc_svc` (provider
+CRUD and client cache, the flow, and the pure decision function), with thin
+controllers `oidc_auth.go`, `oidc_identity.go` and `oidc_admin.go`, and routes in
+`internal/routes/oidc.go`. Identities are stored in `user_identities`; user-side
+helpers (`CreateExternalUser`, `LinkIdentity`, `UnlinkIdentity`, `SetPassword`)
+are in `user_svc/identity.go`. Setup for humans is in `docs/oidc.md`. Rules to
+keep when changing it:
+
+- **Resolution order** is in `oidc_svc.Decide` (pure, table-tested): existing
+  identity (`provider_id + sub`), then verified-email link if `link_by_email`,
+  then auto-create if `auto_create_users`, else reject. Never match on email
+  alone. Keep new rules inside `Decide` so they stay testable.
+- **`admin` is untouchable** from OIDC paths: it cannot be created, linked,
+  modified or deactivated, and auto-created users are never `IsAdmin`.
+- **State cookie**: the flow state (state, nonce, PKCE verifier, mode, link user
+  id, redirect) is sealed with `utils.SecretboxEncrypt` in a `SameSite=Lax`
+  cookie, because the `Strict` session cookie is not sent on the cross-site
+  callback. The callback must never read the session; link mode takes the user
+  id from the sealed state captured in `Begin`. Clear the cookie on every callback.
+- **Redirects**: only same-origin relative paths are allowed (`redirect.go`).
+  Failures redirect with a fixed error code; never forward IdP error text.
+- **Secrets**: the client secret is encrypted at rest (key derived from
+  `SESSION_SECRET`), write-only in the API (`hasSecret` only, blank on update
+  keeps it), and redacted in audit params. Provider create/update is refused
+  while `config.DefaultSessionSecret` is in use. A secret that no longer decrypts
+  marks the provider broken; it must never crash the app or block local login.
+- **Audit**: the public login/callback routes have no user, so audit would drop
+  them (callback uses `SkipAudit`). Authenticated link/unlink routes are tagged
+  `meta.CategoryOidcLink` / `meta.CategoryOidcUnlink`.
+- **Rate limiting** for these routes is delegated to the edge proxy, not the app.
+- Tests use `httptest` for a fake IdP (discovery, JWKS, token endpoint); there
+  is no DB test harness, so keep logic in pure functions.
