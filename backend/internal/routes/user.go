@@ -14,6 +14,7 @@ func RegisterUserRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handler
 	{
 		userGroup.GET("", userController.GetCurrentUser)
 		userGroup.POST("password", userController.ChangePassword)
+		userGroup.POST("password/set", userController.SetPassword)
 		userGroup.POST("update", userController.UpdateUser)
 		userGroup.POST("invalidate-sessions", userController.InvalidateCurrentUserSessions)
 	}

@@ -7,6 +7,9 @@ type TagCategory string
 const (
 	CategoryLogin  TagCategory = "Login"
 	CategoryStatic TagCategory = "StaticFile"
+
+	CategoryOidcLink   TagCategory = "OidcLink"
+	CategoryOidcUnlink TagCategory = "OidcUnlink"
 )
 
 func Tag(value TagCategory) gin.HandlerFunc {

@@ -29,7 +29,7 @@ func (uc *UserController) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	dataOK(c, user)
+	dataOK(c, dto.NewCurrentUserResponse(user))
 }
 
 func (uc *UserController) ChangePassword(c *gin.Context) {
@@ -48,6 +48,29 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 
 	_ = uc.svc.InvalidateUserSessions(user.ID)
 	_ = clearSession(c)
+
+	isOK(c)
+}
+
+// SetPassword lets an account without a local password (e.g. one created
+// through OIDC) set its first one.
+func (uc *UserController) SetPassword(c *gin.Context) {
+	user, err := mustBindCurrentUser(c)
+	if err != nil {
+		err.JSON(c)
+		return
+	}
+
+	var form dto.SetPasswordForm
+	if err := mustBindForm(c, &form); err != nil {
+		err.JSON(c)
+		return
+	}
+
+	if err := uc.svc.SetPassword(user, form); err != nil {
+		err.JSON(c)
+		return
+	}
 
 	isOK(c)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"packwiz-web/internal/config"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/jobs"
@@ -11,6 +12,7 @@ import (
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/routes"
+	"packwiz-web/internal/services/oidc_svc"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/public"
 	"time"
@@ -63,6 +65,10 @@ func NewRouter() *gin.Engine {
 		packwizFiles.GET(fmt.Sprintf(":%s/:%s", params.ModType, params.ModSlug), tomlController.RenderModToml)
 	}
 
+	// shared so a provider edit invalidates the client cache the login flow uses
+	oidcProviders := oidc_svc.NewProviderService(db, config.C.SessionSecret, config.C.PublicURL)
+	oidcFlow := oidc_svc.NewFlowService(db, oidcProviders, config.C.SessionSecret)
+
 	// -------------------------------------------------------------------------
 	api := router.Group("api", middleware.SessionStore(), middleware.ApiAudit(db))
 	{
@@ -73,13 +79,17 @@ func NewRouter() *gin.Engine {
 			v1.GET("healthcheck", healthController.Status, middleware.SkipAudit)
 
 			routes.RegisterAuthRoutes(v1, db)
+			routes.RegisterOidcAuthRoutes(v1, db, oidcProviders, oidcFlow)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))
 			{
 				routes.RegisterUserRoutes(protectedGroup, db, middleware.SkipAudit)
 
+				routes.RegisterOidcIdentityRoutes(protectedGroup, db, oidcFlow)
+
 				routes.RegisterAdminRoutes(protectedGroup, db, middleware.AdminGuard(db))
+				routes.RegisterOidcAdminRoutes(protectedGroup, db, oidcProviders, middleware.AdminGuard(db))
 
 				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 
