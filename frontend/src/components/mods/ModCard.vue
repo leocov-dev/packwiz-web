@@ -6,6 +6,7 @@ import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
 import {dependencyTooltip, displayVersion, modSideLabel, modVersion, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
+import ModEditDialog from "@/components/mods/ModEditDialog.vue";
 import axios from "axios";
 
 const {packId, mod, canEdit, dependentNames, orphanNames, updateCheck = undefined} = defineProps<{
@@ -76,7 +77,7 @@ const editHint = computed(() => mod.isDependency
   ? (dependentNames.length > 0 ? dependencyHint.value : `Dependencies can't be edited. ${dependencyHint.value}`)
   : "")
 const removeHint = computed(() => removeBlocked.value ? dependencyHint.value : "")
-const modRoute = computed(() => `/packs/${packId}/mod/${mod.id}`)
+const showEditDialog = ref(false)
 const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
 // uses the optimistic pin state so the badge follows a pin toggle immediately
 const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value, version: mod.version}, updateCheck))
@@ -114,6 +115,14 @@ const onTogglePin = async () => {
       :text="removeText"
       accept-text="Remove"
       @accepted="onRemove"
+    />
+
+    <ModEditDialog
+      v-model="showEditDialog"
+      :pack-id="packId"
+      :mod="mod"
+      :pinned="pinned"
+      @reload="emit('reload')"
     />
 
     <v-alert
@@ -157,13 +166,14 @@ const onTogglePin = async () => {
         v-if="sourceLabel"
         size="small"
         label
+        variant="tonal"
         :text="sourceLabel"
       />
       <v-chip
         v-if="sideLabel"
         size="small"
         label
-        variant="outlined"
+        variant="tonal"
         :text="sideLabel"
       />
       <v-chip
@@ -262,11 +272,10 @@ const onTogglePin = async () => {
               >
                 <v-btn
                   density="comfortable"
-                  color="warning"
-                  variant="outlined"
+                  variant="tonal"
                   text="Edit"
-                  :to="modRoute"
                   :disabled="mod.isDependency"
+                  @click="showEditDialog = true"
                 />
               </span>
             </template>
@@ -287,7 +296,7 @@ const onTogglePin = async () => {
                 <v-btn
                   density="comfortable"
                   color="error"
-                  variant="outlined"
+                  variant="text"
                   icon="mdi-delete-outline"
                   aria-label="Remove mod"
                   :disabled="loading || removeBlocked"
@@ -303,6 +312,7 @@ const onTogglePin = async () => {
 </template>
 
 <style scoped>
+/* No Vuetify utility caps width by ch, or hides text visually (see STYLE_GUIDE.md) */
 .mod-version {
   max-width: min(24ch, 100%);
 }

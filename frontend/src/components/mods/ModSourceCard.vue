@@ -48,6 +48,7 @@ const doUpdate = async () => {
 <template>
   <v-card
     v-if="sourceLabel"
+    variant="tonal"
     class="mt-6"
   >
     <v-card-title>
@@ -82,7 +83,7 @@ const doUpdate = async () => {
     <v-card-actions>
       <v-btn
         text="Update from source"
-        variant="outlined"
+        variant="tonal"
         :disabled="loading || disabled || pinned"
         :loading="loading"
         @click="confirmOpen = true"
