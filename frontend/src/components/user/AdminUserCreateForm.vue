@@ -3,7 +3,6 @@ export interface CreateUserFormData {
   username: string,
   fullName: string,
   email: string,
-  password: string,
 }
 </script>
 
@@ -14,13 +13,10 @@ const isValid = ref(false)
 
 const form = ref()
 
-const showPassword = ref(false)
-
 const formModel = reactive<CreateUserFormData>({
   username: '',
   fullName: '',
   email: '',
-  password: '',
 })
 
 const rules = {
@@ -31,8 +27,6 @@ const rules = {
     const pattern = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
     return pattern.test(value) || "Invalid email"
   },
-  passwordRequired: (value: string) => !!value || "Password is required",
-  passwordLength: (value: string) => (value.length >= 12 && value.length <= 64) || "Password must be 12-64 characters",
 }
 </script>
 
@@ -71,17 +65,11 @@ const rules = {
           rules.emailValid,
         ]"
       />
-      <v-text-field
-        v-model="formModel.password"
-        label="Password"
-        :rules="[
-          rules.passwordRequired,
-          rules.passwordLength,
-        ]"
-        :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-        :type="showPassword ? 'text' : 'password'"
-        autocomplete="new-password"
-        @click:append-inner="showPassword = !showPassword"
+      <v-alert
+        type="info"
+        variant="tonal"
+        class="mb-4"
+        text="A random password will be generated. You will be able to copy it once after the user is created."
       />
 
       <div class="d-flex justify-end ga-4">

@@ -106,13 +106,29 @@ func (uc *AdminController) CreateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := uc.svc.CreateUser(request)
+	user, generated, err := uc.svc.CreateUser(request)
 	if err != nil {
 		err.JSON(c)
 		return
 	}
 
-	dataOK(c, user)
+	dataOK(c, dto.CreateUserResponse{User: user, GeneratedPassword: generated})
+}
+
+func (uc *AdminController) ResetUserPassword(c *gin.Context) {
+	userId, err := mustBindIdParam(c, params.UserID)
+	if err != nil {
+		err.JSON(c)
+		return
+	}
+
+	password, resetErr := uc.svc.ResetPassword(userId)
+	if resetErr != nil {
+		resetErr.JSON(c)
+		return
+	}
+
+	dataOK(c, dto.ResetPasswordResponse{Password: password})
 }
 
 func (uc *AdminController) UpdateUser(c *gin.Context) {
@@ -125,6 +141,16 @@ func (uc *AdminController) UpdateUser(c *gin.Context) {
 	var request dto.EditUserRequest
 	if err := mustBindJson(c, &request); err != nil {
 		err.JSON(c)
+		return
+	}
+
+	target, findErr := uc.svc.FindById(userId)
+	if findErr != nil {
+		response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", userId)).JSON(c)
+		return
+	}
+	if target.IsSuperuser {
+		response.New(http.StatusForbidden, "the default admin account cannot be edited").JSON(c)
 		return
 	}
 

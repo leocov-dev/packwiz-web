@@ -144,9 +144,15 @@ const reactivate = async () => {
         @changed="reload"
       />
 
-      <AdminUserIdentities :user-id="userId" />
+      <AdminUserIdentities
+        v-if="!user.isSuperuser"
+        :user-id="userId"
+      />
 
-      <v-card-actions class="ma-3">
+      <v-card-actions
+        v-if="!user.isSuperuser"
+        class="ma-3"
+      >
         <v-btn
           text="Edit"
           @click="router.push(`/admin/users/${userId}/edit`)"

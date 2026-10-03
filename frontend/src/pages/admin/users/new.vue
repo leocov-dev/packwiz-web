@@ -9,14 +9,26 @@ import {createUser} from "@/services/user.service.ts";
 import AdminUserCreateForm, {type CreateUserFormData} from "@/components/user/AdminUserCreateForm.vue";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {AxiosError} from "axios";
+import GeneratedPasswordDialog from "@/components/user/GeneratedPasswordDialog.vue";
 
 const router = useRouter()
 const snackbarStore = useSnackbarStore()
 
+const createdUserId = ref<number>()
+const generatedPassword = ref("")
+const showPassword = ref(false)
+
+const onPasswordDone = async () => {
+  generatedPassword.value = ""
+  await router.push(`/admin/users/${createdUserId.value}`)
+}
+
 const onCreate = async (userData: CreateUserFormData) => {
   try {
-    const user = await createUser(userData)
-    await router.push(`/admin/users/${user.id}`)
+    const {user, generatedPassword: password} = await createUser(userData)
+    createdUserId.value = user.id
+    generatedPassword.value = password
+    showPassword.value = true
   } catch (e) {
     let msg = "Unknown error"
     if (e instanceof AxiosError) {
@@ -30,5 +42,12 @@ const onCreate = async (userData: CreateUserFormData) => {
 <template>
   <div class="ma-6">
     <AdminUserCreateForm @create-user="onCreate" />
+
+    <GeneratedPasswordDialog
+      v-model="showPassword"
+      :password="generatedPassword"
+      title="User created"
+      @done="onPasswordDone"
+    />
   </div>
 </template>

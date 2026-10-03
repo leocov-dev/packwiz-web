@@ -158,14 +158,23 @@ func (s *UserService) UpdateUser(userId uint, request dto.EditUserRequest) respo
 	return nil
 }
 
-func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, response.ServerError) {
+// GeneratedPasswordLength is the length of server-generated passwords.
+const GeneratedPasswordLength = 20
+
+// CreateUser creates a user. When request.Password is empty a random password
+// is generated; the plaintext is returned (second value) only in that case.
+func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, string, response.ServerError) {
 	if strings.ToLower(request.Username) == "admin" {
-		return tables.User{}, response.New(http.StatusBadRequest, "all forms of 'admin' username are reserved")
+		return tables.User{}, "", response.New(http.StatusBadRequest, "all forms of 'admin' username are reserved")
 	}
 
 	password := strings.TrimSpace(request.Password)
-	if !s.CheckPasswordComplexity(password) {
-		return tables.User{}, response.New(
+	generated := ""
+	if password == "" {
+		password = utils.GeneratePassword(GeneratedPasswordLength)
+		generated = password
+	} else if !s.CheckPasswordComplexity(password) {
+		return tables.User{}, "", response.New(
 			http.StatusBadRequest,
 			"Password must contain at least one letter and one number",
 		)
@@ -175,15 +184,15 @@ func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, re
 	if err := s.db.Model(&tables.User{}).
 		Where("username = ? OR email = ?", request.Username, request.Email).
 		Count(&existing).Error; err != nil {
-		return tables.User{}, response.New(http.StatusInternalServerError, "failed to check for existing user")
+		return tables.User{}, "", response.New(http.StatusInternalServerError, "failed to check for existing user")
 	}
 	if existing > 0 {
-		return tables.User{}, response.New(http.StatusConflict, "username or email already in use")
+		return tables.User{}, "", response.New(http.StatusConflict, "username or email already in use")
 	}
 
 	hashed, err := utils.HashPassword(password)
 	if err != nil {
-		return tables.User{}, response.New(http.StatusInternalServerError, "Failed to hash password")
+		return tables.User{}, "", response.New(http.StatusInternalServerError, "Failed to hash password")
 	}
 
 	user := tables.User{
@@ -201,10 +210,40 @@ func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, re
 		}
 		return AssignDefaultRole(tx, user.ID)
 	}); err != nil {
-		return tables.User{}, response.New(http.StatusInternalServerError, "failed to create db user")
+		return tables.User{}, "", response.New(http.StatusInternalServerError, "failed to create db user")
 	}
 
-	return user, nil
+	return user, generated, nil
+}
+
+// ResetPassword replaces a user's password with a random one, invalidates
+// their sessions, and returns the new plaintext password.
+func (s *UserService) ResetPassword(targetUserId uint) (string, response.ServerError) {
+	target, err := s.FindById(targetUserId)
+	if err != nil {
+		return "", response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", targetUserId))
+	}
+	if target.IsSuperuser || target.Username == "admin" {
+		return "", response.New(http.StatusForbidden, "the default admin account password cannot be reset")
+	}
+
+	password := utils.GeneratePassword(GeneratedPasswordLength)
+	hashed, hashErr := utils.HashPassword(password)
+	if hashErr != nil {
+		return "", response.New(http.StatusInternalServerError, "Failed to hash password")
+	}
+
+	if err := s.db.Model(&tables.User{}).
+		Where("id = ?", target.ID).
+		Update("password", hashed).Error; err != nil {
+		return "", response.New(http.StatusInternalServerError, "failed to update db password")
+	}
+
+	if sessErr := s.InvalidateUserSessions(target.ID); sessErr != nil {
+		return "", sessErr
+	}
+
+	return password, nil
 }
 
 func (s *UserService) DeactivateUser(actingUser tables.User, targetUserId uint) response.ServerError {
@@ -214,7 +253,7 @@ func (s *UserService) DeactivateUser(actingUser tables.User, targetUserId uint) 
 	}
 
 	if target.IsSuperuser {
-		return response.New(http.StatusBadRequest, "the default admin account cannot be deactivated")
+		return response.New(http.StatusForbidden, "the default admin account cannot be deactivated")
 	}
 
 	if actingUser.ID == targetUserId {

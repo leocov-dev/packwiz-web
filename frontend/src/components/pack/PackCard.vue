@@ -3,14 +3,12 @@ import {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
-import {toTitleCase} from "@/services/utils.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
 const {can} = usePackPermissions(() => pack)
 
-// display only; access is decided by permission names
-const roleLabel = computed(() => pack.currentUserRole ? toTitleCase(pack.currentUserRole) : "Global")
+const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
 </script>
 
 <template>
@@ -40,7 +38,7 @@ const roleLabel = computed(() => pack.currentUserRole ? toTitleCase(pack.current
       <v-btn
         v-if="can(Perm.PackView)"
         class="me-auto"
-        :text="roleLabel"
+        :text="viewLabel"
         :to="`/packs/${pack.id}`"
         variant="tonal"
         density="comfortable"

@@ -7,10 +7,12 @@ meta:
 import {useRoute, useRouter} from "vue-router";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import type {User} from "@/interfaces/user.ts";
-import {fetchUserById, updateUserById} from "@/services/user.service.ts";
+import {fetchUserById, resetUserPassword, updateUserById} from "@/services/user.service.ts";
 import AdminUserEditForm, {type UserProfileFormData} from "@/components/user/AdminUserEditForm.vue";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {AxiosError} from "axios";
+import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
+import GeneratedPasswordDialog from "@/components/user/GeneratedPasswordDialog.vue";
 
 const route = useRoute<'/admin/users/[id].edit'>()
 const router = useRouter()
@@ -25,6 +27,27 @@ const {
 } = buildDataLoader<User>(async () => {
   return fetchUserById(userId.value)
 })
+
+const confirmReset = ref(false)
+const showPassword = ref(false)
+const generatedPassword = ref("")
+
+const onResetPassword = async () => {
+  try {
+    generatedPassword.value = await resetUserPassword(userId.value)
+    showPassword.value = true
+  } catch (e) {
+    let msg = "Unknown error"
+    if (e instanceof AxiosError) {
+      msg = e.response?.data?.msg || "Unknown error"
+    }
+    snackbarStore.showSnackbar(msg, "error")
+  }
+}
+
+const onPasswordDone = () => {
+  generatedPassword.value = ""
+}
 
 const onUpdate = async (userData: UserProfileFormData) => {
   try {
@@ -59,10 +82,45 @@ const onUpdate = async (userData: UserProfileFormData) => {
       text="Failed to load user."
     />
 
+    <v-alert
+      v-else-if="user.isSuperuser"
+      type="info"
+      variant="tonal"
+      text="The default admin account cannot be edited."
+    />
+
     <AdminUserEditForm
       v-else
       :user="user"
       @update-user="onUpdate"
+    />
+
+    <div
+      v-if="user && !user.isSuperuser"
+      class="mt-6"
+    >
+      <v-btn
+        text="Reset password"
+        prepend-icon="mdi-lock-reset"
+        color="warning"
+        variant="tonal"
+        @click="confirmReset = true"
+      />
+    </div>
+
+    <ConfirmationDialog
+      v-model="confirmReset"
+      title="Reset password"
+      text="Generate a new random password for this user? Their current password stops working and they are signed out."
+      accept-text="Reset"
+      @accepted="onResetPassword"
+    />
+
+    <GeneratedPasswordDialog
+      v-model="showPassword"
+      :password="generatedPassword"
+      title="Password reset"
+      @done="onPasswordDone"
     />
   </div>
 </template>

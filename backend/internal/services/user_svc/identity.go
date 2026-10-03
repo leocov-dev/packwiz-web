@@ -99,8 +99,19 @@ func (s *UserService) HasIdentityAtProvider(userID, providerID uint) (bool, erro
 	return count > 0, nil
 }
 
+// ErrProtectedUser is returned when an operation is not allowed on the default admin.
+var ErrProtectedUser = errors.New("the default admin account cannot have linked accounts")
+
 // LinkIdentity attaches an external identity to an existing user.
 func (s *UserService) LinkIdentity(userID, providerID uint, subject, email string) error {
+	target, err := s.FindById(userID)
+	if err != nil {
+		return fmt.Errorf("link identity: find user: %w", err)
+	}
+	if target.IsSuperuser {
+		return ErrProtectedUser
+	}
+
 	now := time.Now()
 	identity := tables.UserIdentity{
 		UserID:      userID,

@@ -4,28 +4,37 @@ import {useAppTheme} from "@/composables/userTheme.ts"
 
 const {userTheme} = useAppTheme()
 
+const options = [
+  {value: "system", label: "System", icon: "mdi-laptop"},
+  {value: "light", label: "Light", icon: "mdi-white-balance-sunny"},
+  {value: "dark", label: "Dark", icon: "mdi-weather-night"},
+]
+
 </script>
 
 <template>
-  <v-radio-group
-    v-model="userTheme"
-    inline
-    class="d-flex"
-  >
-    <v-radio value="system">
-      <template #label>
-        <v-icon icon="mdi-desktop-classic" />
-      </template>
-    </v-radio>
-    <v-radio value="dark">
-      <template #label>
-        <v-icon icon="mdi-brightness-3" />
-      </template>
-    </v-radio>
-    <v-radio value="light">
-      <template #label>
-        <v-icon icon="mdi-brightness-5" />
-      </template>
-    </v-radio>
-  </v-radio-group>
+  <div>
+    <div class="text-caption text-medium-emphasis mb-1">
+      Theme
+    </div>
+    <v-btn-toggle
+      v-model="userTheme"
+      mandatory
+      divided
+      density="comfortable"
+      variant="outlined"
+      color="primary"
+      class="w-100"
+    >
+      <v-btn
+        v-for="option in options"
+        :key="option.value"
+        :value="option.value"
+        :prepend-icon="option.icon"
+        :text="option.label"
+        class="flex-grow-1"
+        size="small"
+      />
+    </v-btn-toggle>
+  </div>
 </template>

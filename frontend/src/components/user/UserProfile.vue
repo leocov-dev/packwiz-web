@@ -17,6 +17,8 @@ const {user} = defineProps<{ user: User }>()
 
 const event = defineEmits(['update-user'])
 
+const isDefaultAdmin = computed(() => user.isSuperuser === true || user.username === 'admin')
+
 const isValid = ref(true)
 
 const form = ref()
@@ -130,12 +132,13 @@ watch(
         v-model.trim="formModel.username"
         label="Username"
         :rules="[rules.usernameRequired]"
-        :disabled="user.username === 'admin'"
+        :disabled="isDefaultAdmin"
       />
       <v-text-field
         v-model.trim="formModel.fullName"
         label="Name"
         :rules="[rules.nameRequired]"
+        :disabled="isDefaultAdmin"
       />
       <v-text-field
         v-model.trim="formModel.email"
@@ -144,6 +147,7 @@ watch(
           rules.emailRequired,
           rules.emailValid,
         ]"
+        :disabled="isDefaultAdmin"
       />
 
       <div
@@ -167,7 +171,7 @@ watch(
   </v-card>
 
   <LinkedAccounts
-    v-if="user.username !== 'admin'"
+    v-if="!user.isSuperuser && user.username !== 'admin'"
     class="mt-4"
   />
 

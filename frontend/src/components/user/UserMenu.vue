@@ -76,9 +76,7 @@ const showMenu = ref(false)
           <v-list-item-subtitle>User Profile</v-list-item-subtitle>
         </v-list-item>
 
-        <v-list-item
-          prepend-icon="mdi-theme-light-dark"
-        >
+        <v-list-item>
           <ThemeSwitch />
         </v-list-item>
 

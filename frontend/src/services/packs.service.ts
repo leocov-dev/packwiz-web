@@ -14,6 +14,7 @@ import {
 } from "@/interfaces/pack";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
+import {writeToClipboard} from "@/lib/clipboard";
 import type {EditPackRequest, MigratePackRequest, NewPackRequest, RehashRequest} from "@/interfaces/requests.ts";
 
 
@@ -67,32 +68,6 @@ export async function getPackPublicLink(packId: number): Promise<string> {
   return response.data['link']
 }
 
-
-async function writeToClipboard(text: string) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      return
-    } catch {
-      // Fall back for browsers that expose the Clipboard API but reject the
-      // write because the page is not secure or clipboard permission is denied.
-    }
-  }
-
-  const textArea = document.createElement('textarea')
-  textArea.value = text
-  textArea.style.position = 'fixed'
-  textArea.style.opacity = '0'
-  document.body.appendChild(textArea)
-  textArea.select()
-
-  const copied = document.execCommand('copy')
-  document.body.removeChild(textArea)
-
-  if (!copied) {
-    throw new Error('Unable to copy link to clipboard')
-  }
-}
 
 export async function linkToClipboard(packId: number) {
   const link = await getPackPublicLink(packId)

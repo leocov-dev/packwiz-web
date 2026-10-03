@@ -53,9 +53,20 @@ export async function updateUserById(id: number, userData: UserProfileFormData):
   await apiClient.patch(`v1/admin/users/${id}`, userData)
 }
 
-export async function createUser(userData: CreateUserFormData): Promise<User> {
+export interface CreatedUser {
+  user: User
+  generatedPassword: string
+}
+
+export async function createUser(userData: CreateUserFormData): Promise<CreatedUser> {
   const response = await apiClient.post('v1/admin/users', userData)
-  return plainToInstance(User, response.data)
+  const {generatedPassword, ...user} = response.data
+  return {user: plainToInstance(User, user), generatedPassword: generatedPassword ?? ''}
+}
+
+export async function resetUserPassword(id: number): Promise<string> {
+  const response = await apiClient.post(`v1/admin/users/${id}/reset-password`)
+  return response.data.password
 }
 
 export async function deactivateUserById(id: number): Promise<void> {

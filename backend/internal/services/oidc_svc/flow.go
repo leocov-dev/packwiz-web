@@ -151,7 +151,7 @@ func (f *FlowService) BeginLogin(ctx context.Context, slug, redirect string) (Be
 // user id is sealed into the state, so the callback never has to read the
 // session (whose Strict cookie is not sent on the cross-site return).
 func (f *FlowService) BeginLink(ctx context.Context, slug string, user tables.User) (BeginResult, *FlowError) {
-	if user.Username == "admin" {
+	if user.IsSuperuser || user.Username == "admin" {
 		return BeginResult{}, flowErr(CodeNotPermitted, errors.New("admin cannot link identities"))
 	}
 	return f.begin(ctx, slug, ModeLink, user.ID, profilePath)

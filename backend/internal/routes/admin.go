@@ -19,6 +19,7 @@ func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handle
 		adminGroup.PATCH("users/:userId", middleware.RequirePermission(authz_svc.UserManage), adminController.UpdateUser)
 		adminGroup.PATCH("users/:userId/deactivate", middleware.RequirePermission(authz_svc.UserManage), adminController.DeactivateUser)
 		adminGroup.PATCH("users/:userId/reactivate", middleware.RequirePermission(authz_svc.UserManage), adminController.ReactivateUser)
+		adminGroup.POST("users/:userId/reset-password", middleware.RequirePermission(authz_svc.UserManage), adminController.ResetUserPassword)
 		adminGroup.GET("roles", middleware.RequirePermission(authz_svc.UserView), adminController.ListRoles)
 		adminGroup.GET("permissions", middleware.RequirePermission(authz_svc.UserView), adminController.ListPermissions)
 		adminGroup.PUT("users/:userId/roles", middleware.RequirePermission(authz_svc.UserRolesAssign), adminController.SetUserRoles)

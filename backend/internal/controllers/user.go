@@ -3,10 +3,12 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"net/http"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
+	"packwiz-web/internal/types/response"
 )
 
 type UserController struct {
@@ -89,9 +91,10 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// admin can never change username
-	if currentUser.Username == "admin" {
-		request.Username = "admin"
+	// the default admin account profile is fixed
+	if currentUser.IsSuperuser || currentUser.Username == "admin" {
+		response.New(http.StatusForbidden, "the default admin account cannot be edited").JSON(c)
+		return
 	}
 
 	if err := uc.svc.UpdateUser(currentUser.ID, request); err != nil {

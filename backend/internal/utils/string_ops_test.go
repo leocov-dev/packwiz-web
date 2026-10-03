@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 	"unicode"
 )
@@ -36,6 +37,43 @@ func TestGenerateLinkToken(t *testing.T) {
 				t.Error("Generated duplicate string")
 			}
 			seen[result] = true
+		}
+	})
+}
+
+func TestGeneratePassword(t *testing.T) {
+	t.Run("length and minimum", func(t *testing.T) {
+		if got := len(GeneratePassword(20)); got != 20 {
+			t.Errorf("expected 20, got %d", got)
+		}
+		if got := len(GeneratePassword(3)); got != 12 {
+			t.Errorf("expected minimum 12, got %d", got)
+		}
+	})
+
+	t.Run("has letter and digit, only allowed chars", func(t *testing.T) {
+		for i := 0; i < 500; i++ {
+			pw := GeneratePassword(12)
+			hasLetter, hasDigit := false, false
+			for _, ch := range pw {
+				switch {
+				case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z':
+					hasLetter = true
+				case ch >= '0' && ch <= '9':
+					hasDigit = true
+				case !strings.ContainsRune(passwordSymbols, ch):
+					t.Fatalf("invalid character %q in %q", ch, pw)
+				}
+			}
+			if !hasLetter || !hasDigit {
+				t.Fatalf("password %q missing letter or digit", pw)
+			}
+		}
+	})
+
+	t.Run("generates different passwords", func(t *testing.T) {
+		if GeneratePassword(20) == GeneratePassword(20) {
+			t.Error("expected different passwords")
 		}
 	})
 }
