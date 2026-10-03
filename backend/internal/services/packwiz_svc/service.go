@@ -164,7 +164,7 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		return createPackWithOwner(tx, newPack, author)
+		return CreatePackWithOwner(tx, newPack, author)
 	}); err != nil {
 		return 0, response.Wrap(err)
 	}
@@ -172,8 +172,8 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	return newPack.ID, nil
 }
 
-// createPackWithOwner inserts pack and grants author the owner role on it.
-func createPackWithOwner(tx *gorm.DB, pack *tables.Pack, author tables.User) error {
+// CreatePackWithOwner inserts pack and grants author the owner role on it.
+func CreatePackWithOwner(tx *gorm.DB, pack *tables.Pack, author tables.User) error {
 	var owner tables.Role
 	if err := tx.Where("name = ? AND scope = ?", "owner", tables.RoleScopePack).First(&owner).Error; err != nil {
 		return fmt.Errorf("find owner role: %w", err)

@@ -19,7 +19,7 @@ func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 		// ---------------------------------------------------------
 		importController := controllers.NewImportController(db)
 
-		packwizGroup.GET("upload", middleware.RequirePermission(authz_svc.PackCreate), importController.UploadPackwizArchive)
+		packwizGroup.POST("import", middleware.RequirePermission(authz_svc.PackCreate), importController.ImportPack)
 
 		// ---------------------------------------------------------
 

@@ -505,7 +505,7 @@ func (ps *PackwizService) CloneFromSnapshot(packId, snapshotId uint, request dto
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		if err := createPackWithOwner(tx, newPack, user); err != nil {
+		if err := CreatePackWithOwner(tx, newPack, user); err != nil {
 			return err
 		}
 		if err := insertHistoryMods(tx, newPack.ID, user.ID, payload.Mods); err != nil {
