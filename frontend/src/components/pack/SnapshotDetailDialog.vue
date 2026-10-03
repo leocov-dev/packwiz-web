@@ -8,7 +8,9 @@ import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {usePermissions} from "@/composables/usePermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
 import {
+  canRebaseSnapshot,
   canRevertSnapshot,
+  rebaseConfirmText,
   revertConfirmText,
   revertLabel,
   snapshotReasonIcon,
@@ -16,7 +18,7 @@ import {
   snapshotSubject,
   summarizeSnapshot,
 } from "@/lib/snapshots.ts";
-import {fetchPackSnapshot, revertToSnapshot} from "@/services/snapshots.service.ts";
+import {fetchPackSnapshot, rebaseOnSnapshot, revertToSnapshot} from "@/services/snapshots.service.ts";
 import {apiErrorMessage} from "@/services/utils.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 
@@ -27,7 +29,7 @@ const {pack, snapshot} = defineProps<{
   snapshot: PackSnapshot | null
 }>()
 
-const emit = defineEmits<{ reverted: [] }>()
+const emit = defineEmits<{ reverted: [], rebased: [] }>()
 
 const {can} = usePackPermissions(() => pack)
 const {can: canGlobal} = usePermissions()
@@ -43,11 +45,16 @@ let loadGeneration = 0
 const canRevert = computed(() =>
   snapshot !== null && canRevertSnapshot(snapshot, can(Perm.PackSnapshotRevert)),
 )
+const canRebase = computed(() =>
+  snapshot !== null && canRebaseSnapshot(snapshot, can(Perm.PackSnapshotManage)),
+)
 const canClone = computed(() => can(Perm.PackSnapshotView) && canGlobal(Perm.PackCreate))
 
 const showRevertConfirm = ref(false)
 const showClone = ref(false)
+const showRebaseConfirm = ref(false)
 const isReverting = ref(false)
+const isRebasing = ref(false)
 
 const load = async () => {
   if (!snapshot) {
@@ -105,6 +112,29 @@ const doRevert = async () => {
     error.value = apiErrorMessage(e, 'Failed to revert the pack.')
   } finally {
     isReverting.value = false
+  }
+}
+
+const doRebase = async () => {
+  if (!snapshot) {
+    return
+  }
+
+  isRebasing.value = true
+  error.value = ''
+  try {
+    const result = await rebaseOnSnapshot(pack.id, snapshot.id)
+    snackbar.showSnackbar(
+      `History now starts at snapshot #${snapshot.seq} (${result.deleted} deleted)`,
+      'success',
+      4000,
+    )
+    open.value = false
+    emit('rebased')
+  } catch (e) {
+    error.value = apiErrorMessage(e, 'Failed to rebase the history.')
+  } finally {
+    isRebasing.value = false
   }
 }
 </script>
@@ -210,6 +240,15 @@ const doRevert = async () => {
           @click="showClone = true"
         />
         <v-btn
+          v-if="canRebase"
+          text="Rebase history here"
+          variant="tonal"
+          color="error"
+          prepend-icon="mdi-source-branch-remove"
+          :loading="isRebasing"
+          @click="showRebaseConfirm = true"
+        />
+        <v-btn
           v-if="canRevert"
           :text="revertLabel(snapshot)"
           variant="tonal"
@@ -229,6 +268,13 @@ const doRevert = async () => {
       :text="revertConfirmText(snapshot)"
       accept-text="Revert"
       @accepted="doRevert"
+    />
+    <ConfirmationDialog
+      v-model="showRebaseConfirm"
+      title="Rebase history?"
+      :text="rebaseConfirmText(snapshot)"
+      accept-text="Rebase"
+      @accepted="doRebase"
     />
     <CloneSnapshotDialog
       v-model="showClone"

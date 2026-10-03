@@ -11,6 +11,8 @@ import {
   cloneFromSnapshot,
   fetchPackSnapshot,
   fetchPackSnapshots,
+  pruneSnapshots,
+  rebaseOnSnapshot,
   revertToSnapshot,
 } from "@/services/snapshots.service.ts"
 import {PackSnapshot} from "@/interfaces/snapshot.ts"
@@ -89,5 +91,27 @@ describe("cloneFromSnapshot", () => {
 
     expect(post).toHaveBeenCalledWith("v1/packwiz/pack/12/snapshots/7/clone", {slug: "copy", name: "Copy"})
     expect(pack.id).toBe(99)
+  })
+})
+
+describe("pruneSnapshots", () => {
+  it("posts to the prune endpoint", async () => {
+    post.mockResolvedValue({data: {deleted: 3}})
+
+    const result = await pruneSnapshots(12)
+
+    expect(post).toHaveBeenCalledWith("v1/packwiz/pack/12/snapshots/prune")
+    expect(result.deleted).toBe(3)
+  })
+})
+
+describe("rebaseOnSnapshot", () => {
+  it("posts to the snapshot's rebase endpoint", async () => {
+    post.mockResolvedValue({data: {deleted: 5}})
+
+    const result = await rebaseOnSnapshot(12, 7)
+
+    expect(post).toHaveBeenCalledWith("v1/packwiz/pack/12/snapshots/7/rebase")
+    expect(result.deleted).toBe(5)
   })
 })

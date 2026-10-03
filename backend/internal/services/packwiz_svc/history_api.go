@@ -537,3 +537,84 @@ func (ps *PackwizService) CloneFromSnapshot(packId, snapshotId uint, request dto
 
 	return newPack.ID, nil
 }
+
+// PruneSnapshots permanently deletes the pack's abandoned snapshots, the
+// branches left behind by reverts. The live chain is untouched. Not allowed on
+// an archived pack.
+func (ps *PackwizService) PruneSnapshots(packId uint) (dto.PruneSnapshotsResponse, response.ServerError) {
+	var deleted int64
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		pack, err := lockPackRow(tx, packId)
+		if err != nil {
+			return err
+		}
+		if pack.DeletedAt.Valid {
+			return errPackArchived
+		}
+
+		// one statement: abandoned snapshots reference each other through parent_id
+		result := tx.Where("pack_id = ? AND abandoned_at IS NOT NULL", packId).Delete(&tables.PackSnapshot{})
+		if result.Error != nil {
+			return fmt.Errorf("prune snapshots of pack %d: %w", packId, result.Error)
+		}
+		deleted = result.RowsAffected
+		return nil
+	}); err != nil {
+		return dto.PruneSnapshotsResponse{}, snapshotErr(err)
+	}
+
+	return dto.PruneSnapshotsResponse{Deleted: deleted}, nil
+}
+
+// RebaseOnSnapshot makes a live snapshot the root of the pack's history and
+// permanently deletes every snapshot before it, abandoned ones included. The
+// root loses its parent and its summary is recomputed against an empty pack,
+// as for a first snapshot. Snapshots after the root, and the pack itself, are
+// untouched. Not allowed on an archived pack or an abandoned snapshot.
+func (ps *PackwizService) RebaseOnSnapshot(packId, snapshotId uint) (dto.RebaseSnapshotResponse, response.ServerError) {
+	var deleted int64
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		pack, err := lockPackRow(tx, packId)
+		if err != nil {
+			return err
+		}
+		if pack.DeletedAt.Valid {
+			return errPackArchived
+		}
+
+		root, err := ps.loadSnapshot(tx, packId, snapshotId)
+		if err != nil {
+			return err
+		}
+		if root.AbandonedAt != nil {
+			return errSnapshotAbandoned
+		}
+
+		payload, err := decodeHistoryPayload(root.SchemaVersion, root.Payload)
+		if err != nil {
+			return err
+		}
+		summaryJSON, err := json.Marshal(summarizeHistoryDiff(diffHistory(emptyHistoryPayload(), payload)))
+		if err != nil {
+			return fmt.Errorf("encode snapshot summary: %w", err)
+		}
+
+		if err := tx.Model(&tables.PackSnapshot{}).
+			Where("id = ?", root.ID).
+			Updates(map[string]any{"parent_id": nil, "summary": datatypes.JSON(summaryJSON)}).Error; err != nil {
+			return fmt.Errorf("detach snapshot %d: %w", root.ID, err)
+		}
+
+		// one statement: the older snapshots reference each other through parent_id
+		result := tx.Where("pack_id = ? AND seq < ?", packId, root.Seq).Delete(&tables.PackSnapshot{})
+		if result.Error != nil {
+			return fmt.Errorf("delete snapshots before %d: %w", root.ID, result.Error)
+		}
+		deleted = result.RowsAffected
+		return nil
+	}); err != nil {
+		return dto.RebaseSnapshotResponse{}, snapshotErr(err)
+	}
+
+	return dto.RebaseSnapshotResponse{Deleted: deleted}, nil
+}

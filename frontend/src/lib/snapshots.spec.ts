@@ -1,6 +1,8 @@
 import {describe, expect, it} from "vitest"
 import {
+  canRebaseSnapshot,
   canRevertSnapshot,
+  rebaseConfirmText,
   fieldLabel,
   formatFieldValue,
   revertConfirmText,
@@ -117,5 +119,18 @@ describe("revert rules", () => {
     expect(revertConfirmText({isHead: false, seq: 3})).toContain("abandoned")
     expect(revertConfirmText({isHead: false, seq: 3})).toContain("#3")
     expect(revertConfirmText({isHead: true, seq: 3})).not.toContain("abandoned")
+  })
+})
+
+describe("rebase", () => {
+  it("needs manage permission and a live snapshot", () => {
+    expect(canRebaseSnapshot({isAbandoned: true}, true)).toBe(false)
+    expect(canRebaseSnapshot({isAbandoned: false}, false)).toBe(false)
+    expect(canRebaseSnapshot({isAbandoned: false}, true)).toBe(true)
+  })
+
+  it("warns that earlier history is deleted", () => {
+    expect(rebaseConfirmText({seq: 4})).toContain("#4")
+    expect(rebaseConfirmText({seq: 4})).toContain("permanently deleted")
   })
 })

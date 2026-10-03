@@ -128,6 +128,42 @@ func (pc *PackSnapshotController) CloneFromSnapshot(c *gin.Context) {
 	dataOK(c, pack)
 }
 
+// PruneSnapshots permanently deletes the pack's abandoned snapshots.
+func (pc *PackSnapshotController) PruneSnapshots(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.PruneSnapshots(packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}
+
+// RebaseOnSnapshot makes a snapshot the root of the pack's history and
+// permanently deletes everything before it.
+func (pc *PackSnapshotController) RebaseOnSnapshot(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	snapshotId, err := mustBindIdParam(c, params.SnapshotId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.RebaseOnSnapshot(packId, snapshotId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}
+
 // abortWithError exits the request if err is not nil.
 func (pc *PackSnapshotController) abortWithError(c *gin.Context, err response.ServerError) bool {
 	if err != nil {

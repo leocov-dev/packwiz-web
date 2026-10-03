@@ -79,3 +79,11 @@ export class RevertSnapshotResponse {
   changed!: boolean;
   headId!: number;
 }
+
+export class PruneSnapshotsResponse {
+  deleted!: number;
+}
+
+export class RebaseSnapshotResponse {
+  deleted!: number;
+}

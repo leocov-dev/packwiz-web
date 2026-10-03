@@ -1,21 +1,30 @@
 <script setup lang="ts">
 import {PackStatus, type PackResponse} from "@/interfaces/pack.ts";
 import type {PackSnapshot} from "@/interfaces/snapshot.ts";
+import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import SnapshotDetailDialog from "@/components/pack/SnapshotDetailDialog.vue";
+import {usePackPermissions} from "@/composables/usePackPermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
+import {apiErrorMessage} from "@/services/utils.ts";
+import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import {
+  pruneConfirmText,
   snapshotReasonIcon,
   snapshotReasonLabel,
   snapshotSubject,
   summarizeSnapshot,
 } from "@/lib/snapshots.ts";
-import {fetchPackSnapshots} from "@/services/snapshots.service.ts";
+import {fetchPackSnapshots, pruneSnapshots} from "@/services/snapshots.service.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
 const emit = defineEmits<{ reload: [] }>()
 
 const router = useRouter()
+const snackbar = useSnackbarStore()
+const {can} = usePackPermissions(() => pack)
+const canManage = computed(() => can(Perm.PackSnapshotManage))
 
 const page = ref(1)
 const itemsPerPage = ref(25)
@@ -69,6 +78,29 @@ const onReverted = () => {
   emit('reload')
 }
 
+// a rebase deletes history only; the pack is unchanged, so only this list reloads
+const onRebased = () => {
+  page.value = 1
+  reload()
+}
+
+const showPruneConfirm = ref(false)
+const isPruning = ref(false)
+
+const doPrune = async () => {
+  isPruning.value = true
+  try {
+    const result = await pruneSnapshots(pack.id)
+    snackbar.showSnackbar(`Deleted ${result.deleted} abandoned snapshot${result.deleted === 1 ? '' : 's'}`, 'success', 4000)
+    page.value = 1
+    reload()
+  } catch (e) {
+    snackbar.showSnackbar(apiErrorMessage(e, 'Failed to prune the history.'), 'error', 6000)
+  } finally {
+    isPruning.value = false
+  }
+}
+
 const backToPack = async () => {
   await router.push({path: `/packs/${pack.id}`})
 }
@@ -81,6 +113,14 @@ const backToPack = async () => {
       :pack="pack"
       :snapshot="selected"
       @reverted="onReverted"
+      @rebased="onRebased"
+    />
+    <ConfirmationDialog
+      v-model="showPruneConfirm"
+      title="Prune history?"
+      :text="pruneConfirmText"
+      accept-text="Prune"
+      @accepted="doPrune"
     />
 
     <v-card>
@@ -129,6 +169,17 @@ const backToPack = async () => {
                 hide-details
               />
               <v-spacer />
+              <v-btn
+                v-if="canManage"
+                class="me-2"
+                text="Prune abandoned"
+                prepend-icon="mdi-source-branch-remove"
+                variant="tonal"
+                color="error"
+                density="comfortable"
+                :loading="isPruning"
+                @click="showPruneConfirm = true"
+              />
               <v-btn
                 icon="mdi-refresh"
                 variant="text"

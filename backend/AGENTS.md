@@ -207,9 +207,11 @@ A published pack keeps a full snapshot of its content after every change (tables
 - **Drafts and archived packs record nothing.** Publishing records a snapshot if the
   content differs from the head. A published pack with no head gets a `baseline`
   snapshot before its first change (`ensureHistoryBaseline`).
-- **Snapshots are never deleted.** A revert marks the live snapshots after its target
-  `abandoned` and moves the head; it writes no new snapshot. Abandoned snapshots can be
-  viewed and cloned, not restored.
+- **Snapshots are only deleted by prune and rebase** (`pack.snapshot.manage`). A revert
+  marks the live snapshots after its target `abandoned` and moves the head; it writes no
+  new snapshot. Abandoned snapshots can be viewed and cloned, not restored. Prune deletes
+  all abandoned snapshots. Rebase makes a live snapshot the root (parent cleared, summary
+  recomputed against an empty pack) and deletes every snapshot with a lower `seq`.
 - **Mods are stored by slug**, dependencies as slugs, so a revert keeps row ids (and
   `mod_update_checks`) for mods that still exist. `mods.version` is display-only: it is
   stored but excluded from the content hash.

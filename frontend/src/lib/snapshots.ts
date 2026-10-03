@@ -141,3 +141,15 @@ export function revertConfirmText(snapshot: Pick<PackSnapshot, "isHead" | "seq">
   }
   return `The pack will be restored to snapshot #${snapshot.seq}. Every later snapshot will be marked abandoned and can no longer be restored, though it stays in the history. This cannot be undone.`
 }
+
+/** An abandoned snapshot is never part of the live history, so it cannot be a new root. */
+export function canRebaseSnapshot(snapshot: Pick<PackSnapshot, "isAbandoned">, hasManagePermission: boolean): boolean {
+  return hasManagePermission && !snapshot.isAbandoned
+}
+
+export function rebaseConfirmText(snapshot: Pick<PackSnapshot, "seq">): string {
+  return `Snapshot #${snapshot.seq} becomes the first snapshot of this pack. Every snapshot before it, including abandoned ones, is permanently deleted and can no longer be viewed, cloned or restored. The pack itself is not changed. This cannot be undone.`
+}
+
+export const pruneConfirmText =
+  "Every abandoned snapshot of this pack is permanently deleted and can no longer be viewed or cloned. Live history and the pack itself are not changed. This cannot be undone."

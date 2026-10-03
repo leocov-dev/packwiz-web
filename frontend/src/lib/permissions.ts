@@ -27,6 +27,7 @@ export const Perm = {
   PackUsersManage: "pack.users.manage",
   PackSnapshotView: "pack.snapshot.view",
   PackSnapshotRevert: "pack.snapshot.revert",
+  PackSnapshotManage: "pack.snapshot.manage",
 } as const
 
 export type PermissionName = typeof Perm[keyof typeof Perm]

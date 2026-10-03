@@ -4,6 +4,8 @@ import {PackResponse} from "@/interfaces/pack.ts";
 import {
   PackSnapshotDetailResponse,
   PackSnapshotListResponse,
+  PruneSnapshotsResponse,
+  RebaseSnapshotResponse,
   RevertSnapshotResponse,
   type SnapshotAgainst,
 } from "@/interfaces/snapshot.ts";
@@ -56,4 +58,14 @@ export async function cloneFromSnapshot(
 ): Promise<PackResponse> {
   const response = await apiClient.post(snapshotsUrl(packId, snapshotId, "clone"), request)
   return plainToInstance(PackResponse, response.data)
+}
+
+export async function pruneSnapshots(packId: number): Promise<PruneSnapshotsResponse> {
+  const response = await apiClient.post(`${snapshotsUrl(packId)}/prune`)
+  return plainToInstance(PruneSnapshotsResponse, response.data)
+}
+
+export async function rebaseOnSnapshot(packId: number, snapshotId: number): Promise<RebaseSnapshotResponse> {
+  const response = await apiClient.post(snapshotsUrl(packId, snapshotId, "rebase"))
+  return plainToInstance(RebaseSnapshotResponse, response.data)
 }

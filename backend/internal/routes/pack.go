@@ -61,6 +61,8 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 				snapshotsGroup.GET(fmt.Sprintf(":%s", params.SnapshotId), can(authz_svc.PackSnapshotView), snapshotController.GetSnapshot)
 				snapshotsGroup.POST(fmt.Sprintf(":%s/revert", params.SnapshotId), can(authz_svc.PackSnapshotRevert), meta.Tag(meta.CategoryPackRevert), snapshotController.RevertToSnapshot)
 				snapshotsGroup.POST(fmt.Sprintf(":%s/clone", params.SnapshotId), can(authz_svc.PackSnapshotView), middleware.RequirePermission(authz_svc.PackCreate), meta.Tag(meta.CategoryPackClone), snapshotController.CloneFromSnapshot)
+				snapshotsGroup.POST("prune", can(authz_svc.PackSnapshotManage), meta.Tag(meta.CategoryPackPrune), snapshotController.PruneSnapshots)
+				snapshotsGroup.POST(fmt.Sprintf(":%s/rebase", params.SnapshotId), can(authz_svc.PackSnapshotManage), meta.Tag(meta.CategoryPackRebase), snapshotController.RebaseOnSnapshot)
 			}
 
 			RegisterPackModRoutes(packIdGroup, db)

@@ -119,3 +119,13 @@ type RevertSnapshotResponse struct {
 	Changed bool `json:"changed"`
 	HeadID  uint `json:"headId"`
 }
+
+// PruneSnapshotsResponse reports how many abandoned snapshots were deleted.
+type PruneSnapshotsResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
+// RebaseSnapshotResponse reports how many snapshots before the new root were deleted.
+type RebaseSnapshotResponse struct {
+	Deleted int64 `json:"deleted"`
+}

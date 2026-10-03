@@ -13,6 +13,8 @@ const (
 
 	CategoryPackRevert TagCategory = "PackRevert"
 	CategoryPackClone  TagCategory = "PackClone"
+	CategoryPackPrune  TagCategory = "PackPrune"
+	CategoryPackRebase TagCategory = "PackRebase"
 )
 
 func Tag(value TagCategory) gin.HandlerFunc {
