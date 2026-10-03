@@ -87,3 +87,7 @@ export interface CloneSnapshotRequest {
   slug: string;
   name: string;
 }
+
+export interface ImportPackRequest {
+  url: string;
+}

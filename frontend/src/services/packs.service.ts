@@ -3,6 +3,7 @@ import {
   MigrateDryRunResponse,
   MigrateJobStatusResponse,
   MigrateResponse,
+  ImportPackResponse,
   Pack,
   PackCollaboratorsResponse,
   PackRolesResponse,
@@ -15,7 +16,7 @@ import {
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
 import {writeToClipboard} from "@/lib/clipboard";
-import type {EditPackRequest, MigratePackRequest, NewPackRequest, RehashRequest} from "@/interfaces/requests.ts";
+import type {EditPackRequest, ImportPackRequest, MigratePackRequest, NewPackRequest, RehashRequest} from "@/interfaces/requests.ts";
 
 
 export async function fetchAllPacks(
@@ -92,6 +93,11 @@ export async function clientSetupCommandToClipboard(packId: number) {
 export async function newPack(request: NewPackRequest): Promise<Pack> {
   const response = await apiClient.post('v1/packwiz/pack', request)
   return plainToInstance(Pack, response.data)
+}
+
+export async function importPack(request: ImportPackRequest): Promise<ImportPackResponse> {
+  const response = await apiClient.post('v1/packwiz/import', request)
+  return plainToInstance(ImportPackResponse, response.data)
 }
 
 export async function editPack(packId: number, request: EditPackRequest) {

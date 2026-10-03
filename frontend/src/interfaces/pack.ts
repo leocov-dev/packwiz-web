@@ -223,3 +223,14 @@ export class UpdateChecksResponse {
   results!: UpdateCheckItem[];
   availableCount!: number;
 }
+
+/** Outcome of importing a live packwiz pack from a pack.toml url. */
+export class ImportPackResponse {
+  packId!: number;
+  slug!: string;
+  name!: string;
+  modsImported!: number;
+  skippedMods: string[] = [];
+  skippedFiles: string[] = [];
+  warnings: string[] = [];
+}

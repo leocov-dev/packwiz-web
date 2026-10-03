@@ -69,3 +69,20 @@ describe("clientSetupCommandToClipboard", () => {
     )
   })
 })
+
+describe("importPack", () => {
+  it("posts the url and hydrates the response", async () => {
+    const post = vi.fn().mockResolvedValue({
+      data: {packId: 3, slug: "x", name: "X", modsImported: 2, skippedMods: [], skippedFiles: [], warnings: []},
+    })
+    vi.doMock("@/services/api.service", () => ({apiClient: {post}}))
+    vi.resetModules()
+    const {importPack} = await import("@/services/packs.service")
+
+    const result = await importPack({url: "https://e.com/pack.toml"})
+
+    expect(post).toHaveBeenCalledWith("v1/packwiz/import", {url: "https://e.com/pack.toml"})
+    expect(result.packId).toBe(3)
+    expect(result.modsImported).toBe(2)
+  })
+})

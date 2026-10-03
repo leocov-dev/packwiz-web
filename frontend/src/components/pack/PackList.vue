@@ -11,6 +11,11 @@ export interface PackListModel {
 import {fetchAllPacks} from "@/services/packs.service.ts";
 import {type PackResponse} from "@/interfaces/pack.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
+import {usePermissions} from "@/composables/usePermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
+
+const {can} = usePermissions()
+const importOpen = ref(false)
 
 const model = defineModel({required: true, type: Object as () => PackListModel})
 
@@ -53,6 +58,10 @@ const page = ref(1)
 </script>
 
 <template>
+  <ImportPackDialog
+    v-model="importOpen"
+    @imported="reload()"
+  />
   <v-data-iterator
     v-model:page="page"
     :loading="isLoading"
@@ -70,6 +79,16 @@ const page = ref(1)
           class="me-auto"
           density="comfortable"
           elevation="4"
+        />
+
+        <v-btn
+          v-if="can(Perm.PackCreate)"
+          text="Import"
+          color="primary"
+          variant="flat"
+          class="me-3"
+          elevation="4"
+          @click="importOpen = true"
         />
 
         <v-btn

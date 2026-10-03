@@ -27,6 +27,7 @@ declare module 'vue' {
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
     FiltersMenu: typeof import('./components/FiltersMenu.vue')['default']
     GeneratedPasswordDialog: typeof import('./components/user/GeneratedPasswordDialog.vue')['default']
+    ImportPackDialog: typeof import('./components/pack/ImportPackDialog.vue')['default']
     LinkedAccounts: typeof import('./components/user/LinkedAccounts.vue')['default']
     Loader: typeof import('./components/forms/Loader.vue')['default']
     MinecraftVersion: typeof import('./components/forms/MinecraftVersion.vue')['default']

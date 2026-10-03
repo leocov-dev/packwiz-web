@@ -4,10 +4,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
 
-> [!WARNING]
+> [!NOTE]
 >
-> **This is still a work-in-progress**
-> Some features may be broken or might change drastically between releases
+> **This project is in beta**
+> Some features may have bugs
 
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz-nxt) that exposes more functionality as a library.
