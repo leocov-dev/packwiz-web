@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
+	"packwiz-web/internal/services/authz_svc"
 )
 
 func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
@@ -18,7 +19,7 @@ func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 		// ---------------------------------------------------------
 		importController := controllers.NewImportController(db)
 
-		packwizGroup.GET("upload", importController.UploadPackwizArchive)
+		packwizGroup.GET("upload", middleware.RequirePermission(authz_svc.PackCreate), importController.UploadPackwizArchive)
 
 		// ---------------------------------------------------------
 

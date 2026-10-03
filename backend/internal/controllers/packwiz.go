@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/types"
@@ -42,7 +43,7 @@ func (pc *PackwizController) GetAllPacks(c *gin.Context) {
 		return
 	}
 
-	packs, err := pc.packwizSvc.GetPacksWithPerms(query, user.ID)
+	packs, err := pc.packwizSvc.GetPacksWithPerms(query, user, middleware.SystemPermissions(c))
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -65,11 +66,6 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	if !author.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"msg": "not authorized"})
-		return
-	}
-
 	var request dto.NewPackRequest
 	err = mustBindJson(c, &request)
 	if pc.abortWithError(c, err) {
@@ -81,7 +77,7 @@ func (pc *PackwizController) NewPack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPackWithPerms(packId, author.ID)
+	pack, err := pc.packwizSvc.GetPackWithPerms(packId, author, middleware.SystemPermissions(c))
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -120,7 +116,7 @@ func (pc *PackwizController) GetOnePack(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPackWithPerms(packId, user.ID)
+	pack, err := pc.packwizSvc.GetPackWithPerms(packId, user, middleware.SystemPermissions(c))
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -483,6 +479,16 @@ func (pc *PackwizController) SearchPackUsers(c *gin.Context) {
 	dataOK(c, gin.H{"users": users})
 }
 
+// GetPackRoles lists the pack roles that can be assigned to collaborators.
+func (pc *PackwizController) GetPackRoles(c *gin.Context) {
+	roles, err := pc.packwizSvc.ListAssignablePackRoles()
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, gin.H{"roles": roles})
+}
+
 func (pc *PackwizController) AddPackUser(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {
@@ -495,7 +501,7 @@ func (pc *PackwizController) AddPackUser(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.GrantPackUser(packId, request.UserID, request.Permission)
+	err = pc.packwizSvc.GrantPackUser(packId, request.UserID, request.RoleID)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -539,7 +545,7 @@ func (pc *PackwizController) EditUserAccess(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.ChangePackUserPermission(packId, userId, request.Permission)
+	err = pc.packwizSvc.ChangePackUserRole(packId, userId, request.RoleID)
 	if pc.abortWithError(c, err) {
 		return
 	}

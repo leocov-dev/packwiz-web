@@ -4,7 +4,6 @@ export interface CreateUserFormData {
   fullName: string,
   email: string,
   password: string,
-  isAdmin: boolean,
 }
 </script>
 
@@ -22,7 +21,6 @@ const formModel = reactive<CreateUserFormData>({
   fullName: '',
   email: '',
   password: '',
-  isAdmin: false,
 })
 
 const rules = {
@@ -84,10 +82,6 @@ const rules = {
         :type="showPassword ? 'text' : 'password'"
         autocomplete="new-password"
         @click:append-inner="showPassword = !showPassword"
-      />
-      <v-checkbox
-        v-model="formModel.isAdmin"
-        label="Grant admin access"
       />
 
       <div class="d-flex justify-end ga-4">

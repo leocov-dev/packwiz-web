@@ -5,7 +5,7 @@ import {
   MigrateResponse,
   Pack,
   PackCollaboratorsResponse,
-  PackPermission,
+  PackRolesResponse,
   PackResponse,
   UpdateAllResponse,
   UpdateCheckJobResponse,
@@ -189,12 +189,17 @@ export async function searchUsersForPack(packId: number, query: string): Promise
   return plainToInstance(UserSearchResponse, response.data)
 }
 
-export async function addPackCollaborator(packId: number, userId: number, permission: PackPermission) {
-  return apiClient.post(`v1/packwiz/pack/${packId}/users`, {userId, permission})
+export async function listPackRoles(): Promise<PackRolesResponse> {
+  const response = await apiClient.get('v1/packwiz/pack/roles');
+  return plainToInstance(PackRolesResponse, response.data)
 }
 
-export async function updateCollaboratorPermission(packId: number, userId: number, permission: PackPermission) {
-  return apiClient.patch(`v1/packwiz/pack/${packId}/users/${userId}`, {permission})
+export async function addPackCollaborator(packId: number, userId: number, roleId: number) {
+  return apiClient.post(`v1/packwiz/pack/${packId}/users`, {userId, roleId})
+}
+
+export async function updateCollaboratorRole(packId: number, userId: number, roleId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/users/${userId}`, {roleId})
 }
 
 export async function removeCollaborator(packId: number, userId: number) {

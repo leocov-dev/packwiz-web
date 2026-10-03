@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import {PackPermission, PackResponse} from "@/interfaces/pack.ts";
+import {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
+import {usePackPermissions} from "@/composables/usePackPermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
+import {toTitleCase} from "@/services/utils.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
-const permissionMap = {
-  [PackPermission.STATIC]: "-",
-  [PackPermission.VIEW]: "View",
-  [PackPermission.EDIT]: "Edit",
-  [PackPermission.OWNER]: "Owner",
-}
+const {can} = usePackPermissions(() => pack)
+
+// display only; access is decided by permission names
+const roleLabel = computed(() => pack.currentUserRole ? toTitleCase(pack.currentUserRole) : "Global")
 </script>
 
 <template>
@@ -37,9 +38,9 @@ const permissionMap = {
 
     <v-card-actions class="ms-2 me-2 d-flex justify-end">
       <v-btn
-        v-if="pack.currentUserPermission >= PackPermission.VIEW"
+        v-if="can(Perm.PackView)"
         class="me-auto"
-        :text="permissionMap[pack.currentUserPermission]"
+        :text="roleLabel"
         :to="`/packs/${pack.id}`"
         variant="tonal"
         density="comfortable"

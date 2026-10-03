@@ -191,12 +191,16 @@ func (s *UserService) CreateUser(request dto.CreateUserRequest) (tables.User, re
 		FullName:  request.FullName,
 		Email:     request.Email,
 		Password:  hashed,
-		IsAdmin:   request.IsAdmin,
 		IsActive:  true,
 		LinkToken: utils.GenerateLinkToken(16),
 	}
 
-	if err := s.db.Create(&user).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		return AssignDefaultRole(tx, user.ID)
+	}); err != nil {
 		return tables.User{}, response.New(http.StatusInternalServerError, "failed to create db user")
 	}
 
@@ -209,7 +213,7 @@ func (s *UserService) DeactivateUser(actingUser tables.User, targetUserId uint) 
 		return response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", targetUserId))
 	}
 
-	if target.Username == "admin" {
+	if target.IsSuperuser {
 		return response.New(http.StatusBadRequest, "the default admin account cannot be deactivated")
 	}
 
@@ -240,7 +244,7 @@ func (s *UserService) ReactivateUser(targetUserId uint) response.ServerError {
 	return nil
 }
 
-func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int64, response.ServerError) {
+func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]dto.AdminUserResponse, int64, response.ServerError) {
 	var users []tables.User
 	var total int64
 
@@ -250,11 +254,17 @@ func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int6
 
 		query := tx.Model(&tables.User{})
 
+		// "admin" means able to open the admin user list (user.view), the
+		// superuser always can. This is a display filter, not an access check.
+		const holdsUserView = "users.is_superuser OR users.id IN (" +
+			"SELECT ur.user_id FROM user_roles ur " +
+			"JOIN role_permissions rp ON rp.role_id = ur.role_id " +
+			"JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'user.view')"
 		switch strings.ToLower(request.UserType) {
 		case "admin":
-			query.Where("is_admin = ?", true)
+			query.Where(holdsUserView)
 		case "user":
-			query.Where("is_admin = ?", false)
+			query.Where("NOT (" + holdsUserView + ")")
 		}
 
 		if request.NameSearch != "" {
@@ -278,9 +288,10 @@ func (s *UserService) ListUsers(request dto.ListUsersQuery) ([]tables.User, int6
 		return nil, 0, response.New(http.StatusInternalServerError, "failed to list users")
 	}
 
-	if users == nil {
-		users = []tables.User{}
+	withRoles, err := s.WithRoles(users)
+	if err != nil {
+		return nil, 0, response.New(http.StatusInternalServerError, "failed to list users")
 	}
 
-	return users, total, nil
+	return withRoles, total, nil
 }

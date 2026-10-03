@@ -146,12 +146,14 @@ func (s *UserService) CreateExternalUser(in ExternalUserInput) (tables.User, err
 			Username:  username,
 			FullName:  fullName,
 			Email:     in.Email,
-			IsAdmin:   false,
 			IsActive:  true,
 			LinkToken: utils.GenerateLinkToken(16),
 		}
 		if err := tx.Create(&user).Error; err != nil {
 			return fmt.Errorf("create external user: %w", err)
+		}
+		if err := AssignDefaultRole(tx, user.ID); err != nil {
+			return fmt.Errorf("assign default role: %w", err)
 		}
 
 		now := time.Now()

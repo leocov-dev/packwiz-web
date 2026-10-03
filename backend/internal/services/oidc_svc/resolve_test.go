@@ -11,7 +11,7 @@ func TestDecideLogin(t *testing.T) {
 	unverified := Claims{Subject: "sub", Email: "a@example.com", EmailVerified: false}
 	noEmail := Claims{Subject: "sub"}
 
-	admin := &UserFacts{ID: 1, Active: true, IsAdmin: true}
+	admin := &UserFacts{ID: 1, Active: true, IsSuperuser: true}
 	inactive := &UserFacts{ID: 2, Active: false}
 	linked := &UserFacts{ID: 3, Active: true, HasLinkAtProvider: true}
 
@@ -182,7 +182,7 @@ func TestDecideLink(t *testing.T) {
 			name: "admin cannot link",
 			in: ResolveInput{
 				Mode: ModeLink, Claims: claims,
-				LinkTarget: &UserFacts{ID: 1, Active: true, IsAdmin: true},
+				LinkTarget: &UserFacts{ID: 1, Active: true, IsSuperuser: true},
 			},
 			want: Decision{Kind: OutcomeRejected, Reason: ReasonProtectedUser},
 		},

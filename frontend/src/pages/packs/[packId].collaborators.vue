@@ -7,7 +7,7 @@ meta:
 import PackCollaborators from "@/components/pack/PackCollaborators.vue";
 import {useRoute} from "vue-router";
 import {buildDataLoader} from "@/composables/data-loader.ts";
-import type {Pack} from "@/interfaces/pack.ts";
+import type {PackResponse} from "@/interfaces/pack.ts";
 import {fetchOnePack} from "@/services/packs.service.ts";
 
 const route = useRoute<'/packs/[packId].collaborators'>()
@@ -16,7 +16,7 @@ const {
   isLoading,
   data: pack,
   error,
-} = buildDataLoader<Pack>(async () => {
+} = buildDataLoader<PackResponse>(async () => {
   return fetchOnePack(Number(route.params.packId), true)
 })
 </script>

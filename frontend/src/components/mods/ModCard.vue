@@ -8,15 +8,19 @@ import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import ModEditDialog from "@/components/mods/ModEditDialog.vue";
 import axios from "axios";
+import {Perm, hasPermission} from "@/lib/permissions.ts";
 
-const {packId, mod, canEdit, dependentNames, orphanNames, updateCheck = undefined} = defineProps<{
+const {packId, mod, permissions, dependentNames, orphanNames, updateCheck = undefined} = defineProps<{
   packId: number,
   mod: Mod,
-  canEdit: boolean,
+  permissions: string[],
   dependentNames: string[],
   orphanNames: string[],
   updateCheck?: UpdateCheckItem,
 }>()
+
+const canConfigure = computed(() => hasPermission(permissions, Perm.PackModConfigure))
+const canRemove = computed(() => hasPermission(permissions, Perm.PackModRemove))
 
 const emit = defineEmits<{
   reload: []
@@ -236,7 +240,7 @@ const onTogglePin = async () => {
       <div class="d-flex align-center ga-2">
         <template v-if="!mod.isDependency || mod.pinned">
           <v-btn
-            v-if="canEdit && !mod.isDependency"
+            v-if="canConfigure && !mod.isDependency"
             v-tooltip="pinTooltip"
             density="comfortable"
             variant="text"
@@ -257,8 +261,9 @@ const onTogglePin = async () => {
           />
         </template>
 
-        <template v-if="canEdit">
+        <template v-if="canConfigure || canRemove">
           <v-tooltip
+            v-if="canConfigure"
             :disabled="!mod.isDependency"
             :text="editHint"
             location="top"
@@ -282,6 +287,7 @@ const onTogglePin = async () => {
           </v-tooltip>
 
           <v-tooltip
+            v-if="canRemove"
             :disabled="!removeBlocked"
             :text="removeHint"
             location="top"

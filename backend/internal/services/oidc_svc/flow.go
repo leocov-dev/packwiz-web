@@ -371,7 +371,7 @@ func toFacts(u *tables.User, hasLink bool) *UserFacts {
 	if u == nil {
 		return nil
 	}
-	return &UserFacts{ID: u.ID, Active: u.IsActive, IsAdmin: u.Username == "admin", HasLinkAtProvider: hasLink}
+	return &UserFacts{ID: u.ID, Active: u.IsActive, IsSuperuser: u.IsSuperuser, HasLinkAtProvider: hasLink}
 }
 
 // resolve loads the facts Decide needs, applies the decision and performs the

@@ -125,8 +125,8 @@ keep when changing it:
   identity (`provider_id + sub`), then verified-email link if `link_by_email`,
   then auto-create if `auto_create_users`, else reject. Never match on email
   alone. Keep new rules inside `Decide` so they stay testable.
-- **`admin` is untouchable** from OIDC paths: it cannot be created, linked,
-  modified or deactivated, and auto-created users are never `IsAdmin`.
+- **The superuser (`admin`) is untouchable** from OIDC paths: it cannot be created,
+  linked, modified or deactivated, and auto-created users only get the `user` role.
 - **State cookie**: the flow state (state, nonce, PKCE verifier, mode, link user
   id, redirect) is sealed with `utils.SecretboxEncrypt` in a `SameSite=Lax`
   cookie, because the `Strict` session cookie is not sent on the cross-site
@@ -145,3 +145,23 @@ keep when changing it:
 - **Rate limiting** for these routes is delegated to the edge proxy, not the app.
 - Tests use `httptest` for a fake IdP (discovery, JWKS, token endpoint); there
   is no DB test harness, so keep logic in pure functions.
+
+## 8. Authorization (RBAC)
+
+Every access check flows through `permission <- role_permissions <- role`; plan
+in `.plan/rbac.md`. Rules to keep:
+
+- **Never check a role or the old admin flag in code.** Decisions live only in
+  `internal/services/authz_svc` (`DecideGlobal`, `DecidePack`, `CanOnPack`). The
+  bootstrapped superuser (`users.is_superuser`) short-circuits there and nowhere else.
+- **Guards**: protect routes with `middleware.RequirePermission(name)` (global)
+  or `middleware.RequirePackPermission(authz, name)` (pack). Permission names are
+  constants in `authz_svc/permissions.go` and must match migration 000017.
+- **Archived packs** are read-only for everyone, superuser included; only the
+  permissions in `archivedAllowed` pass (409 otherwise).
+- **Owner identity** is `packs.created_by`, not a role. The `owner` role is not assignable.
+- **New routes** need a permission guard, or an entry in `authOnlyRoutes` in
+  `internal/routes/guard_coverage_test.go`. That test fails otherwise.
+- **New permissions or roles**: add the migration rows, the constant, and update
+  `AllPermissions`, `globalPermissions` and `expectedMatrix` in
+  `authz_svc/matrix_test.go`; the test checks them against the migration SQL.

@@ -1,22 +1,17 @@
-import {computed, type MaybeRefOrGetter, toValue} from "vue"
-import {PackPermission, type PackResponse} from "@/interfaces/pack.ts"
+import {type MaybeRefOrGetter, toValue} from "vue"
+import type {PackResponse} from "@/interfaces/pack.ts"
+import {hasPermission, type PermissionName} from "@/lib/permissions.ts"
 
-type PermissionSubject = Pick<PackResponse, "isArchived" | "currentUserPermission">
+type PermissionSubject = Pick<PackResponse, "permissions">
 
-// Edit-level access to the pack, ignoring archived state.
-// Mirrors the backend PackPermissionGuard, which has no admin bypass.
-export function computeHasEditAccess(pack: PermissionSubject): boolean {
-  return pack.currentUserPermission >= PackPermission.EDIT
-}
-
-// Edit access on a live (non-archived) pack.
-export function computeCanEdit(pack: PermissionSubject): boolean {
-  return !pack.isArchived && computeHasEditAccess(pack)
+// Effective permissions on a pack, as computed by the backend (system and pack
+// roles merged, archived-pack rules applied).
+export function computeCan(pack: PermissionSubject, name: PermissionName): boolean {
+  return hasPermission(pack.permissions, name)
 }
 
 export function usePackPermissions(pack: MaybeRefOrGetter<PermissionSubject>) {
-  const canEdit = computed(() => computeCanEdit(toValue(pack)))
-  const hasEditAccess = computed(() => computeHasEditAccess(toValue(pack)))
+  const can = (name: PermissionName) => computeCan(toValue(pack), name)
 
-  return {canEdit, hasEditAccess}
+  return {can}
 }

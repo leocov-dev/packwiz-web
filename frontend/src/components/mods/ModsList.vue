@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {Mod} from "@/interfaces/pack.ts";
+import {Perm, hasPermission} from "@/lib/permissions.ts";
 import {updateAvailableIds, type UpdateChecksMap} from "@/lib/update-checks.ts";
 import {
   applyModListState,
@@ -18,12 +19,15 @@ import {
   type ModSort,
 } from "@/lib/mod-filters.ts";
 
-const {packId, mods, canEdit, updateChecks = new Map()} = defineProps<{
+const {packId, mods, permissions, updateChecks = new Map()} = defineProps<{
   packId: number,
   mods: Mod[],
-  canEdit: boolean,
+  permissions: string[],
   updateChecks?: UpdateChecksMap,
 }>()
+
+const canAdd = computed(() => hasPermission(permissions, Perm.PackModAdd))
+const canCheckUpdates = computed(() => hasPermission(permissions, Perm.PackUpdatesCheck))
 
 const emit = defineEmits<{
   (e: 'add-mod'): void
@@ -232,13 +236,13 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
           No mods yet
         </div>
         <div
-          v-if="canEdit"
+          v-if="canAdd"
           class="text-body-2 text-medium-emphasis mb-4"
         >
           Add your first mod to get started.
         </div>
         <v-btn
-          v-if="canEdit"
+          v-if="canAdd"
           color="primary"
           variant="flat"
           prepend-icon="mdi-plus"
@@ -262,7 +266,7 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
           v-if="needsCheckHint"
           class="text-body-2 text-medium-emphasis mb-4"
         >
-          {{ canEdit ? "No update check results yet. Run 'Check for updates' first." : "No update check results yet." }}
+          {{ canCheckUpdates ? "No update check results yet. Run 'Check for updates' first." : "No update check results yet." }}
         </div>
         <v-btn
           v-if="hasActiveFilters"
@@ -283,7 +287,7 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
           <ModCard
             :pack-id="packId"
             :mod="item.raw"
-            :can-edit="canEdit"
+            :permissions="permissions"
             :dependent-names="dependentNamesFor(item.raw)"
             :orphan-names="orphanNamesFor(item.raw)"
             :update-check="updateChecks.get(item.raw.id)"

@@ -10,7 +10,7 @@ import (
 )
 
 // OidcAdminController manages OIDC providers and users' linked accounts. It is
-// mounted behind AdminGuard.
+// mounted behind the oidc.manage permission.
 type OidcAdminController struct {
 	user      *user_svc.UserService
 	providers *oidc_svc.ProviderService

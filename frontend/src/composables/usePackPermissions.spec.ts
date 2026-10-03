@@ -1,47 +1,29 @@
 import "reflect-metadata"
 import {describe, expect, it} from "vitest"
 import {ref} from "vue"
-import {PackPermission} from "@/interfaces/pack.ts"
-import {computeCanEdit, computeHasEditAccess, usePackPermissions} from "./usePackPermissions.ts"
+import {Perm} from "@/lib/permissions.ts"
+import {computeCan, usePackPermissions} from "./usePackPermissions.ts"
 
-const pack = (currentUserPermission: PackPermission, isArchived = false) => ({currentUserPermission, isArchived})
+const pack = (...permissions: string[]) => ({permissions})
 
-describe("computeCanEdit", () => {
-  it("denies static and view permission", () => {
-    expect(computeCanEdit(pack(PackPermission.STATIC))).toBe(false)
-    expect(computeCanEdit(pack(PackPermission.VIEW))).toBe(false)
+describe("computeCan", () => {
+  it("allows only named permissions", () => {
+    expect(computeCan(pack(Perm.PackView), Perm.PackView)).toBe(true)
+    expect(computeCan(pack(Perm.PackView), Perm.PackModAdd)).toBe(false)
   })
 
-  it("allows edit permission", () => {
-    expect(computeCanEdit(pack(PackPermission.EDIT))).toBe(true)
-  })
-
-  it("denies archived packs", () => {
-    expect(computeCanEdit(pack(PackPermission.EDIT, true))).toBe(false)
-    expect(computeCanEdit(pack(PackPermission.VIEW, true))).toBe(false)
-  })
-})
-
-describe("computeHasEditAccess", () => {
-  it("ignores archived state", () => {
-    expect(computeHasEditAccess(pack(PackPermission.EDIT, true))).toBe(true)
-    expect(computeHasEditAccess(pack(PackPermission.VIEW, true))).toBe(false)
+  it("denies when permissions are missing", () => {
+    expect(computeCan({permissions: undefined as unknown as string[]}, Perm.PackView)).toBe(false)
   })
 })
 
 describe("usePackPermissions", () => {
-  it("reacts to permission and archived changes", () => {
-    const subject = ref(pack(PackPermission.VIEW))
-    const {canEdit, hasEditAccess} = usePackPermissions(subject)
-    expect(canEdit.value).toBe(false)
-    expect(hasEditAccess.value).toBe(false)
+  it("reacts to permission changes", () => {
+    const subject = ref(pack(Perm.PackView))
+    const {can} = usePackPermissions(subject)
+    expect(can(Perm.PackModAdd)).toBe(false)
 
-    subject.value = pack(PackPermission.EDIT)
-    expect(canEdit.value).toBe(true)
-    expect(hasEditAccess.value).toBe(true)
-
-    subject.value = pack(PackPermission.EDIT, true)
-    expect(canEdit.value).toBe(false)
-    expect(hasEditAccess.value).toBe(true)
+    subject.value = pack(Perm.PackView, Perm.PackModAdd)
+    expect(can(Perm.PackModAdd)).toBe(true)
   })
 })

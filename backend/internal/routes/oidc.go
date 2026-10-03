@@ -6,6 +6,7 @@ import (
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/middleware/meta"
+	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/services/oidc_svc"
 )
 
@@ -53,7 +54,7 @@ func RegisterOidcIdentityRoutes(
 }
 
 // RegisterOidcAdminRoutes mounts provider management and admin-side identity
-// management. Mount it behind AdminGuard.
+// management. Every route requires oidc.manage.
 func RegisterOidcAdminRoutes(
 	router gin.IRouter,
 	db *gorm.DB,
@@ -64,16 +65,16 @@ func RegisterOidcAdminRoutes(
 
 	group := router.Group("admin", handlers...)
 	{
-		group.GET("oidc/providers", controller.ListProviders)
-		group.POST("oidc/providers", controller.CreateProvider)
-		group.POST("oidc/providers/test", controller.TestDiscovery)
-		group.GET("oidc/providers/:providerId", controller.GetProvider)
-		group.PUT("oidc/providers/:providerId", controller.UpdateProvider)
-		group.DELETE("oidc/providers/:providerId", controller.DeleteProvider)
-		group.GET("oidc/providers/:providerId/orphaned-users", controller.OrphanedUsers)
+		group.GET("oidc/providers", middleware.RequirePermission(authz_svc.OidcManage), controller.ListProviders)
+		group.POST("oidc/providers", middleware.RequirePermission(authz_svc.OidcManage), controller.CreateProvider)
+		group.POST("oidc/providers/test", middleware.RequirePermission(authz_svc.OidcManage), controller.TestDiscovery)
+		group.GET("oidc/providers/:providerId", middleware.RequirePermission(authz_svc.OidcManage), controller.GetProvider)
+		group.PUT("oidc/providers/:providerId", middleware.RequirePermission(authz_svc.OidcManage), controller.UpdateProvider)
+		group.DELETE("oidc/providers/:providerId", middleware.RequirePermission(authz_svc.OidcManage), controller.DeleteProvider)
+		group.GET("oidc/providers/:providerId/orphaned-users", middleware.RequirePermission(authz_svc.OidcManage), controller.OrphanedUsers)
 
-		group.GET("users/:userId/identities", controller.ListUserIdentities)
-		group.DELETE("users/:userId/identities/:identityId", controller.UnlinkUserIdentity)
+		group.GET("users/:userId/identities", middleware.RequirePermission(authz_svc.OidcManage), controller.ListUserIdentities)
+		group.DELETE("users/:userId/identities/:identityId", middleware.RequirePermission(authz_svc.OidcManage), controller.UnlinkUserIdentity)
 	}
 
 	return group

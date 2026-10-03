@@ -10,6 +10,7 @@ import type {User} from "@/interfaces/user.ts";
 import {deactivateUserById, fetchUserById, reactivateUserById} from "@/services/user.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import AdminUserIdentities from "@/components/user/AdminUserIdentities.vue";
+import AdminUserRoles from "@/components/user/AdminUserRoles.vue";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import {AxiosError} from "axios";
 
@@ -106,8 +107,8 @@ const reactivate = async () => {
             {{ user.fullName }}
           </h1>
           <v-chip
-            v-if="user.isAdmin"
-            :text="user.username === 'admin' ? 'Default Admin Account' : 'Admin Account'"
+            v-if="user.isSuperuser"
+            text="Default Admin Account"
             color="warning"
           />
           <v-chip
@@ -137,6 +138,11 @@ const reactivate = async () => {
           :subtitle="new Date(user.updatedAt).toLocaleString()"
         />
       </v-list>
+
+      <AdminUserRoles
+        :user="user"
+        @changed="reload"
+      />
 
       <AdminUserIdentities :user-id="userId" />
 

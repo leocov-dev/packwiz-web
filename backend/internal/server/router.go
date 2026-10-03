@@ -88,8 +88,8 @@ func NewRouter() *gin.Engine {
 
 				routes.RegisterOidcIdentityRoutes(protectedGroup, db, oidcFlow)
 
-				routes.RegisterAdminRoutes(protectedGroup, db, middleware.AdminGuard(db))
-				routes.RegisterOidcAdminRoutes(protectedGroup, db, oidcProviders, middleware.AdminGuard(db))
+				routes.RegisterAdminRoutes(protectedGroup, db)
+				routes.RegisterOidcAdminRoutes(protectedGroup, db, oidcProviders)
 
 				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 

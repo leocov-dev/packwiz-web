@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import {PackPermission, type PackCollaborator} from "@/interfaces/pack.ts";
-import {removeCollaborator, updateCollaboratorPermission} from "@/services/packs.service.ts";
+import type {PackCollaborator, PackRole} from "@/interfaces/pack.ts";
+import {removeCollaborator, updateCollaboratorRole} from "@/services/packs.service.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import axios from "axios";
+import {toTitleCase} from "@/services/utils.ts";
 
-const {packId, collaborator} = defineProps<{ packId: number, collaborator: PackCollaborator }>()
+const {packId, collaborator, roles, canManage} = defineProps<{
+  packId: number,
+  collaborator: PackCollaborator,
+  roles: PackRole[],
+  canManage: boolean,
+}>()
 
 const emit = defineEmits(['changed'])
 
@@ -13,14 +19,16 @@ const loading = ref(false)
 const error = ref(false)
 const errorMsg = ref("")
 
-const isOwner = computed(() => collaborator.permission === PackPermission.OWNER)
+// a role that is not in the assignable list (the pack owner) cannot be changed or removed
+const isLocked = computed(() => !roles.some(r => r.id === collaborator.roleId))
 
-const permissionItems = [
-  {title: 'Static (link only)', value: PackPermission.STATIC},
-  {title: 'View', value: PackPermission.VIEW},
-  {title: 'Edit', value: PackPermission.EDIT},
-  {title: 'Owner', value: PackPermission.OWNER, props: {disabled: true}},
-]
+const roleItems = computed(() => {
+  const items = roles.map(r => ({title: toTitleCase(r.name), value: r.id}))
+  if (isLocked.value) {
+    items.push({title: toTitleCase(collaborator.roleName), value: collaborator.roleId})
+  }
+  return items
+})
 
 const handleError = (e: unknown, fallback: string) => {
   error.value = true
@@ -31,14 +39,14 @@ const handleError = (e: unknown, fallback: string) => {
   }
 }
 
-const onPermissionChange = async (value: PackPermission) => {
+const onRoleChange = async (value: number) => {
   loading.value = true
   error.value = false
   try {
-    await updateCollaboratorPermission(packId, collaborator.userId, value)
+    await updateCollaboratorRole(packId, collaborator.userId, value)
     emit('changed')
   } catch (e) {
-    handleError(e, "Failed to update permission")
+    handleError(e, "Failed to update role")
   } finally {
     loading.value = false
   }
@@ -90,25 +98,25 @@ const onRemove = async () => {
       <v-spacer />
 
       <v-select
-        v-tooltip="'Static: install/update via personal link only, no dashboard access'"
-        :model-value="collaborator.permission"
-        :items="permissionItems"
-        label="Permission"
+        :model-value="collaborator.roleId"
+        :items="roleItems"
+        label="Role"
         density="compact"
         variant="outlined"
         hide-details
         max-width="220"
         class="me-3"
-        :disabled="loading || isOwner"
-        @update:model-value="onPermissionChange"
+        :disabled="loading || isLocked || !canManage"
+        @update:model-value="onRoleChange"
       />
 
       <v-btn
+        v-if="canManage"
         icon="mdi-account-remove"
         density="comfortable"
         color="error"
         variant="text"
-        :disabled="loading || isOwner"
+        :disabled="loading || isLocked"
         @click="showRemoveDialog = true"
       />
     </div>

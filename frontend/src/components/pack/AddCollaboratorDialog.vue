@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {PackPermission, type UserSearchResult} from "@/interfaces/pack.ts";
+import type {PackRole, UserSearchResult} from "@/interfaces/pack.ts";
 import {addPackCollaborator, searchUsersForPack} from "@/services/packs.service.ts";
 import axios from "axios";
+import {toTitleCase} from "@/services/utils.ts";
 
-const {packId, existingUserIds} = defineProps<{ packId: number, existingUserIds: number[] }>()
+const {packId, existingUserIds, roles} = defineProps<{ packId: number, existingUserIds: number[], roles: PackRole[] }>()
 
 const model = defineModel<boolean>({required: true})
 
@@ -16,13 +17,17 @@ const searchLoading = ref(false)
 const searchText = ref<string | undefined>(undefined)
 const results = ref<UserSearchResult[]>([])
 const selectedUserId = ref<number | null>(null)
-const permission = ref<PackPermission>(PackPermission.VIEW)
+// the lowest-privilege assignable role is the default
+const defaultRoleId = () => roles[0]?.id ?? null
+const roleId = ref<number | null>(defaultRoleId())
 
-const permissionItems = [
-  {title: 'Static (link only)', value: PackPermission.STATIC},
-  {title: 'View', value: PackPermission.VIEW},
-  {title: 'Edit', value: PackPermission.EDIT},
-]
+const roleItems = computed(() => roles.map(r => ({title: toTitleCase(r.name), subtitle: r.description, value: r.id})))
+
+watch(() => roles, () => {
+  if (roleId.value === null) {
+    roleId.value = defaultRoleId()
+  }
+})
 
 const userItems = computed(() => results.value
   .filter(u => !existingUserIds.includes(u.userId))
@@ -65,11 +70,11 @@ const reset = () => {
   searchText.value = undefined
   results.value = []
   selectedUserId.value = null
-  permission.value = PackPermission.VIEW
+  roleId.value = defaultRoleId()
 }
 
 const submit = async () => {
-  if (!selectedUserId.value) {
+  if (!selectedUserId.value || roleId.value === null) {
     return
   }
 
@@ -77,7 +82,7 @@ const submit = async () => {
   loading.value = true
 
   try {
-    await addPackCollaborator(packId, selectedUserId.value, permission.value)
+    await addPackCollaborator(packId, selectedUserId.value, roleId.value)
     model.value = false
     reset()
     emit('added')
@@ -130,9 +135,9 @@ const cancel = () => {
         />
 
         <v-select
-          v-model="permission"
-          :items="permissionItems"
-          label="Permission"
+          v-model="roleId"
+          :items="roleItems"
+          label="Role"
         />
       </v-card-text>
 

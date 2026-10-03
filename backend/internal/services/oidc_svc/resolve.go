@@ -44,7 +44,7 @@ type Claims struct {
 type UserFacts struct {
 	ID                uint
 	Active            bool
-	IsAdmin           bool // true for the protected built-in admin account
+	IsSuperuser       bool // true for the protected bootstrap superuser
 	HasLinkAtProvider bool
 }
 
@@ -92,7 +92,7 @@ func Decide(in ResolveInput) Decision {
 
 	if in.Identity != nil {
 		switch {
-		case in.Identity.IsAdmin:
+		case in.Identity.IsSuperuser:
 			return reject(ReasonProtectedUser)
 		case !in.Identity.Active:
 			return reject(ReasonUserInactive)
@@ -107,7 +107,7 @@ func Decide(in ResolveInput) Decision {
 			return reject(ReasonEmailMissing)
 		case !in.Claims.EmailVerified:
 			return reject(ReasonEmailNotVerified)
-		case u.IsAdmin:
+		case u.IsSuperuser:
 			return reject(ReasonProtectedUser)
 		case !u.Active:
 			return reject(ReasonUserInactive)
@@ -139,7 +139,7 @@ func decideLink(in ResolveInput) Decision {
 	switch {
 	case t == nil:
 		return reject(ReasonLinkTargetMissing)
-	case t.IsAdmin:
+	case t.IsSuperuser:
 		return reject(ReasonProtectedUser)
 	case !t.Active:
 		return reject(ReasonUserInactive)

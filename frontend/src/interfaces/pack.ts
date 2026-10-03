@@ -35,19 +35,15 @@ export class Pack {
 }
 
 export class PackResponse extends Pack {
-  currentUserPermission!: PackPermission;
+  /** Effective permission names on this pack. */
+  permissions: string[] = [];
+  /** Pack role name, display only; empty when access comes from a system role. */
+  currentUserRole?: string;
 }
 
 export enum PackStatus {
   PUBLISHED = 'published',
   DRAFT = 'draft',
-}
-
-export enum PackPermission {
-  STATIC = 1,
-  VIEW = 10,
-  EDIT = 20,
-  OWNER = 30,
 }
 
 export class Mod {
@@ -141,8 +137,21 @@ export class PackCollaborator {
   username!: string;
   fullName!: string;
   email!: string;
-  permission!: PackPermission;
+  roleId!: number;
+  roleName!: string;
   createdAt!: string;
+}
+
+export class PackRole {
+  id!: number;
+  name!: string;
+  description!: string;
+  permissions!: string[];
+}
+
+export class PackRolesResponse {
+  @Type(() => PackRole)
+  roles?: PackRole[];
 }
 
 export class PackCollaboratorsResponse {

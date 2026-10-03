@@ -23,7 +23,7 @@ const headers = [
   {title: 'Username', key: 'username'},
   {title: 'Full name', key: 'fullName'},
   {title: 'Email', key: 'email'},
-  {title: 'Admin', key: 'isAdmin'},
+  {title: 'Roles', key: 'roles', sortable: false},
   {title: 'Status', key: 'isActive'},
   {title: 'Created', key: 'createdAt'},
 ]
@@ -113,13 +113,24 @@ const onRowClick = (_: Event, {item}: { item: User }) => {
       </v-toolbar>
     </template>
 
-    <template #[`item.isAdmin`]="{ item }">
+    <template #[`item.roles`]="{ item }">
       <v-chip
-        :color="item.isAdmin ? 'primary' : undefined"
-        :text="item.isAdmin ? 'Admin' : 'User'"
+        v-if="item.isSuperuser"
+        color="warning"
+        text="Superuser"
         size="small"
         label
         variant="tonal"
+        class="me-1"
+      />
+      <v-chip
+        v-for="role in item.roles"
+        :key="role.id"
+        :text="role.name"
+        size="small"
+        label
+        variant="tonal"
+        class="me-1"
       />
     </template>
 

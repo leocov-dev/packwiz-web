@@ -18,6 +18,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 	"packwiz-web/internal/jobs"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
@@ -30,18 +31,21 @@ type PackwizService struct {
 	// It's nil for PackwizService instances constructed as a job resolver
 	// (internal/jobs.MigrateModsResolver) - those never need to enqueue.
 	riverClient *river.Client[*sql.Tx]
+	authz       *authz_svc.Service
 }
 
 func NewPackwizService(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizService {
 	return &PackwizService{
 		db:          db,
 		riverClient: riverClient,
+		authz:       authz_svc.NewService(db),
 	}
 }
 
 func (ps *PackwizService) GetPacksWithPerms(
 	request dto.AllPacksQuery,
-	userId uint,
+	user tables.User,
+	system authz_svc.Set,
 ) ([]dto.PackResponse, response.ServerError) {
 	if len(request.Status) == 0 && !request.Archived {
 		request.Status = []types.PackStatus{types.PackStatusDraft, types.PackStatusPublished}
@@ -49,16 +53,23 @@ func (ps *PackwizService) GetPacksWithPerms(
 
 	var results []dto.PackResponse
 
+	visibleIds, all, err := ps.authz.VisiblePackIDs(user, system)
+	if err != nil {
+		return nil, response.Wrap(err)
+	}
+
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Select(
-		"packs.*, pack_users.permission as current_user_permission",
+		"packs.*",
 	).Preload(
 		"User",
-	).Joins(
-		"LEFT JOIN pack_users ON packs.id = pack_users.pack_id AND pack_users.user_id = ?",
-		userId,
 	).Order("packs.slug asc")
+
+	if !all {
+		// only packs where the user holds pack.view
+		query = query.Where("packs.id IN ?", visibleIds)
+	}
 
 	if request.Search != "" {
 		query = query.Where("packs.slug LIKE ?", "%"+request.Search+"%")
@@ -79,6 +90,10 @@ func (ps *PackwizService) GetPacksWithPerms(
 
 	if err := query.Unscoped().Scan(&results).Error; err != nil {
 		return nil, response.New(http.StatusInternalServerError, "failed to query db for packs")
+	}
+
+	if err := ps.attachPermissions(results, user, system); err != nil {
+		return nil, err
 	}
 
 	log.Debug(fmt.Sprintf("Found %d packs", len(results)))
@@ -148,14 +163,19 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		var owner tables.Role
+		if err := tx.Where("name = ? AND scope = ?", "owner", tables.RoleScopePack).First(&owner).Error; err != nil {
+			return fmt.Errorf("find owner role: %w", err)
+		}
+
 		if err := tx.Create(newPack).Error; err != nil {
 			return err
 		}
 
 		if err := tx.Create(&tables.PackUsers{
-			PackID:     newPack.ID,
-			UserID:     author.ID,
-			Permission: types.PackPermissionOwner,
+			PackID: newPack.ID,
+			UserID: author.ID,
+			RoleID: owner.ID,
 		}).Error; err != nil {
 			return err
 		}
@@ -228,18 +248,13 @@ func (ps *PackwizService) GetPackBySlug(slug string) (tables.Pack, response.Serv
 	return result, nil
 }
 
-func (ps *PackwizService) GetPackWithPerms(packId, userId uint) (dto.PackResponse, response.ServerError) {
+func (ps *PackwizService) GetPackWithPerms(packId uint, user tables.User, system authz_svc.Set) (dto.PackResponse, response.ServerError) {
 	var result dto.PackResponse
 
 	query := ps.db.Model(
 		&tables.Pack{},
 	).Preload(
 		"Mods",
-	).Select(
-		"packs.*, pack_users.permission as current_user_permission",
-	).Joins(
-		"LEFT JOIN pack_users ON packs.id = pack_users.pack_id AND pack_users.user_id = ?",
-		userId,
 	).Where(
 		"packs.id = ?", packId,
 	)
@@ -250,7 +265,32 @@ func (ps *PackwizService) GetPackWithPerms(packId, userId uint) (dto.PackRespons
 
 	result.Mods = filterValidDependencyIds(result.Mods)
 
-	return result, nil
+	one := []dto.PackResponse{result}
+	if err := ps.attachPermissions(one, user, system); err != nil {
+		return result, err
+	}
+
+	return one[0], nil
+}
+
+// attachPermissions fills each pack's effective permissions and display role.
+func (ps *PackwizService) attachPermissions(packs []dto.PackResponse, user tables.User, system authz_svc.Set) response.ServerError {
+	archived := make(map[uint]bool, len(packs))
+	for _, p := range packs {
+		archived[p.ID] = p.DeletedAt.Valid
+	}
+
+	perms, roles, err := ps.authz.EffectivePackPermissions(user, system, archived)
+	if err != nil {
+		return response.Wrap(err)
+	}
+
+	for i := range packs {
+		packs[i].Permissions = perms[packs[i].ID]
+		packs[i].CurrentUserRole = roles[packs[i].ID]
+	}
+
+	return nil
 }
 
 func (ps *PackwizService) GetMissingModDependencies(packId uint, request dto.AddModRequest) ([]*core.Mod, response.ServerError) {
@@ -968,12 +1008,13 @@ func (ps *PackwizService) GetPersonalLink(
 // PackUserInfo
 // a user's access information for a given pack
 type PackUserInfo struct {
-	UserID     uint                 `json:"userId"`
-	Username   string               `json:"username"`
-	FullName   string               `json:"fullName"`
-	Email      string               `json:"email"`
-	Permission types.PackPermission `json:"permission"`
-	CreatedAt  time.Time            `json:"createdAt"`
+	UserID    uint      `json:"userId"`
+	Username  string    `json:"username"`
+	FullName  string    `json:"fullName"`
+	Email     string    `json:"email"`
+	RoleID    uint      `json:"roleId"`
+	RoleName  string    `json:"roleName"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // ListPackUsers
@@ -983,9 +1024,10 @@ func (ps *PackwizService) ListPackUsers(packId uint) ([]PackUserInfo, response.S
 
 	if err := ps.db.Model(&tables.PackUsers{}).
 		Select(
-			"pack_users.user_id, users.username, users.full_name, users.email, pack_users.permission, pack_users.created_at",
+			"pack_users.user_id, users.username, users.full_name, users.email, pack_users.role_id, roles.name as role_name, pack_users.created_at",
 		).
 		Joins("JOIN users ON users.id = pack_users.user_id").
+		Joins("JOIN roles ON roles.id = pack_users.role_id").
 		Where("pack_users.pack_id = ?", packId).
 		Order("users.username asc").
 		Scan(&results).Error; err != nil {
@@ -1025,9 +1067,9 @@ func (ps *PackwizService) SearchPackUsers(packId uint, query string) ([]PackUser
 
 // GrantPackUser
 // grant a user access to a pack
-func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.PackPermission) response.ServerError {
-	if permission == types.PackPermissionOwner {
-		return response.New(http.StatusBadRequest, "owner permission cannot be assigned")
+func (ps *PackwizService) GrantPackUser(packId, userId, roleId uint) response.ServerError {
+	if err := ps.checkAssignablePackRole(roleId); err != nil {
+		return err
 	}
 
 	if _, err := ps.GetPackById(packId); err != nil {
@@ -1060,9 +1102,9 @@ func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.Pa
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
 		return tx.Create(&tables.PackUsers{
-			PackID:     packId,
-			UserID:     userId,
-			Permission: permission,
+			PackID: packId,
+			UserID: userId,
+			RoleID: roleId,
 		}).Error
 	}); err != nil {
 		return response.Wrap(err)
@@ -1071,13 +1113,62 @@ func (ps *PackwizService) GrantPackUser(packId, userId uint, permission types.Pa
 	return nil
 }
 
+// PackRoleInfo
+// a pack-scope role that can be granted to collaborators
+type PackRoleInfo struct {
+	ID          uint     `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Permissions []string `json:"permissions"`
+}
+
+// ListAssignablePackRoles
+// list the pack roles that can be granted through the collaborator API
+func (ps *PackwizService) ListAssignablePackRoles() ([]PackRoleInfo, response.ServerError) {
+	var roles []tables.Role
+	if err := ps.db.Preload("Permissions").
+		Where("scope = ? AND assignable", tables.RoleScopePack).
+		Order("id asc").
+		Find(&roles).Error; err != nil {
+		return nil, response.New(http.StatusInternalServerError, "failed to query db for roles")
+	}
+
+	out := make([]PackRoleInfo, 0, len(roles))
+	for _, r := range roles {
+		names := make([]string, 0, len(r.Permissions))
+		for _, p := range r.Permissions {
+			names = append(names, p.Name)
+		}
+		out = append(out, PackRoleInfo{ID: r.ID, Name: r.Name, Description: r.Description, Permissions: names})
+	}
+
+	return out, nil
+}
+
+// checkAssignablePackRole
+// 400 unless the role exists, is pack-scope and may be granted manually
+func (ps *PackwizService) checkAssignablePackRole(roleId uint) response.ServerError {
+	var role tables.Role
+	if err := ps.db.Where("id = ?", roleId).First(&role).Error; err != nil {
+		return response.New(http.StatusBadRequest, fmt.Sprintf("role '%d' not found", roleId))
+	}
+	if role.Scope != tables.RoleScopePack {
+		return response.New(http.StatusBadRequest, "not a pack role")
+	}
+	if !role.Assignable {
+		return response.New(http.StatusBadRequest, fmt.Sprintf("%s role cannot be assigned", role.Name))
+	}
+	return nil
+}
+
 // abortIfPackOwner
-// returns a forbidden error with msg if the user is the owner of the pack
+// returns a forbidden error with msg if the user created the pack. Owner
+// identity is packs.created_by, not a role check.
 func (ps *PackwizService) abortIfPackOwner(packId, userId uint, msg string) response.ServerError {
 	var isOwner bool
-	if err := ps.db.Model(&tables.PackUsers{}).
+	if err := ps.db.Unscoped().Model(&tables.Pack{}).
 		Select("1").
-		Where("pack_id = ? AND user_id = ? AND permission = ?", packId, userId, types.PackPermissionOwner).
+		Where("id = ? AND created_by = ?", packId, userId).
 		Limit(1).
 		Find(&isOwner).Error; err != nil {
 		return response.New(http.StatusInternalServerError, "failed to query db for pack user")
@@ -1107,19 +1198,19 @@ func (ps *PackwizService) RevokePackUser(packId, userId uint) response.ServerErr
 	return nil
 }
 
-// ChangePackUserPermission
-// change a user's permission level for a pack
-func (ps *PackwizService) ChangePackUserPermission(packId, userId uint, permission types.PackPermission) response.ServerError {
-	if permission == types.PackPermissionOwner {
-		return response.New(http.StatusBadRequest, "owner permission cannot be assigned")
+// ChangePackUserRole
+// change a user's role on a pack
+func (ps *PackwizService) ChangePackUserRole(packId, userId, roleId uint) response.ServerError {
+	if err := ps.checkAssignablePackRole(roleId); err != nil {
+		return err
 	}
-	if err := ps.abortIfPackOwner(packId, userId, "the pack owner's permission cannot be changed"); err != nil {
+	if err := ps.abortIfPackOwner(packId, userId, "the pack owner's role cannot be changed"); err != nil {
 		return err
 	}
 
 	result := ps.db.Model(&tables.PackUsers{}).
 		Where("pack_id = ? AND user_id = ?", packId, userId).
-		Update("permission", permission)
+		Update("role_id", roleId)
 	if result.Error != nil {
 		return response.Wrap(result.Error)
 	}

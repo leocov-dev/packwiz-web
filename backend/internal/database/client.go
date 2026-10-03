@@ -91,8 +91,8 @@ func UpsertDefaultAdminUser() {
 	// overwrite record or create
 	GetClient().Where("username = ?", "admin").Assign(
 		tables.User{
-			Password: adminPass,
-			IsAdmin:  true,
+			Password:    adminPass,
+			IsSuperuser: true,
 		},
 	).FirstOrCreate(&tables.User{})
 }

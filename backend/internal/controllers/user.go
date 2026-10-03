@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
@@ -29,7 +30,7 @@ func (uc *UserController) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	dataOK(c, dto.NewCurrentUserResponse(user))
+	dataOK(c, dto.NewCurrentUserResponse(user, middleware.SystemPermissions(c).Names()))
 }
 
 func (uc *UserController) ChangePassword(c *gin.Context) {

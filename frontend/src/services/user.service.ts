@@ -1,4 +1,4 @@
-import {User, UserListResponse} from "@/interfaces/user";
+import {SystemRole, User, UserListResponse} from "@/interfaces/user";
 import {apiClient} from "@/services/api.service";
 import {plainToInstance} from "class-transformer";
 import type {UserProfileFormData} from "@/components/user/UserProfile.vue";
@@ -80,4 +80,13 @@ export async function fetchUsersPaginated(
 
   const response = await apiClient.get(`v1/admin/users?${params}`)
   return plainToInstance(UserListResponse, response.data)
+}
+
+export async function listSystemRoles(): Promise<SystemRole[]> {
+  const response = await apiClient.get('v1/admin/roles', {params: {scope: 'system'}})
+  return plainToInstance(SystemRole, (response.data.roles ?? []) as object[])
+}
+
+export async function setUserRoles(id: number, roleIds: number[]): Promise<void> {
+  await apiClient.put(`v1/admin/users/${id}/roles`, {roleIds})
 }

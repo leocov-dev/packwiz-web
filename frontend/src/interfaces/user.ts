@@ -1,5 +1,19 @@
 import {Type} from "class-transformer";
 
+export class RoleRef {
+  id!: number;
+  name!: string;
+}
+
+export class SystemRole {
+  id!: number;
+  name!: string;
+  description!: string;
+  scope!: string;
+  assignable!: boolean;
+  permissions!: string[];
+}
+
 export class User {
   id!: number;
   username!: string;
@@ -7,7 +21,11 @@ export class User {
   email!: string;
   // only sent on the signed-in user's own record (GET v1/user)
   hasPassword?: boolean;
-  isAdmin!: boolean;
+  isSuperuser?: boolean;
+  /** only sent on the signed-in user's own record (GET v1/user) */
+  permissions?: string[];
+  /** only sent by the admin user endpoints */
+  roles?: RoleRef[];
   isActive!: boolean;
   createdAt!: string;
   updatedAt!: string;

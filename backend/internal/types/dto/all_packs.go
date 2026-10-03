@@ -18,7 +18,11 @@ func (f *AllPacksQuery) Validate() error {
 
 type PackResponse struct {
 	tables.Pack
-	CurrentUserPermission types.PackPermission `json:"currentUserPermission"`
+	// CurrentUserRole is the user's pack role name, for display only. Empty when
+	// access comes from a system role.
+	CurrentUserRole string `json:"currentUserRole" gorm:"-"`
+	// Permissions are the user's effective permission names on this pack.
+	Permissions []string `json:"permissions" gorm:"-"`
 }
 
 type AllPacksResponse struct {

@@ -72,11 +72,11 @@ watch(
     <v-divider />
 
     <div
-      v-if="user.isAdmin"
+      v-if="user.isSuperuser"
       class="d-flex justify-end ma-6"
     >
       <v-chip
-        :text="user.username === 'admin' ? 'Default Admin Account' : 'Admin Account'"
+        text="Default Admin Account"
         color="warning"
         size="small"
         label

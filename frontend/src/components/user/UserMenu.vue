@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import {useAuthStore} from "@/stores/auth.ts";
+import {usePermissions} from "@/composables/usePermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
 
 const authStore = useAuthStore()
+const {can} = usePermissions()
+
+// display only: highlights accounts that can open the admin screens
+const isAdmin = computed(() => can(Perm.UserView))
 
 const {width = 350} = defineProps<{ width?: number }>()
 const showMenu = ref(false)
@@ -30,7 +36,7 @@ const showMenu = ref(false)
         <v-avatar
           class="ms-n5"
           start
-          :color="authStore.user.isAdmin ? 'warning' : 'primary'"
+          :color="isAdmin ? 'warning' : 'primary'"
         >
           <v-icon icon="mdi-account" />
         </v-avatar>
@@ -49,7 +55,7 @@ const showMenu = ref(false)
           <template #prepend>
             <v-avatar
               start
-              :color="authStore.user.isAdmin ? 'warning' : 'primary'"
+              :color="isAdmin ? 'warning' : 'primary'"
             >
               <v-icon icon="mdi-account" />
             </v-avatar>

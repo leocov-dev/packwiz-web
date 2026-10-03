@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/audit_svc"
+	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types/dto"
@@ -17,6 +18,7 @@ import (
 type AdminController struct {
 	db       *gorm.DB
 	svc      *user_svc.UserService
+	authzSvc *authz_svc.Service
 	auditSvc *audit_svc.AuditService
 }
 
@@ -24,6 +26,7 @@ func NewAdminController(db *gorm.DB) *AdminController {
 	return &AdminController{
 		db:       db,
 		svc:      user_svc.NewUserService(db),
+		authzSvc: authz_svc.NewService(db),
 		auditSvc: audit_svc.NewAuditService(db),
 	}
 }
@@ -87,7 +90,13 @@ func (uc *AdminController) GetUserById(c *gin.Context) {
 		return
 	}
 
-	dataOK(c, user)
+	withRoles, rolesErr := uc.svc.WithRoles([]tables.User{user})
+	if rolesErr != nil {
+		response.Wrap(rolesErr).JSON(c)
+		return
+	}
+
+	dataOK(c, withRoles[0])
 }
 
 func (uc *AdminController) CreateUser(c *gin.Context) {
@@ -157,4 +166,51 @@ func (uc *AdminController) ReactivateUser(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+func (uc *AdminController) ListRoles(c *gin.Context) {
+	roles, err := uc.authzSvc.ListRoles(c.Query("scope"))
+	if err != nil {
+		response.Wrap(err).JSON(c)
+		return
+	}
+
+	dataOK(c, gin.H{"roles": roles})
+}
+
+func (uc *AdminController) ListPermissions(c *gin.Context) {
+	perms, err := uc.authzSvc.ListPermissions()
+	if err != nil {
+		response.Wrap(err).JSON(c)
+		return
+	}
+
+	dataOK(c, gin.H{"permissions": perms})
+}
+
+func (uc *AdminController) SetUserRoles(c *gin.Context) {
+	userId, bindErr := mustBindIdParam(c, params.UserID)
+	if bindErr != nil {
+		bindErr.JSON(c)
+		return
+	}
+
+	var request dto.SetUserRolesRequest
+	if bindErr := mustBindJson(c, &request); bindErr != nil {
+		bindErr.JSON(c)
+		return
+	}
+
+	switch err := uc.authzSvc.SetUserRoles(userId, request.RoleIDs); {
+	case err == nil:
+		isOK(c)
+	case errors.Is(err, authz_svc.ErrUserNotFound):
+		response.New(http.StatusNotFound, fmt.Sprintf("user %d not found", userId)).JSON(c)
+	case errors.Is(err, authz_svc.ErrSuperuserProtected):
+		response.New(http.StatusForbidden, err.Error()).JSON(c)
+	case errors.Is(err, authz_svc.ErrInvalidRole):
+		response.New(http.StatusBadRequest, "one or more roles are invalid or not assignable").JSON(c)
+	default:
+		response.Wrap(err).JSON(c)
+	}
 }

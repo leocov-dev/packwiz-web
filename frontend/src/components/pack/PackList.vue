@@ -8,14 +8,11 @@ export interface PackListModel {
 </script>
 
 <script setup lang="ts">
-import {useAuthStore} from "@/stores/auth.ts";
 import {fetchAllPacks} from "@/services/packs.service.ts";
 import {type PackResponse} from "@/interfaces/pack.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 
 const model = defineModel({required: true, type: Object as () => PackListModel})
-
-const authStore = useAuthStore()
 
 const {
   isLoading,
@@ -38,10 +35,9 @@ const filterConfig: FiltersConfig = {
     title: "Show Drafts"
   }
 }
-if (authStore.user?.isAdmin) {
-  filterConfig["archived"] = {
-    title: "Show Archived"
-  }
+// the backend only returns archived packs the user can view
+filterConfig["archived"] = {
+  title: "Show Archived"
 }
 
 watch(

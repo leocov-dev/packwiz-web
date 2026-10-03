@@ -4,6 +4,7 @@ import PackActions from "@/components/pack/PackActions.vue";
 import ModsList from "@/components/mods/ModsList.vue";
 import {toTitleCase} from "@/services/utils.ts";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
 import {
   archivePack,
   convertPackToDraft,
@@ -52,7 +53,14 @@ const updateAllResult = ref<UpdateAllResponse | null>(null)
 const snackbar = useSnackbarStore()
 
 const router = useRouter()
-const {canEdit, hasEditAccess} = usePackPermissions(() => pack)
+const {can} = usePackPermissions(() => pack)
+
+const canManageMenu = computed(() => [
+  Perm.PackUsersView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility, Perm.PackArchive,
+].some(can))
+const hasToolbar = computed(() => canManageMenu.value || [
+  Perm.PackInfoEdit, Perm.PackModAdd, Perm.PackUpdatesCheck, Perm.PackModUpdate,
+].some(can))
 
 const updateChecks = useUpdateChecks(() => pack.id)
 // Optimistic pin changes reported by ModsList (not yet in pack.mods); applied so
@@ -207,13 +215,13 @@ const updateAll = async () => {
       :result="updateAllResult"
     />
     <PackMigrateDialog
-      v-if="canEdit"
+      v-if="can(Perm.PackMigrate)"
       v-model="showMigrateDialog"
       :pack="pack"
       @migrated="emit('reload')"
     />
     <RehashDialog
-      v-if="canEdit"
+      v-if="can(Perm.PackRehash)"
       v-model="showRehashDialog"
       :pack="pack"
       @rehashed="emit('reload')"
@@ -264,47 +272,49 @@ const updateAll = async () => {
       <v-divider />
 
       <div
-        v-if="hasEditAccess"
+        v-if="hasToolbar"
         class="d-flex flex-wrap ga-3 align-center justify-end mt-3 ms-3 me-3"
       >
-        <template v-if="canEdit">
-          <v-btn
-            prepend-icon="mdi-pencil"
-            text="Edit"
-            :to="`/packs/${pack.id}/edit`"
-          />
-          <v-btn
-            prepend-icon="mdi-plus"
-            text="Add Mod"
-            color="primary"
-            variant="flat"
-            @click="onAddMod"
-          />
-          <span
-            v-if="checkedText"
-            class="text-body-2 flex-grow-1 flex-sm-grow-0 text-end text-sm-start me-sm-auto"
-            :class="updateChecks.error.value ? 'text-warning' : 'text-medium-emphasis'"
-            role="status"
-          >
-            {{ checkedText }}
-          </span>
-          <v-btn
-            prepend-icon="mdi-cloud-search-outline"
-            text="Check for updates"
-            :loading="updateChecks.isChecking.value"
-            :disabled="updateChecks.isChecking.value || updateChecks.coolingDown.value || updateAllLoading"
-            @click="onCheckUpdates"
-          />
-          <v-btn
-            prepend-icon="mdi-update"
-            :text="updateAllText"
-            :loading="updateAllLoading"
-            :disabled="updateAllLoading"
-            @click="showUpdateAllDialog = true"
-          />
-        </template>
+        <v-btn
+          v-if="can(Perm.PackInfoEdit)"
+          prepend-icon="mdi-pencil"
+          text="Edit"
+          :to="`/packs/${pack.id}/edit`"
+        />
+        <v-btn
+          v-if="can(Perm.PackModAdd)"
+          prepend-icon="mdi-plus"
+          text="Add Mod"
+          color="primary"
+          variant="flat"
+          @click="onAddMod"
+        />
+        <span
+          v-if="checkedText"
+          class="text-body-2 flex-grow-1 flex-sm-grow-0 text-end text-sm-start me-sm-auto"
+          :class="updateChecks.error.value ? 'text-warning' : 'text-medium-emphasis'"
+          role="status"
+        >
+          {{ checkedText }}
+        </span>
+        <v-btn
+          v-if="can(Perm.PackUpdatesCheck)"
+          prepend-icon="mdi-cloud-search-outline"
+          text="Check for updates"
+          :loading="updateChecks.isChecking.value"
+          :disabled="updateChecks.isChecking.value || updateChecks.coolingDown.value || updateAllLoading"
+          @click="onCheckUpdates"
+        />
+        <v-btn
+          v-if="can(Perm.PackModUpdate)"
+          prepend-icon="mdi-update"
+          :text="updateAllText"
+          :loading="updateAllLoading"
+          :disabled="updateAllLoading"
+          @click="showUpdateAllDialog = true"
+        />
 
-        <v-menu>
+        <v-menu v-if="canManageMenu">
           <template #activator="{ props }">
             <v-btn
               v-bind="props"
@@ -315,56 +325,58 @@ const updateAll = async () => {
           </template>
 
           <v-list>
-            <template v-if="canEdit">
-              <v-list-item
-                prepend-icon="mdi-account-multiple"
-                title="Collaborators"
-                :to="`/packs/${pack.id}/collaborators`"
-              />
-              <v-list-item
-                prepend-icon="mdi-arrow-up-bold-hexagon-outline"
-                title="Migrate"
-                @click="showMigrateDialog = true"
-              />
-              <v-list-item
-                prepend-icon="mdi-pound-box-outline"
-                title="Rehash"
-                @click="showRehashDialog = true"
-              />
-              <v-list-item
-                v-if="pack.status === 'draft'"
-                prepend-icon="mdi-earth"
-                title="Publish"
-                @click="showPublishDialog = true"
-              />
-              <v-list-item
-                v-else-if="pack.status === 'published'"
-                prepend-icon="mdi-file-edit"
-                title="Convert to Draft"
-                @click="showDraftDialog = true"
-              />
-              <v-list-item
-                v-if="!pack.isPublic"
-                prepend-icon="mdi-earth"
-                title="Make Public"
-                @click="showPublicDialog = true"
-              />
-              <v-list-item
-                v-else
-                prepend-icon="mdi-earth-off"
-                title="Make Private"
-                @click="showPrivateDialog = true"
-              />
-              <v-divider class="my-1" />
-              <v-list-item
-                prepend-icon="mdi-archive"
-                title="Archive"
-                base-color="error"
-                @click="showArchiveDialog = true"
-              />
-            </template>
             <v-list-item
-              v-else
+              v-if="can(Perm.PackUsersView)"
+              prepend-icon="mdi-account-multiple"
+              title="Collaborators"
+              :to="`/packs/${pack.id}/collaborators`"
+            />
+            <v-list-item
+              v-if="can(Perm.PackMigrate)"
+              prepend-icon="mdi-arrow-up-bold-hexagon-outline"
+              title="Migrate"
+              @click="showMigrateDialog = true"
+            />
+            <v-list-item
+              v-if="can(Perm.PackRehash)"
+              prepend-icon="mdi-pound-box-outline"
+              title="Rehash"
+              @click="showRehashDialog = true"
+            />
+            <v-list-item
+              v-if="can(Perm.PackPublish) && pack.status === 'draft'"
+              prepend-icon="mdi-earth"
+              title="Publish"
+              @click="showPublishDialog = true"
+            />
+            <v-list-item
+              v-else-if="can(Perm.PackPublish) && pack.status === 'published'"
+              prepend-icon="mdi-file-edit"
+              title="Convert to Draft"
+              @click="showDraftDialog = true"
+            />
+            <v-list-item
+              v-if="can(Perm.PackVisibility) && !pack.isPublic"
+              prepend-icon="mdi-earth"
+              title="Make Public"
+              @click="showPublicDialog = true"
+            />
+            <v-list-item
+              v-else-if="can(Perm.PackVisibility)"
+              prepend-icon="mdi-earth-off"
+              title="Make Private"
+              @click="showPrivateDialog = true"
+            />
+            <v-divider class="my-1" />
+            <v-list-item
+              v-if="can(Perm.PackArchive) && !pack.isArchived"
+              prepend-icon="mdi-archive"
+              title="Archive"
+              base-color="error"
+              @click="showArchiveDialog = true"
+            />
+            <v-list-item
+              v-if="can(Perm.PackArchive) && pack.isArchived"
               prepend-icon="mdi-archive-refresh"
               title="Unarchive"
               base-color="warning"
@@ -400,7 +412,7 @@ const updateAll = async () => {
     <ModsList
       :pack-id="pack.id"
       :mods="pack.mods || []"
-      :can-edit="canEdit"
+      :permissions="pack.permissions"
       :update-checks="updateChecks.results.value"
       @add-mod="onAddMod"
       @pin-overrides="pinOverrides = $event"

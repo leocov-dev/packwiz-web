@@ -111,8 +111,8 @@ watch(
       <v-spacer />
 
       <v-chip
-        v-if="user.isAdmin"
-        :text="user.username === 'admin' ? 'Default Admin Account' : 'Admin Account'"
+        v-if="user.isSuperuser"
+        text="Default Admin Account"
         color="warning"
         size="small"
         label

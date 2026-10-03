@@ -2,13 +2,16 @@
 
 import {useAuthStore} from "@/stores/auth";
 import {useAppStore} from "@/stores/app";
+import {Perm, type PermissionName} from "@/lib/permissions.ts";
+import {usePermissions} from "@/composables/usePermissions.ts";
 
 const route = useRoute()
 const authStore = useAuthStore()
+const {can} = usePermissions()
 const appStore = useAppStore()
 const selected = ref<string[]>([])
 
-const items = [
+const items: { text: string, icon: string, route: string, permission?: PermissionName }[] = [
   {
     text: 'Mod Packs',
     icon: 'mdi-package-variant',
@@ -18,22 +21,25 @@ const items = [
     text: 'Users',
     icon: 'mdi-account-group',
     route: '/admin/users',
+    permission: Perm.UserView,
   },
   {
     text: 'OIDC Providers',
     icon: 'mdi-key-chain',
     route: '/admin/oidc',
+    permission: Perm.OidcManage,
   },
   {
     text: 'Audit Log',
     icon: 'mdi-format-list-text',
     route: '/admin/audit',
+    permission: Perm.AuditView,
   },
 ]
 
 const userItems = computed(() => {
   return items.filter(item => {
-    return !(item.route.startsWith('/admin') && (!authStore.user || !authStore.user.isAdmin))
+    return !item.permission || (!!authStore.user && can(item.permission))
   })
 })
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/params"
+	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
 )
@@ -47,7 +48,15 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		system, err := authz_svc.NewService(db).SystemPermissions(user)
+		if err != nil {
+			log.Warn("failed to load permissions", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": "failed to load permissions"})
+			return
+		}
+
 		c.Set("user", user)
+		c.Set(systemPermissionsKey, system)
 
 		c.Next()
 	}
@@ -85,8 +94,13 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var packUser tables.PackUsers
-		if err := db.Where(&tables.PackUsers{PackID: pack.ID, UserID: user.ID}).First(&packUser).Error; err != nil {
+		authz := authz_svc.NewService(db)
+		system, err := authz.SystemPermissions(user)
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		if err := authz.CanOnPack(user, system, pack.ID, authz_svc.PackConsume); err != nil {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}

@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import type {Pack} from "@/interfaces/pack.ts";
-import {getPackCollaborators} from "@/services/packs.service.ts";
+import type {PackResponse} from "@/interfaces/pack.ts";
+import {getPackCollaborators, listPackRoles} from "@/services/packs.service.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
 import CollaboratorCard from "@/components/pack/CollaboratorCard.vue";
 import AddCollaboratorDialog from "@/components/pack/AddCollaboratorDialog.vue";
+import {usePackPermissions} from "@/composables/usePackPermissions.ts";
+import {Perm} from "@/lib/permissions.ts";
 
-const {pack} = defineProps<{ pack: Pack }>()
+const {pack} = defineProps<{ pack: PackResponse }>()
+
+const {can} = usePackPermissions(() => pack)
+const canManage = computed(() => can(Perm.PackUsersManage))
 
 const router = useRouter()
 
@@ -19,6 +24,12 @@ const {
   return getPackCollaborators(pack.id)
 })
 
+const {data: rolesResponse} = buildDataLoader(async () => {
+  return listPackRoles()
+})
+
+const roles = computed(() => rolesResponse.value?.roles || [])
+
 const collaborators = computed(() => collaboratorsResponse.value?.users || [])
 
 const backToPack = async () => {
@@ -29,7 +40,9 @@ const backToPack = async () => {
 <template>
   <div class="ma-6">
     <AddCollaboratorDialog
+      v-if="canManage"
       v-model="showAddDialog"
+      :roles="roles"
       :pack-id="pack.id"
       :existing-user-ids="collaborators.map(c => c.userId)"
       @added="reload"
@@ -61,6 +74,7 @@ const backToPack = async () => {
               hide-details
             />
             <v-btn
+              v-if="canManage"
               color="primary"
               variant="flat"
               prepend-icon="mdi-account-plus"
@@ -79,6 +93,8 @@ const backToPack = async () => {
               <CollaboratorCard
                 :pack-id="pack.id"
                 :collaborator="item.raw"
+                :roles="roles"
+                :can-manage="canManage"
                 @changed="reload"
               />
             </v-list-item>
