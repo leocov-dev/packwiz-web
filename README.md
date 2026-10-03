@@ -26,6 +26,10 @@ Any changes are immediately available to users.
 6. [x] Import existing Packwiz mod configurations
 7. [x] OIDC authentication
 
+![Mod packs](docs/screenshots/packs.png)
+
+![Pack detail](docs/screenshots/pack-detail.png)
+
 ## Deploy
 This is a web service intended to be deployed as a docker container.
 A Postgres database is required. 

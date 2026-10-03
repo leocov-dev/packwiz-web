@@ -58,107 +58,109 @@ const page = ref(1)
 </script>
 
 <template>
-  <ImportPackDialog
-    v-model="importOpen"
-    @imported="reload()"
-  />
-  <v-data-iterator
-    v-model:page="page"
-    :loading="isLoading"
-    :items="data"
-    items-per-page="12"
-  >
-    <template #header>
-      <v-toolbar
-        class="ps-5 pe-5 pt-2 pb-2"
-        elevation="4"
-      >
-        <SearchBar
-          v-model="model.search"
-          max-width="400"
-          class="me-auto"
-          density="comfortable"
+  <div>
+    <ImportPackDialog
+      v-model="importOpen"
+      @imported="reload()"
+    />
+    <v-data-iterator
+      v-model:page="page"
+      :loading="isLoading"
+      :items="data"
+      items-per-page="12"
+    >
+      <template #header>
+        <v-toolbar
+          class="ps-5 pe-5 pt-2 pb-2"
           elevation="4"
-        />
-
-        <v-btn
-          v-if="can(Perm.PackCreate)"
-          text="Import"
-          color="primary"
-          variant="flat"
-          class="me-3"
-          elevation="4"
-          @click="importOpen = true"
-        />
-
-        <v-btn
-          text="New Pack"
-          to="/packs/new"
-          link
-          color="primary"
-          variant="flat"
-          class="me-3"
-          elevation="4"
-        />
-
-        <FiltersMenu
-          v-model="model.filters"
-          :config="filterConfig"
-        />
-        <v-btn
-          icon="mdi-refresh"
-          @click="reload()"
-        />
-      </v-toolbar>
-    </template>
-
-    <template #loader>
-      <v-row class="my-0">
-        <v-col
-          v-for="n in 5"
-          :key="n"
-          cols="12"
-          md="4"
-          sm="12"
         >
-          <v-skeleton-loader type="heading, paragraph, actions" />
-        </v-col>
-      </v-row>
-    </template>
-
-    <template #default="{ items }">
-      <v-row class="my-0">
-        <v-col
-          v-for="item in items"
-          :key="item.raw.id"
-          cols="12"
-          md="4"
-          sm="12"
-        >
-          <PackCard
-            :pack="item.raw"
+          <SearchBar
+            v-model="model.search"
+            max-width="400"
+            class="me-auto"
+            density="comfortable"
             elevation="4"
           />
-        </v-col>
-      </v-row>
-    </template>
 
-    <template #no-data>
-      <div class="d-flex justify-center ma-10">
-        No results.
-      </div>
-    </template>
+          <v-btn
+            v-if="can(Perm.PackCreate)"
+            text="Import"
+            color="primary"
+            variant="flat"
+            class="me-3"
+            elevation="4"
+            @click="importOpen = true"
+          />
 
-    <template #footer="{ pageCount }">
-      <div
-        v-if="pageCount > 1"
-        class="d-flex justify-center pa-4"
-      >
-        <v-pagination
-          v-model="page"
-          :length="pageCount"
-        />
-      </div>
-    </template>
-  </v-data-iterator>
+          <v-btn
+            text="New Pack"
+            to="/packs/new"
+            link
+            color="primary"
+            variant="flat"
+            class="me-3"
+            elevation="4"
+          />
+
+          <FiltersMenu
+            v-model="model.filters"
+            :config="filterConfig"
+          />
+          <v-btn
+            icon="mdi-refresh"
+            @click="reload()"
+          />
+        </v-toolbar>
+      </template>
+
+      <template #loader>
+        <v-row class="my-0">
+          <v-col
+            v-for="n in 5"
+            :key="n"
+            cols="12"
+            md="4"
+            sm="12"
+          >
+            <v-skeleton-loader type="heading, paragraph, actions" />
+          </v-col>
+        </v-row>
+      </template>
+
+      <template #default="{ items }">
+        <v-row class="my-0">
+          <v-col
+            v-for="item in items"
+            :key="item.raw.id"
+            cols="12"
+            md="4"
+            sm="12"
+          >
+            <PackCard
+              :pack="item.raw"
+              elevation="4"
+            />
+          </v-col>
+        </v-row>
+      </template>
+
+      <template #no-data>
+        <div class="d-flex justify-center ma-10">
+          No results.
+        </div>
+      </template>
+
+      <template #footer="{ pageCount }">
+        <div
+          v-if="pageCount > 1"
+          class="d-flex justify-center pa-4"
+        >
+          <v-pagination
+            v-model="page"
+            :length="pageCount"
+          />
+        </div>
+      </template>
+    </v-data-iterator>
+  </div>
 </template>
