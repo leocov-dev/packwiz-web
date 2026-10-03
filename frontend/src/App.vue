@@ -22,7 +22,15 @@ const snackbar = useSnackbarStore();
     {{ snackbar.message }}
     <template #actions>
       <v-btn
+        v-if="snackbar.link"
+        :text="snackbar.link.text"
+        :to="snackbar.link.to"
+        variant="text"
+        @click="snackbar.closeSnackbar"
+      />
+      <v-btn
         icon="mdi-close"
+        aria-label="Close"
         @click="snackbar.closeSnackbar"
       />
     </template>

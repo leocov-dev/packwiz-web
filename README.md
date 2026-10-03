@@ -20,7 +20,7 @@ Any changes are immediately available to users.
 2. [x] Admin and User accounts for secure collaboration
 3. [x] Serve static Modpack files to servers/clients
 4. [ ] Duplicate existing packs to test out changes
-5. [ ] Snapshot Modpacks and roll back to previous states
+5. [x] Snapshot Modpacks and roll back to previous states
 6. [ ] Import existing Packwiz mod configurations
 7. [x] OIDC authentication
 

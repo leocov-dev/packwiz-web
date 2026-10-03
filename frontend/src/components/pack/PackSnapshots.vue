@@ -120,7 +120,8 @@ const backToPack = async () => {
           @update:options="onUpdateOptions"
         >
           <template #top>
-            <v-toolbar class="ps-5 pe-5 d-flex flex-wrap">
+            <!-- a plain flex row, not v-toolbar: the toolbar clips the switch thumb on the left -->
+            <div class="d-flex align-center px-4 py-2">
               <v-switch
                 v-model="showAbandoned"
                 label="Show abandoned"
@@ -135,7 +136,7 @@ const backToPack = async () => {
                 aria-label="Refresh"
                 @click="reload()"
               />
-            </v-toolbar>
+            </div>
           </template>
 
           <template #[`item.createdAt`]="{ item }">

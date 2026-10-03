@@ -14,7 +14,6 @@ const {pack, snapshot} = defineProps<{
   snapshot: PackSnapshot
 }>()
 
-const router = useRouter()
 const snackbar = useSnackbarStore()
 
 const slug = ref('')
@@ -45,9 +44,12 @@ const submit = async () => {
   error.value = ''
   try {
     const created = await cloneFromSnapshot(pack.id, snapshot.id, {slug: slug.value, name: name.value})
-    snackbar.showSnackbar(`Created ${created.name || created.slug}`, 'success', 4000)
+    // stay on the history page; the toast links to the new pack
+    snackbar.showSnackbar(`Created ${created.name || created.slug}`, 'success', 10000, {
+      text: 'View pack',
+      to: `/packs/${created.id}`,
+    })
     open.value = false
-    await router.push({path: `/packs/${created.id}`})
   } catch (e) {
     error.value = apiErrorMessage(e, 'Failed to clone the pack.')
   } finally {
