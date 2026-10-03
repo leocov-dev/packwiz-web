@@ -1,6 +1,7 @@
 package audit_svc
 
 import (
+	"context"
 	"gorm.io/gorm"
 	"net/http"
 	"packwiz-web/internal/tables"
@@ -15,6 +16,13 @@ type AuditService struct {
 
 func NewAuditService(db *gorm.DB) *AuditService {
 	return &AuditService{db: db}
+}
+
+// PruneOlderThan deletes audit rows created before cutoff and returns how many
+// were removed.
+func (s *AuditService) PruneOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	result := s.db.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&tables.Audit{})
+	return result.RowsAffected, result.Error
 }
 
 func (s *AuditService) ListAudits(request dto.ListAuditsQuery) ([]tables.Audit, int64, response.ServerError) {

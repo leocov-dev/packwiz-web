@@ -40,6 +40,7 @@ func NewClient(gdb *gorm.DB, workers *river.Workers) (*river.Client[*sql.Tx], er
 		// default is 1h. Must be greater than the longest per-job timeout
 		// (jobs.CheckUpdatesTimeout, 10m; other jobs use River's 1m default).
 		RescueStuckJobsAfter: 15 * time.Minute,
+		PeriodicJobs:         auditPrunePeriodicJobs(),
 		Workers:              workers,
 		Logger:               newSlogLogger(),
 	})

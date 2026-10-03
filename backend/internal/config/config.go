@@ -25,6 +25,8 @@ type Config struct {
 	PGDbName          string
 	JobWorkerPoolSize int
 	PublicURL         string
+	// AuditRetentionDays is how long audit rows are kept; 0 disables pruning.
+	AuditRetentionDays int
 }
 
 var (
@@ -46,6 +48,7 @@ const (
 	githubApiKey      = "GH_API_KEY"
 	jobWorkerPoolSize = "JOB_WORKER_POOL_SIZE"
 	envPublicURL      = "PUBLIC_URL"
+	envAuditRetention = "AUDIT_RETENTION_DAYS"
 
 	// DefaultSessionSecret is the insecure fallback used when SESSION_SECRET is
 	// not set. Features that derive keys from the secret must refuse to work
@@ -115,6 +118,9 @@ func init() {
 
 	config.BindEnv(envPublicURL)
 
+	config.BindEnv(envAuditRetention)
+	config.SetDefault(envAuditRetention, 90)
+
 	config.BindEnv(curseforgeApiKey)
 	config.BindEnv(githubApiKey)
 
@@ -129,19 +135,24 @@ func init() {
 	}
 
 	C = Config{
-		Name:              filepath.Base(exePath),
-		Version:           versionTag,
-		Mode:              config.GetString(envMode),
-		AdminPassword:     config.GetString(envAdminPassword),
-		TrustedProxies:    strings.FieldsFunc(config.GetString(envProxies), func(r rune) bool { return r == ',' || r == ' ' }),
-		SessionSecret:     []byte(config.GetString(envSessionSecret)),
-		PGHost:            config.GetString(pgHost),
-		PGUser:            config.GetString(pgUser),
-		PGPassword:        config.GetString(pgPassword),
-		PGDbName:          config.GetString(pgDbName),
-		PGPort:            config.GetInt(pgPort),
-		JobWorkerPoolSize: config.GetInt(jobWorkerPoolSize),
-		PublicURL:         strings.TrimRight(strings.TrimSpace(config.GetString(envPublicURL)), "/"),
+		Name:               filepath.Base(exePath),
+		Version:            versionTag,
+		Mode:               config.GetString(envMode),
+		AdminPassword:      config.GetString(envAdminPassword),
+		TrustedProxies:     strings.FieldsFunc(config.GetString(envProxies), func(r rune) bool { return r == ',' || r == ' ' }),
+		SessionSecret:      []byte(config.GetString(envSessionSecret)),
+		PGHost:             config.GetString(pgHost),
+		PGUser:             config.GetString(pgUser),
+		PGPassword:         config.GetString(pgPassword),
+		PGDbName:           config.GetString(pgDbName),
+		PGPort:             config.GetInt(pgPort),
+		JobWorkerPoolSize:  config.GetInt(jobWorkerPoolSize),
+		PublicURL:          strings.TrimRight(strings.TrimSpace(config.GetString(envPublicURL)), "/"),
+		AuditRetentionDays: config.GetInt(envAuditRetention),
+	}
+
+	if C.AuditRetentionDays < 0 {
+		panic("AUDIT_RETENTION_DAYS must not be negative")
 	}
 
 	if C.AdminPassword == "" {

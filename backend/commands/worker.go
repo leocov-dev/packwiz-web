@@ -11,6 +11,7 @@ import (
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/jobs"
 	"packwiz-web/internal/log"
+	"packwiz-web/internal/services/audit_svc"
 	"packwiz-web/internal/services/packwiz_svc"
 )
 
@@ -24,7 +25,7 @@ var (
 
 			db := database.GetClient()
 			resolver := packwiz_svc.NewPackwizService(db, nil)
-			client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver))
+			client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver, audit_svc.NewAuditService(db)))
 			if err != nil {
 				log.Error("failed to create river client:", err)
 				return
