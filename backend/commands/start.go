@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +23,11 @@ var (
 		Use:   "start",
 		Short: "Start the server",
 		Run: func(cmd *cobra.Command, args []string) {
+			// SIGINT/SIGTERM must stop the whole process, not just the worker:
+			// once a handler is installed the default "exit on signal" is gone,
+			// so the HTTP server has to watch this context too.
+			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+			defer stop()
 
 			if runMigrations {
 				if err := database.RunMigrations(); err != nil {
@@ -33,9 +39,6 @@ var (
 			database.UpsertDefaultAdminUser()
 
 			if runWorker {
-				ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-				defer stop()
-
 				db := database.GetClient()
 				resolver := packwiz_svc.NewPackwizService(db, nil)
 				client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver))
@@ -50,9 +53,18 @@ var (
 				}
 
 				log.Info("worker started in-process")
+
+				defer func() {
+					stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+					if err := client.Stop(stopCtx); err != nil {
+						log.Error("error stopping river client:", err)
+					}
+					log.Info("worker stopped")
+				}()
 			}
 
-			server.Start()
+			server.Start(ctx)
 		},
 	}
 )
