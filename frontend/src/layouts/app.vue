@@ -32,12 +32,15 @@ onUnmounted(() => {
       <v-btn
         v-ripple="false"
         icon
+        class="ms-3"
+        size="52"
         to="/"
+        aria-label="Home"
       >
         <v-img
-          src="/favicon-32x32.png"
-          width="32"
-          height="32"
+          src="/android-chrome-192x192.png"
+          width="44"
+          height="44"
         />
       </v-btn>
       <v-app-bar-title
