@@ -1,5 +1,7 @@
 # Packwiz Web UI
 
+> This code was developed with assistance from LLM AI coding agents.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
 
 > [!WARNING]
