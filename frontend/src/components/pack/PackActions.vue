@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {type Pack, PackStatus} from "@/interfaces/pack.ts";
 import PackLinksDialog from "@/components/pack/PackLinksDialog.vue";
+import {publicPackPath} from "@/services/packs.service.ts";
 
 const {pack} = defineProps<{ pack: Pack }>()
 
@@ -54,6 +55,25 @@ const title = "Links and setup"
           icon="mdi-link-variant"
           :aria-label="title"
           @click="showDialog = true"
+        />
+      </template>
+    </v-tooltip>
+
+    <v-tooltip
+      v-if="pack.isPublic"
+      text="Open public page"
+      location="bottom"
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          density="comfortable"
+          variant="text"
+          icon="mdi-open-in-new"
+          aria-label="Open public page"
+          :href="publicPackPath(pack.slug)"
+          target="_blank"
+          rel="noopener"
         />
       </template>
     </v-tooltip>

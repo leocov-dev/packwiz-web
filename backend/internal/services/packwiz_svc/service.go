@@ -237,6 +237,9 @@ func (ps *PackwizService) GetPackBySlug(slug string) (tables.Pack, response.Serv
 		&tables.Pack{},
 	).Preload(
 		"Mods",
+	).Preload(
+		// the owner's username is written to pack.toml as the author
+		"Author",
 	).Where(
 		&tables.Pack{Slug: slug},
 	)
@@ -1057,7 +1060,7 @@ func (ps *PackwizService) GetPersonalLink(
 
 	var key string
 	if ps.IsPackPublicById(packId) {
-		key = "public"
+		key = publicLinkKey
 	} else {
 		key = user.LinkToken
 	}
@@ -1067,7 +1070,7 @@ func (ps *PackwizService) GetPersonalLink(
 		return url.URL{}, err
 	}
 
-	link, parseErr := url.Parse(fmt.Sprintf("%s://%s/packwiz/%s/%s/pack.toml", scheme, host, key, pack.Slug))
+	link, parseErr := url.Parse(packTomlURL(scheme, host, key, pack.Slug))
 	if parseErr != nil {
 		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
 	}

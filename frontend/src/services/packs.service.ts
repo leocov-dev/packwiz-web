@@ -8,6 +8,7 @@ import {
   PackCollaboratorsResponse,
   PackRolesResponse,
   PackResponse,
+  PublicPack,
   UpdateAllResponse,
   UpdateCheckJobResponse,
   UpdateChecksResponse,
@@ -88,6 +89,16 @@ export function getClientSetupCommand(link: string): string {
 export async function clientSetupCommandToClipboard(packId: number) {
   const link = await getPackPublicLink(packId)
   await writeToClipboard(getClientSetupCommand(link))
+}
+
+/** Path of the standalone public page for a public pack. */
+export function publicPackPath(slug: string): string {
+  return `/p/${encodeURIComponent(slug)}`
+}
+
+export async function fetchPublicPack(slug: string): Promise<PublicPack> {
+  const response = await apiClient.get(`v1/public/packs/${encodeURIComponent(slug)}`)
+  return plainToInstance(PublicPack, response.data)
 }
 
 export async function newPack(request: NewPackRequest): Promise<Pack> {

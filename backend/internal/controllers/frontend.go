@@ -35,7 +35,8 @@ func (epc *FrontendController) Handler(c *gin.Context) {
 		return
 	}
 
-	if requestedPath == "/" {
+	// client-side routes that must work when opened directly (shared links)
+	if requestedPath == "/" || strings.HasPrefix(requestedPath, "/p/") {
 		requestedPath = "/index.html"
 	}
 

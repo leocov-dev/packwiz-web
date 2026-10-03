@@ -29,6 +29,7 @@ declare module 'vue-router/auto-routes' {
     '/admin/users/new': RouteRecordInfo<'/admin/users/new', '/admin/users/new', Record<never, never>, Record<never, never>>,
     '/auth/login': RouteRecordInfo<'/auth/login', '/auth/login', Record<never, never>, Record<never, never>>,
     '/auth/logout': RouteRecordInfo<'/auth/logout', '/auth/logout', Record<never, never>, Record<never, never>>,
+    '/p/[slug]': RouteRecordInfo<'/p/[slug]', '/p/:slug', { slug: ParamValue<true> }, { slug: ParamValue<false> }>,
     '/packs/': RouteRecordInfo<'/packs/', '/packs', Record<never, never>, Record<never, never>>,
     '/packs/[packId]': RouteRecordInfo<'/packs/[packId]', '/packs/:packId', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].access': RouteRecordInfo<'/packs/[packId].access', '/packs/:packId/access', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,

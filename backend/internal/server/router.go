@@ -84,6 +84,7 @@ func NewRouter() *gin.Engine {
 
 			routes.RegisterAuthRoutes(v1, db)
 			routes.RegisterOidcAuthRoutes(v1, db, oidcProviders, oidcFlow)
+			routes.RegisterPublicRoutes(v1, db, riverClient)
 
 			protectedGroup := v1.Group("")
 			protectedGroup.Use(middleware.ApiAuthentication(db))

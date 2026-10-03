@@ -234,3 +234,33 @@ export class ImportPackResponse {
   skippedFiles: string[] = [];
   warnings: string[] = [];
 }
+
+
+export class PublicPackMod {
+  slug!: string;
+  name!: string;
+  type!: string;
+  side!: "client" | "server" | "both";
+  version?: string;
+  source!: string;
+  optional!: boolean;
+  isDependency!: boolean;
+}
+
+/** Unauthenticated view of a public, published pack. */
+export class PublicPack {
+  slug!: string;
+  name!: string;
+  description!: string;
+  author!: string;
+  version!: string;
+  mcVersion!: string;
+  loader!: string;
+  loaderVersion!: string;
+  acceptableGameVersions!: string[];
+  packFormat!: string;
+  updatedAt!: string;
+  packTomlUrl!: string;
+  @Type(() => PublicPackMod)
+  mods!: PublicPackMod[];
+}
