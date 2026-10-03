@@ -8,12 +8,14 @@ import (
 	"gorm.io/gorm"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
+	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/authz_svc"
 )
 
 func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	packwizController := controllers.NewPackwizController(db, riverClient)
+	snapshotController := controllers.NewPackSnapshotController(db)
 	authz := authz_svc.NewService(db)
 
 	packGroup := router.Group("pack", handlers...)
@@ -52,6 +54,14 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.POST("users", can(authz_svc.PackUsersManage), packwizController.AddPackUser)
 			packIdGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.RemovePackUser)
 			packIdGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.EditUserAccess)
+
+			snapshotsGroup := packIdGroup.Group("snapshots")
+			{
+				snapshotsGroup.GET("", can(authz_svc.PackSnapshotView), snapshotController.ListSnapshots)
+				snapshotsGroup.GET(fmt.Sprintf(":%s", params.SnapshotId), can(authz_svc.PackSnapshotView), snapshotController.GetSnapshot)
+				snapshotsGroup.POST(fmt.Sprintf(":%s/revert", params.SnapshotId), can(authz_svc.PackSnapshotRevert), meta.Tag(meta.CategoryPackRevert), snapshotController.RevertToSnapshot)
+				snapshotsGroup.POST(fmt.Sprintf(":%s/clone", params.SnapshotId), can(authz_svc.PackSnapshotView), middleware.RequirePermission(authz_svc.PackCreate), meta.Tag(meta.CategoryPackClone), snapshotController.CloneFromSnapshot)
+			}
 
 			RegisterPackModRoutes(packIdGroup, db)
 		}

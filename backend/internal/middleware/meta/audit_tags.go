@@ -10,6 +10,9 @@ const (
 
 	CategoryOidcLink   TagCategory = "OidcLink"
 	CategoryOidcUnlink TagCategory = "OidcUnlink"
+
+	CategoryPackRevert TagCategory = "PackRevert"
+	CategoryPackClone  TagCategory = "PackClone"
 )
 
 func Tag(value TagCategory) gin.HandlerFunc {

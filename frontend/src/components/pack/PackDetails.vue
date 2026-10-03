@@ -56,7 +56,8 @@ const router = useRouter()
 const {can} = usePackPermissions(() => pack)
 
 const canManageMenu = computed(() => [
-  Perm.PackUsersView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility, Perm.PackArchive,
+  Perm.PackUsersView, Perm.PackSnapshotView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility,
+  Perm.PackArchive,
 ].some(can))
 const hasToolbar = computed(() => canManageMenu.value || [
   Perm.PackInfoEdit, Perm.PackModAdd, Perm.PackUpdatesCheck, Perm.PackModUpdate,
@@ -234,6 +235,21 @@ const updateAll = async () => {
         <div
           class="d-flex align-center me-auto"
         >
+          <v-tooltip
+            text="Back to packs"
+            location="bottom"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-arrow-left"
+                variant="text"
+                class="me-2"
+                aria-label="Back to packs"
+                to="/packs"
+              />
+            </template>
+          </v-tooltip>
           <h1 class="me-5">
             {{ pack.name }}
           </h1>
@@ -289,14 +305,6 @@ const updateAll = async () => {
           variant="flat"
           @click="onAddMod"
         />
-        <span
-          v-if="checkedText"
-          class="text-body-2 flex-grow-1 flex-sm-grow-0 text-end text-sm-start me-sm-auto"
-          :class="updateChecks.error.value ? 'text-warning' : 'text-medium-emphasis'"
-          role="status"
-        >
-          {{ checkedText }}
-        </span>
         <v-btn
           v-if="can(Perm.PackUpdatesCheck)"
           prepend-icon="mdi-cloud-search-outline"
@@ -330,6 +338,12 @@ const updateAll = async () => {
               prepend-icon="mdi-account-multiple"
               title="Collaborators"
               :to="`/packs/${pack.id}/collaborators`"
+            />
+            <v-list-item
+              v-if="can(Perm.PackSnapshotView)"
+              prepend-icon="mdi-history"
+              title="History"
+              :to="`/packs/${pack.id}/snapshots`"
             />
             <v-list-item
               v-if="can(Perm.PackMigrate)"
@@ -408,6 +422,15 @@ const updateAll = async () => {
         </p>
       </v-card-text>
     </v-card>
+
+    <v-sheet
+      v-if="checkedText"
+      :color="updateChecks.error.value ? 'warning' : 'primary'"
+      class="text-body-2 my-1 px-4 py-2"
+      role="status"
+    >
+      {{ checkedText }}
+    </v-sheet>
 
     <ModsList
       :pack-id="pack.id"

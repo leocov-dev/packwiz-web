@@ -175,7 +175,12 @@ func (pc *PackwizController) PublishPack(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusPublished)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusPublished, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -198,7 +203,12 @@ func (pc *PackwizController) ConvertToDraft(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusDraft)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.SetPackStatus(packId, types.PackStatusDraft, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -268,7 +278,12 @@ func (pc *PackwizController) EditPackInfo(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.EditPack(packId, request)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.EditPack(packId, request, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -569,19 +584,6 @@ func (pc *PackwizController) abortWithError(c *gin.Context, err response.ServerE
 func (pc *PackwizController) abortIfPackNotExist(c *gin.Context, packId uint, includeDeleted bool) bool {
 	if !pc.packwizSvc.PackExists(packId, includeDeleted) {
 		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d not found", packId)})
-		return true
-	}
-	return false
-}
-
-func (pc *PackwizController) abortIfModNotExist(c *gin.Context, packId, modId uint) bool {
-	if !pc.packwizSvc.PackExists(packId, false) {
-		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d not found", packId)})
-		return true
-	}
-
-	if !pc.packwizSvc.ModExistsById(modId) {
-		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d with mod %d not found", packId, modId)})
 		return true
 	}
 	return false

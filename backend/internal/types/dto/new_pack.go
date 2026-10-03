@@ -39,14 +39,24 @@ type NewPackRequest struct {
 
 var validSlugRegex = regexp.MustCompile(`^[a-zA-Z0-9\-._]+$`)
 
-func (r NewPackRequest) Validate() error {
-	errorGroup := interfaces.NewErrorGroup()
+// newSlugValidator returns a validator that knows the "slug" tag.
+func newSlugValidator() (*validator.Validate, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
-
 	if err := validate.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
 		return validSlugRegex.MatchString(fl.Field().String())
 	}); err != nil {
+		return nil, err
+	}
+	return validate, nil
+}
+
+func (r NewPackRequest) Validate() error {
+	errorGroup := interfaces.NewErrorGroup()
+
+	validate, err := newSlugValidator()
+	if err != nil {
 		errorGroup.Add(err)
+		return errorGroup
 	}
 
 	errorGroup.Add(validate.Struct(r))

@@ -33,6 +33,7 @@ declare module 'vue-router/auto-routes' {
     '/packs/[packId].add-mod': RouteRecordInfo<'/packs/[packId].add-mod', '/packs/:packId/add-mod', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].collaborators': RouteRecordInfo<'/packs/[packId].collaborators', '/packs/:packId/collaborators', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].edit': RouteRecordInfo<'/packs/[packId].edit', '/packs/:packId/edit', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
+    '/packs/[packId].snapshots': RouteRecordInfo<'/packs/[packId].snapshots', '/packs/:packId/snapshots', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/new': RouteRecordInfo<'/packs/new', '/packs/new', Record<never, never>, Record<never, never>>,
     '/user/profile': RouteRecordInfo<'/user/profile', '/user/profile', Record<never, never>, Record<never, never>>,
   }

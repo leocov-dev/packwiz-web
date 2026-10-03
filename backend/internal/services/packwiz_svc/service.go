@@ -3,6 +3,7 @@ package packwiz_svc
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -163,29 +164,30 @@ func (ps *PackwizService) NewPack(request dto.NewPackRequest, author tables.User
 	}
 
 	if err := ps.db.Transaction(func(tx *gorm.DB) error {
-		var owner tables.Role
-		if err := tx.Where("name = ? AND scope = ?", "owner", tables.RoleScopePack).First(&owner).Error; err != nil {
-			return fmt.Errorf("find owner role: %w", err)
-		}
-
-		if err := tx.Create(newPack).Error; err != nil {
-			return err
-		}
-
-		if err := tx.Create(&tables.PackUsers{
-			PackID: newPack.ID,
-			UserID: author.ID,
-			RoleID: owner.ID,
-		}).Error; err != nil {
-			return err
-		}
-
-		return nil
+		return createPackWithOwner(tx, newPack, author)
 	}); err != nil {
 		return 0, response.Wrap(err)
 	}
 
 	return newPack.ID, nil
+}
+
+// createPackWithOwner inserts pack and grants author the owner role on it.
+func createPackWithOwner(tx *gorm.DB, pack *tables.Pack, author tables.User) error {
+	var owner tables.Role
+	if err := tx.Where("name = ? AND scope = ?", "owner", tables.RoleScopePack).First(&owner).Error; err != nil {
+		return fmt.Errorf("find owner role: %w", err)
+	}
+
+	if err := tx.Create(pack).Error; err != nil {
+		return err
+	}
+
+	return tx.Create(&tables.PackUsers{
+		PackID: pack.ID,
+		UserID: author.ID,
+		RoleID: owner.ID,
+	}).Error
 }
 
 // filterValidDependencyIds trims each mod's DependencyIds to only reference
@@ -358,7 +360,8 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 		return response.New(http.StatusBadRequest, "invalid mod type")
 	}
 
-	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+	detail := map[string]any{"slug": newMod.Slug, "name": newMod.Name}
+	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotModAdd, detail, func(tx *gorm.DB) error {
 
 		var dependencyIds []uint
 
@@ -472,8 +475,23 @@ func (ps *PackwizService) UnArchivePack(packId uint) response.ServerError {
 
 // SetPackStatus
 // change the pack status
-func (ps *PackwizService) SetPackStatus(packId uint, status types.PackStatus) response.ServerError {
-	if err := ps.db.Model(&tables.Pack{ID: packId}).Update("status", status).Error; err != nil {
+//
+// Publishing records a history snapshot when the content differs from the
+// pack's head (the first publish, or edits made while it was a draft). Going
+// back to draft records nothing and stops history until the next publish.
+func (ps *PackwizService) SetPackStatus(packId uint, status types.PackStatus, user tables.User) response.ServerError {
+	if err := ps.db.Transaction(func(tx *gorm.DB) error {
+		if _, err := lockPackRow(tx, packId); err != nil {
+			return err
+		}
+		if err := tx.Model(&tables.Pack{ID: packId}).Update("status", status).Error; err != nil {
+			return err
+		}
+		if status == types.PackStatusPublished {
+			return recordPackHistory(tx, packId, user.ID, tables.SnapshotPublish, nil)
+		}
+		return nil
+	}); err != nil {
 		return response.New(http.StatusInternalServerError, "failed to set pack status")
 	}
 
@@ -506,20 +524,6 @@ func (ps *PackwizService) MakePackPrivate(packId uint) response.ServerError {
 	return nil
 }
 
-// SetAcceptableVersions
-// set a mod packs acceptable minecraft versions
-func (ps *PackwizService) SetAcceptableVersions(packId uint, request dto.SetAcceptableVersionsRequest) response.ServerError {
-	if err := ps.db.
-		Model(tables.Pack{}).
-		Where(tables.Pack{ID: packId}).
-		Update("acceptable_game_versions", request.Versions).
-		Error; err != nil {
-		return response.Wrap(err)
-	}
-
-	return nil
-}
-
 // UpdateAll
 // update all the mods in a pack with partial success: pinned mods are skipped,
 // per-mod failures are collected and do not abort the run. Mods are checked in
@@ -546,6 +550,14 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 	dbPack, err := ps.GetPackById(packId)
 	if err != nil {
 		return dto.UpdateAllResponse{}, err
+	}
+
+	// the per-mod writes below are not one transaction, so capture the state
+	// they start from first; the run's own snapshot is recorded after the loop
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		return ensureHistoryBaseline(tx, packId, user.ID)
+	}); err != nil {
+		return dto.UpdateAllResponse{}, response.Wrap(err)
 	}
 
 	pack := dbPack.AsMeta()
@@ -597,6 +609,18 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 
 	// stored check results no longer describe the pack
 	invalidatePackChecks(db, packId)
+
+	if len(summary.updated) > 0 {
+		// The updates above are already committed (partial success is allowed),
+		// so a failure here must not turn the run into an error. Snapshots hold
+		// the full state, so the next recorded change captures these updates too.
+		detail := map[string]any{"updated": len(summary.updated), "failed": len(summary.failed)}
+		if err := db.Transaction(func(tx *gorm.DB) error {
+			return recordPackHistory(tx, packId, user.ID, tables.SnapshotUpdateAll, detail)
+		}); err != nil {
+			log.Error(fmt.Sprintf("failed to record history for update-all of pack %d:", packId), err)
+		}
+	}
 
 	return summary.response(), nil
 }
@@ -673,7 +697,7 @@ func (ps *PackwizService) RehashAll(ctx context.Context, packId uint, format str
 		log.Debug(idxErr)
 	}
 
-	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+	if txErr := ps.withPackHistory(packId, user.ID, tables.SnapshotRehash, map[string]any{"format": format}, func(tx *gorm.DB) error {
 		for _, dbMod := range dbPack.Mods {
 			updatedMod, ok := pack.Mods[dbMod.Slug]
 			if !ok || updatedMod.Download.Hash == "" {
@@ -805,16 +829,45 @@ func (ps *PackwizService) ModExistsBySlug(packSlug, modSlug string) bool {
 
 // RemoveModById
 // remove a given mod from a given pack
-func (ps *PackwizService) RemoveModById(modId uint) response.ServerError {
+func (ps *PackwizService) RemoveModById(packId, modId uint, user tables.User) response.ServerError {
+	detail := map[string]any{}
 
-	if err := ps.db.
-		Model(tables.Mod{}).
-		Delete(tables.Mod{ID: modId}).
-		Error; err != nil {
-		return response.Wrap(err)
+	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotModRemove, detail, func(tx *gorm.DB) error {
+		var mod tables.Mod
+		if err := tx.Select("id", "slug", "name").
+			Where("id = ? AND pack_id = ?", modId, packId).
+			First(&mod).Error; err != nil {
+			return err
+		}
+		detail["slug"] = mod.Slug
+		detail["name"] = mod.Name
+
+		return tx.Where("id = ? AND pack_id = ?", modId, packId).Delete(&tables.Mod{}).Error
+	}); err != nil {
+		return modWriteError(err, packId, modId)
 	}
 
 	return nil
+}
+
+// modWriteError maps a failed single-mod write to a response: a mod that is not
+// in the pack is a 404, anything else is an internal error.
+func modWriteError(err error, packId, modId uint) response.ServerError {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return response.New(http.StatusNotFound, fmt.Sprintf("pack %d with mod %d not found", packId, modId))
+	}
+	return response.Wrap(err)
+}
+
+// ModExistsInPack reports whether the mod belongs to the pack.
+func (ps *PackwizService) ModExistsInPack(packId, modId uint) bool {
+	var count int64
+	if err := ps.db.Model(&tables.Mod{}).
+		Where("id = ? AND pack_id = ?", modId, packId).
+		Count(&count).Error; err != nil {
+		return false
+	}
+	return count > 0
 }
 
 // UpdateMod
@@ -867,7 +920,8 @@ func (ps *PackwizService) UpdateMod(modId uint, user tables.User) (dto.UpdateMod
 		return dto.UpdateModResponse{Updated: false}, nil
 	}
 
-	if txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+	detail := map[string]any{"slug": modInfo.Slug, "name": modInfo.Name, "fileName": mod.FileName}
+	if txErr := ps.withPackHistory(modInfo.PackID, user.ID, tables.SnapshotModUpdate, detail, func(tx *gorm.DB) error {
 		return applyModUpdate(tx, modInfo.ID, mod, user)
 	}); txErr != nil {
 		return dto.UpdateModResponse{}, response.Wrap(txErr)
@@ -936,46 +990,62 @@ func (ps *PackwizService) GetModBySlug(packSlug, modSlug string) (tables.Mod, re
 	return mod, nil
 }
 
-func (ps *PackwizService) ChangeModSide(modId uint, side core.ModSide) response.ServerError {
-	if err := ps.db.
-		Model(tables.Mod{}).
-		Where(tables.Mod{ID: modId}).
-		Update("side", side).
-		Error; err != nil {
-		return response.Wrap(err)
+// updateModConfig writes a single-mod configuration change (side, option, pin)
+// and records the history snapshot for it. columns uses snake_case column
+// names; updated_by is added here.
+func (ps *PackwizService) updateModConfig(
+	packId, modId uint,
+	user tables.User,
+	reason tables.SnapshotReason,
+	detail map[string]any,
+	columns map[string]any,
+) response.ServerError {
+	if err := ps.withPackHistory(packId, user.ID, reason, detail, func(tx *gorm.DB) error {
+		var mod tables.Mod
+		if err := tx.Select("id", "slug", "name").
+			Where("id = ? AND pack_id = ?", modId, packId).
+			First(&mod).Error; err != nil {
+			return err
+		}
+		detail["slug"] = mod.Slug
+		detail["name"] = mod.Name
+
+		columns["updated_by"] = user.ID
+		return tx.Model(&tables.Mod{}).
+			Where("id = ? AND pack_id = ?", modId, packId).
+			Updates(columns).Error
+	}); err != nil {
+		return modWriteError(err, packId, modId)
 	}
 
 	return nil
 }
 
-func (ps *PackwizService) ChangeModOption(modId uint, req dto.ChangeModOptionRequest) response.ServerError {
+func (ps *PackwizService) ChangeModSide(packId, modId uint, side core.ModSide, user tables.User) response.ServerError {
+	return ps.updateModConfig(packId, modId, user, tables.SnapshotModSide,
+		map[string]any{"side": string(side)},
+		map[string]any{"side": side},
+	)
+}
+
+func (ps *PackwizService) ChangeModOption(packId, modId uint, req dto.ChangeModOptionRequest, user tables.User) response.ServerError {
 	option := tables.OptionInfo{
 		Optional:    req.Optional,
 		Description: req.Description,
 		Default:     req.Default,
 	}
 
-	if err := ps.db.
-		Model(tables.Mod{}).
-		Where(tables.Mod{ID: modId}).
-		Update("option", option).
-		Error; err != nil {
-		return response.Wrap(err)
-	}
-
-	return nil
+	return ps.updateModConfig(packId, modId, user, tables.SnapshotModOption,
+		map[string]any{"optional": req.Optional, "default": req.Default},
+		map[string]any{"option": option},
+	)
 }
 
-func (ps *PackwizService) SetModPinnedValue(modId uint, value bool) response.ServerError {
-	if err := ps.db.
-		Model(tables.Mod{}).
-		Where(tables.Mod{ID: modId}).
-		Update("pinned", value).
-		Error; err != nil {
-		return response.Wrap(err)
-	}
-
-	return nil
+func (ps *PackwizService) SetModPinnedValue(packId, modId uint, value bool, user tables.User) response.ServerError {
+	return ps.updateModConfig(packId, modId, user, tables.SnapshotModPin,
+		map[string]any{"pinned": value},
+		map[string]any{"pinned": value},
+	)
 }
 
 func (ps *PackwizService) GetPersonalLink(
@@ -1014,6 +1084,7 @@ type PackUserInfo struct {
 	Email     string    `json:"email"`
 	RoleID    uint      `json:"roleId"`
 	RoleName  string    `json:"roleName"`
+	IsActive  bool      `json:"isActive"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -1024,7 +1095,7 @@ func (ps *PackwizService) ListPackUsers(packId uint) ([]PackUserInfo, response.S
 
 	if err := ps.db.Model(&tables.PackUsers{}).
 		Select(
-			"pack_users.user_id, users.username, users.full_name, users.email, pack_users.role_id, roles.name as role_name, pack_users.created_at",
+			"pack_users.user_id, users.username, users.full_name, users.email, pack_users.role_id, roles.name as role_name, users.is_active, pack_users.created_at",
 		).
 		Joins("JOIN users ON users.id = pack_users.user_id").
 		Joins("JOIN roles ON roles.id = pack_users.role_id").
@@ -1047,7 +1118,7 @@ type PackUserSearchResult struct {
 }
 
 // SearchPackUsers
-// search for users by username/full name/email who do not already have access to a pack
+// search for active users by username/full name/email who do not already have access to a pack
 func (ps *PackwizService) SearchPackUsers(packId uint, query string) ([]PackUserSearchResult, response.ServerError) {
 	var results []PackUserSearchResult
 
@@ -1055,6 +1126,7 @@ func (ps *PackwizService) SearchPackUsers(packId uint, query string) ([]PackUser
 	if err := ps.db.Model(&tables.User{}).
 		Select("users.id as user_id, users.username, users.full_name, users.email").
 		Where("users.username ILIKE ? OR users.full_name ILIKE ? OR users.email ILIKE ?", like, like, like).
+		Where("users.is_active = ?", true).
 		Where("users.id NOT IN (SELECT user_id FROM pack_users WHERE pack_id = ?)", packId).
 		Order("users.username asc").
 		Limit(20).
@@ -1076,16 +1148,18 @@ func (ps *PackwizService) GrantPackUser(packId, userId, roleId uint) response.Se
 		return err
 	}
 
-	var userExists bool
-	if err := ps.db.Model(&tables.User{}).
-		Select("1").
+	var target tables.User
+	if err := ps.db.Select("id", "is_active").
 		Where("id = ?", userId).
 		Limit(1).
-		Find(&userExists).Error; err != nil {
+		Find(&target).Error; err != nil {
 		return response.New(http.StatusInternalServerError, "failed to query db for user")
 	}
-	if !userExists {
+	if target.ID == 0 {
 		return response.New(http.StatusNotFound, fmt.Sprintf("user '%d' not found", userId))
+	}
+	if !target.IsActive {
+		return response.New(http.StatusConflict, "user is deactivated and cannot be added to a pack")
 	}
 
 	var alreadyExists bool
@@ -1221,7 +1295,7 @@ func (ps *PackwizService) ChangePackUserRole(packId, userId, roleId uint) respon
 	return nil
 }
 
-func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) response.ServerError {
+func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest, user tables.User) response.ServerError {
 
 	pack, err := ps.GetPackById(packId)
 	if err != nil {
@@ -1274,10 +1348,28 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest) res
 		pack.LoaderVersion != before.loaderVersion ||
 		!slices.Equal([]string(pack.AcceptableGameVersions), before.acceptable)
 
-	// NOTE: association saves here must not touch mods.version. Enabling
-	// FullSaveAssociations, or a full-row Save(&mod), would blank the DB-only
-	// version column (verified on Postgres 16). Keep this a plain Save(pack).
-	if err := ps.db.Save(pack).Error; err != nil {
+	// Write only the editable columns. A Save(pack) would also upsert the
+	// preloaded Mods (re-inserting a mod removed meanwhile, and blanking the
+	// DB-only mods.version) and write back a stale status/is_public/deleted_at.
+	detail := map[string]any{}
+	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotPackEdit, detail, func(tx *gorm.DB) error {
+		return tx.Model(&tables.Pack{}).
+			Where("id = ?", packId).
+			Select(
+				"Name", "Description", "Version", "MCVersion", "Loader", "LoaderVersion",
+				"AcceptableGameVersions", "UpdatedBy",
+			).
+			Updates(&tables.Pack{
+				Name:                   pack.Name,
+				Description:            pack.Description,
+				Version:                pack.Version,
+				MCVersion:              pack.MCVersion,
+				Loader:                 pack.Loader,
+				LoaderVersion:          pack.LoaderVersion,
+				AcceptableGameVersions: pack.AcceptableGameVersions,
+				UpdatedBy:              user.ID,
+			}).Error
+	}); err != nil {
 		return response.Wrap(err)
 	}
 
@@ -1457,15 +1549,28 @@ func (ps *PackwizService) Migrate(ctx context.Context, packId uint, request dto.
 		return dto.MigrateResponse{}, response.Wrap(avErr)
 	}
 
-	if err := ps.db.Model(&tables.Pack{ID: packId}).Select(
-		"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
-	).Updates(tables.Pack{
-		MCVersion:              target.MCVersion,
-		Loader:                 target.LoaderName,
-		LoaderVersion:          target.LoaderVersion,
-		AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
-		UpdatedBy:              user.ID,
-	}).Error; err != nil {
+	if active, activeErr := ps.migrateJobActive(packId); activeErr != nil {
+		return dto.MigrateResponse{}, response.Wrap(activeErr)
+	} else if active {
+		return dto.MigrateResponse{}, response.New(http.StatusConflict, "a migration is already running for this pack")
+	}
+
+	detail := map[string]any{
+		"mcVersion":     target.MCVersion,
+		"loader":        target.LoaderName,
+		"loaderVersion": target.LoaderVersion,
+	}
+	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotMigrate, detail, func(tx *gorm.DB) error {
+		return tx.Model(&tables.Pack{ID: packId}).Select(
+			"MCVersion", "Loader", "LoaderVersion", "AcceptableGameVersions", "UpdatedBy",
+		).Updates(tables.Pack{
+			MCVersion:              target.MCVersion,
+			Loader:                 target.LoaderName,
+			LoaderVersion:          target.LoaderVersion,
+			AcceptableGameVersions: datatypes.JSONSlice[string](acceptableVersions),
+			UpdatedBy:              user.ID,
+		}).Error
+	}); err != nil {
 		return dto.MigrateResponse{}, response.Wrap(err)
 	}
 
@@ -1560,7 +1665,14 @@ func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.Mig
 		}
 	}
 
+	updated := 0
 	txErr := ps.db.Transaction(func(tx *gorm.DB) error {
+		// pack row first, like every content transaction, so this cannot
+		// deadlock with a revert or an edit
+		if _, err := lockPackRow(tx, args.PackID); err != nil {
+			return err
+		}
+
 		for _, r := range results {
 			dbMod, ok := bySlug[r.Mod.Slug]
 			if !ok {
@@ -1592,13 +1704,17 @@ func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.Mig
 				if err := applyModUpdate(tx, dbMod.ID, r.Mod, tables.User{ID: args.UserID}); err != nil {
 					return err
 				}
+				updated++
 			}
 
 			if err := tx.Create(&resultRow).Error; err != nil {
 				return err
 			}
 		}
-		return nil
+
+		// skipped for drafts and archived packs, and when nothing changed
+		return recordPackHistory(tx, args.PackID, args.UserID, tables.SnapshotMigrateMods,
+			map[string]any{"jobId": jobId, "updated": updated})
 	})
 	if txErr == nil {
 		// mods were updated; stored update checks no longer describe the pack

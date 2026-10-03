@@ -27,6 +27,9 @@ type Pack struct {
 	AcceptableGameVersions datatypes.JSONSlice[string] `json:"acceptableGameVersions"`
 	Version                string                      `json:"version"`
 	PackFormat             string                      `json:"packFormat"`
+	// HeadSnapshotID is the current history snapshot. Read-only for gorm so a
+	// Save/Updates can never move it; packwiz_svc writes it with an explicit UPDATE.
+	HeadSnapshotID *uint `gorm:"column:head_snapshot_id;<-:false" json:"-"`
 
 	Mods []Mod `gorm:"foreignKey:PackID" json:"mods"`
 }

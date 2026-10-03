@@ -82,3 +82,8 @@ export interface OidcProviderRequest {
 export interface OidcTestDiscoveryRequest {
   issuerUrl: string;
 }
+
+export interface CloneSnapshotRequest {
+  slug: string;
+  name: string;
+}

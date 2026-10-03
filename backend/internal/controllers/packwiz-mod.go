@@ -177,7 +177,12 @@ func (pc *PackwizModController) RemoveMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.RemoveModById(modId)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.RemoveModById(packId, modId, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -234,7 +239,12 @@ func (pc *PackwizModController) ChangeModSide(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.ChangeModSide(modId, request.Side)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.ChangeModSide(packId, modId, request.Side, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -263,7 +273,12 @@ func (pc *PackwizModController) ChangeModOption(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.ChangeModOption(modId, request)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.ChangeModOption(packId, modId, request, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -296,7 +311,12 @@ func (pc *PackwizModController) PinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetModPinnedValue(modId, true)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.SetModPinnedValue(packId, modId, true, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -329,7 +349,12 @@ func (pc *PackwizModController) UnPinMod(c *gin.Context) {
 		return
 	}
 
-	err = pc.packwizSvc.SetModPinnedValue(modId, false)
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.SetModPinnedValue(packId, modId, false, user)
 	if pc.abortWithError(c, err) {
 		return
 	}
@@ -364,7 +389,8 @@ func (pc *PackwizModController) abortIfModNotExist(c *gin.Context, packId, modId
 		return true
 	}
 
-	if !pc.packwizSvc.ModExistsById(modId) {
+	// the mod must belong to the pack in the route; routes are authorized per pack
+	if !pc.packwizSvc.ModExistsInPack(packId, modId) {
 		c.JSON(http.StatusNotFound, gin.H{"msg": fmt.Sprintf("pack %d with mod %d not found", packId, modId)})
 		return true
 	}

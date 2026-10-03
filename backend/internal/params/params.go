@@ -12,6 +12,8 @@ var (
 	UserID   Param = "userId"
 	JobId    Param = "jobId"
 
+	SnapshotId Param = "snapshotId"
+
 	OidcSlug   Param = "slug"
 	ProviderId Param = "providerId"
 	IdentityId Param = "identityId"

@@ -9,7 +9,11 @@ import (
 	"testing"
 )
 
-const migrationPath = "../../database/migrations/000017_add_rbac.up.sql"
+// migrationPaths are the migrations that seed permissions and role grants, in order.
+var migrationPaths = []string{
+	"../../database/migrations/000017_add_rbac.up.sql",
+	"../../database/migrations/000018_add_pack_snapshots.up.sql",
+}
 
 // expectedMatrix is the role/permission matrix from .plan/rbac.md.
 var expectedMatrix = map[string][]string{
@@ -21,22 +25,59 @@ var expectedMatrix = map[string][]string{
 		PackConsume, PackView, PackLink,
 		PackModAdd, PackModRemove, PackModUpdate, PackModConfigure,
 		PackUpdatesCheck, PackUsersView,
+		PackSnapshotView,
 	},
 	"owner": {
 		PackConsume, PackView, PackLink,
 		PackModAdd, PackModRemove, PackModUpdate, PackModConfigure,
 		PackUpdatesCheck, PackUsersView,
 		PackMigrate, PackRehash, PackInfoEdit, PackPublish, PackVisibility, PackArchive, PackUsersManage,
+		PackSnapshotView, PackSnapshotRevert,
 	},
 }
 
-func readMigration(t *testing.T) string {
+func readMigrations(t *testing.T) []string {
 	t.Helper()
-	b, err := os.ReadFile(migrationPath)
-	if err != nil {
-		t.Fatalf("read migration: %v", err)
+	out := make([]string, 0, len(migrationPaths))
+	for _, path := range migrationPaths {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read migration: %v", err)
+		}
+		out = append(out, string(b))
 	}
-	return string(b)
+	return out
+}
+
+// seededMatrix replays the permission and role grant seeds of every migration
+// in order. A grant that covers "all" or "all pack" permissions only covers the
+// permissions seeded up to and including its own migration.
+func seededMatrix(t *testing.T) (map[string]string, map[string][]string) {
+	t.Helper()
+	perms := map[string]string{}
+	roles := map[string]map[string]struct{}{}
+	for _, sql := range readMigrations(t) {
+		for name, resource := range seededPermissions(t, sql) {
+			perms[name] = resource
+		}
+		for role, names := range seededRolePermissions(t, sql, perms) {
+			if roles[role] == nil {
+				roles[role] = map[string]struct{}{}
+			}
+			for _, n := range names {
+				roles[role][n] = struct{}{}
+			}
+		}
+	}
+
+	out := map[string][]string{}
+	for role, set := range roles {
+		out[role] = []string{}
+		for n := range set {
+			out[role] = append(out[role], n)
+		}
+	}
+	return perms, out
 }
 
 func sorted(in []string) []string {
@@ -92,7 +133,7 @@ func seededRolePermissions(t *testing.T, sql string, perms map[string]string) ma
 }
 
 func TestSeededPermissionsMatchCode(t *testing.T) {
-	perms := seededPermissions(t, readMigration(t))
+	perms, _ := seededMatrix(t)
 
 	names := make([]string, 0, len(perms))
 	for n, resource := range perms {
@@ -108,8 +149,7 @@ func TestSeededPermissionsMatchCode(t *testing.T) {
 }
 
 func TestSeededRolesMatchPlanMatrix(t *testing.T) {
-	sql := readMigration(t)
-	got := seededRolePermissions(t, sql, seededPermissions(t, sql))
+	_, got := seededMatrix(t)
 
 	for role, want := range expectedMatrix {
 		if !reflect.DeepEqual(sorted(got[role]), sorted(want)) {

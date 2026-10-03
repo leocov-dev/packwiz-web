@@ -156,7 +156,8 @@ in `.plan/rbac.md`. Rules to keep:
   bootstrapped superuser (`users.is_superuser`) short-circuits there and nowhere else.
 - **Guards**: protect routes with `middleware.RequirePermission(name)` (global)
   or `middleware.RequirePackPermission(authz, name)` (pack). Permission names are
-  constants in `authz_svc/permissions.go` and must match migration 000017.
+  constants in `authz_svc/permissions.go` and must match the seeding migrations
+  (000017, 000018; `matrix_test.go` replays them in order).
 - **Archived packs** are read-only for everyone, superuser included; only the
   permissions in `archivedAllowed` pass (409 otherwise).
 - **Owner identity** is `packs.created_by`, not a role. The `owner` role is not assignable.
@@ -165,3 +166,30 @@ in `.plan/rbac.md`. Rules to keep:
 - **New permissions or roles**: add the migration rows, the constant, and update
   `AllPermissions`, `globalPermissions` and `expectedMatrix` in
   `authz_svc/matrix_test.go`; the test checks them against the migration SQL.
+
+## 9. Pack history (snapshots)
+
+A published pack keeps a full snapshot of its content after every change (tables
+`pack_snapshots`, head pointer `packs.head_snapshot_id`). Code in
+`packwiz_svc/history*.go`. Rules to keep:
+
+- **Every write to pack content or mods goes through `withPackHistory`**, which locks
+  the pack row first (lock order is always pack, then mods), applies the change, then
+  records the snapshot in the same transaction. If the snapshot fails the change rolls
+  back; history is not optional. A new mutator that skips it silently breaks revert.
+  Writes that are not content (users, roles, status, `is_public`, archive) do not snapshot.
+- **Drafts and archived packs record nothing.** Publishing records a snapshot if the
+  content differs from the head. A published pack with no head gets a `baseline`
+  snapshot before its first change (`ensureHistoryBaseline`).
+- **Snapshots are never deleted.** A revert marks the live snapshots after its target
+  `abandoned` and moves the head; it writes no new snapshot. Abandoned snapshots can be
+  viewed and cloned, not restored.
+- **Mods are stored by slug**, dependencies as slugs, so a revert keeps row ids (and
+  `mod_update_checks`) for mods that still exist. `mods.version` is display-only: it is
+  stored but excluded from the content hash.
+- **Never `Save()` a pack loaded with `Mods` preloaded** (it re-inserts mods and writes
+  back stale status/public/deleted_at). Use `Select(cols).Updates(...)`.
+  `packs.head_snapshot_id` is read-only to gorm; only `setPackHead` writes it.
+- **Snapshot payload changes** need a new `historySchemaVersion` and a branch in
+  `decodeHistoryPayload`. Keep payload build, hash, diff and restore planning in pure
+  functions (`history_payload.go`); there is no DB test harness.

@@ -28,6 +28,9 @@ const (
 	PackArchive      = "pack.archive"
 	PackUsersView    = "pack.users.view"
 	PackUsersManage  = "pack.users.manage"
+
+	PackSnapshotView   = "pack.snapshot.view"
+	PackSnapshotRevert = "pack.snapshot.revert"
 )
 
 // AllPermissions lists every permission name.
@@ -35,7 +38,7 @@ var AllPermissions = []string{
 	PackCreate, UserView, UserLookup, UserCreate, UserManage, UserRolesAssign, AuditView, OidcManage,
 	PackConsume, PackView, PackLink, PackModAdd, PackModRemove, PackModUpdate, PackModConfigure,
 	PackUpdatesCheck, PackMigrate, PackRehash, PackInfoEdit, PackPublish, PackVisibility,
-	PackArchive, PackUsersView, PackUsersManage,
+	PackArchive, PackUsersView, PackUsersManage, PackSnapshotView, PackSnapshotRevert,
 }
 
 // archivedAllowed are the only permissions that can pass on an archived pack.
@@ -45,6 +48,8 @@ var archivedAllowed = map[string]struct{}{
 	PackLink:      {},
 	PackUsersView: {},
 	PackArchive:   {}, // needed to unarchive
+	// history stays readable (and cloneable) on an archived pack; revert does not pass
+	PackSnapshotView: {},
 }
 
 // globalPermissions are the resource='global' permissions; they can only be
