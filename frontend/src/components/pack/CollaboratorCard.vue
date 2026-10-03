@@ -89,7 +89,18 @@ const onRemove = async () => {
 
     <div class="d-flex align-center flex-wrap">
       <div>
-        <div>{{ collaborator.fullName || collaborator.username }}</div>
+        <div class="d-flex align-center ga-2">
+          {{ collaborator.fullName || collaborator.username }}
+          <v-chip
+            v-if="collaborator.isActive === false"
+            text="Deactivated"
+            color="error"
+            prepend-icon="mdi-account-off"
+            size="small"
+            label
+            variant="tonal"
+          />
+        </div>
         <div class="text-subtitle-2 text-disabled">
           {{ collaborator.email }}
         </div>

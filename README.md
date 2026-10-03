@@ -13,7 +13,7 @@ This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz
 You are able to administer Mods by creating new packs and adding, removing or updating mods.
 Any changes are immediately available to users.
 
-1. [ ] Manage Modpacks in a beautiful interactive web UI
+1. [x] Manage Modpacks in a beautiful interactive web UI
    1. [x] Create Packs and add Mods
    2. [x] Edit Packs and Mods
    3. [x] Update Packs and Mods
@@ -99,6 +99,15 @@ make start-dev
 `make start-dev` automatically starts a local Postgres via Docker (see
 [localdev](localdev)) and runs the backend and frontend in development mode.
 Run `make dev-db-down` to stop the local database when you're done.
+
+Once running, open http://localhost:3000 and sign in with the default admin account:
+
+| field    | value                            |
+|----------|----------------------------------|
+| username | `admin`                          |
+| password | `insecure-admin-pass-change-me`  |
+
+These are local-only dev values, set in the `DEV_ENV` block of the [Makefile](Makefile).
 
 See readme files for [frontend](frontend/README.md) and [backend](backend/README.md) for specific details about each.
 

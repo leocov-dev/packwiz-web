@@ -8,5 +8,5 @@ import AuditList from "@/components/audit/AuditList.vue";
 </script>
 
 <template>
-  <AuditList />
+  <AuditList class="ma-6" />
 </template>

@@ -47,5 +47,6 @@ watch(
 <template>
   <PackList
     v-model="queryData"
+    class="ma-6"
   />
 </template>

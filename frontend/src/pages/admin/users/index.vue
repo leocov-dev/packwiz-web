@@ -8,5 +8,5 @@ import UserList from "@/components/user/UserList.vue";
 </script>
 
 <template>
-  <UserList />
+  <UserList class="ma-6" />
 </template>

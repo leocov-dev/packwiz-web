@@ -94,6 +94,12 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		if !user.IsActive {
+			log.Warn("deactivated user attempted pack link access")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		authz := authz_svc.NewService(db)
 		system, err := authz.SystemPermissions(user)
 		if err != nil {

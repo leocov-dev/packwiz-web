@@ -8,5 +8,5 @@ import OidcProviderList from "@/components/oidc/OidcProviderList.vue";
 </script>
 
 <template>
-  <OidcProviderList />
+  <OidcProviderList class="ma-6" />
 </template>

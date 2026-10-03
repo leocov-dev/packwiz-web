@@ -17,7 +17,7 @@ const snackbar = useSnackbarStore();
     v-model="snackbar.show"
     :timeout="snackbar.timeout"
     :color="snackbar.color"
-    location="top"
+    location="bottom"
   >
     {{ snackbar.message }}
     <template #actions>

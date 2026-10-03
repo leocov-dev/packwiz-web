@@ -94,7 +94,7 @@ const page = ref(1)
     </template>
 
     <template #loader>
-      <v-row class="ma-2">
+      <v-row class="my-0">
         <v-col
           v-for="n in 5"
           :key="n"
@@ -108,7 +108,7 @@ const page = ref(1)
     </template>
 
     <template #default="{ items }">
-      <v-row class="ma-2">
+      <v-row class="my-0">
         <v-col
           v-for="item in items"
           :key="item.raw.id"

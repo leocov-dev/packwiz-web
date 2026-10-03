@@ -14,19 +14,17 @@ import GeneratedPasswordDialog from "@/components/user/GeneratedPasswordDialog.v
 const router = useRouter()
 const snackbarStore = useSnackbarStore()
 
-const createdUserId = ref<number>()
 const generatedPassword = ref("")
 const showPassword = ref(false)
 
 const onPasswordDone = async () => {
   generatedPassword.value = ""
-  await router.push(`/admin/users/${createdUserId.value}`)
+  await router.push('/admin/users')
 }
 
 const onCreate = async (userData: CreateUserFormData) => {
   try {
-    const {user, generatedPassword: password} = await createUser(userData)
-    createdUserId.value = user.id
+    const {generatedPassword: password} = await createUser(userData)
     generatedPassword.value = password
     showPassword.value = true
   } catch (e) {

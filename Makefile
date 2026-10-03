@@ -31,8 +31,11 @@ dev-db-down:
 	docker compose -f localdev/docker-compose.yml down
 
 # run both the frontend and backend in development mode (auto-starts local postgres)
+# the backend runs async, where a non-interactive sh ignores SIGINT, so ctrl-c would
+# leave it running. the trap sends SIGTERM to the whole process group on exit instead.
 start-dev: dev-db-up
-	cd backend && $(DEV_ENV) make start-dev&
+	@trap 'trap "" INT TERM EXIT; kill 0' INT TERM EXIT; \
+	(cd backend && $(DEV_ENV) $(MAKE) start-dev) & \
 	cd frontend && npm run dev
 
 # print help information

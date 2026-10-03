@@ -54,6 +54,13 @@ const backToPack = async () => {
           {{ pack.name || pack.slug }}
         </h1>
         <h2>Collaborators</h2>
+        <v-spacer />
+        <v-btn
+          text="Back to pack"
+          prepend-icon="mdi-arrow-left"
+          variant="text"
+          @click="backToPack"
+        />
       </v-card-title>
 
       <v-data-iterator
@@ -107,13 +114,6 @@ const backToPack = async () => {
           </p>
         </template>
       </v-data-iterator>
-
-      <v-card-actions class="ms-2 me-2 mb-2">
-        <v-btn
-          text="Back to Pack"
-          @click="backToPack"
-        />
-      </v-card-actions>
     </v-card>
   </div>
 </template>

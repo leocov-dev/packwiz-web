@@ -106,6 +106,11 @@ fields inside a `v-toolbar`. Use `density="compact"` only in toolbars and rows.
 
 - Pages are `v-card` on the app background. List items are `v-card`
   (`elevation-4`, like `ModCard`) or `v-list-item`.
+- Border radius: `lg` on every surface (`v-card`, `v-sheet`, `v-toolbar`,
+  `v-alert`), set once in `src/plugins/vuetify.ts`. Don't set `rounded` on them.
+  The app bar (`v-app-bar`) is square.
+- Page content sits `ma-6` from the main view edge. Put it on the page's root
+  element (or the list component in the page), never flush to the edge.
 - Alerts: `v-alert` with `type`; use `variant="tonal"` for inline hints.
 - Spacing comes from utility classes only. No pixel values.
 

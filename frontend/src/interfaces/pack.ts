@@ -139,6 +139,7 @@ export class PackCollaborator {
   email!: string;
   roleId!: number;
   roleName!: string;
+  isActive!: boolean;
   createdAt!: string;
 }
 

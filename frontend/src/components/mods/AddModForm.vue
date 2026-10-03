@@ -265,19 +265,13 @@ watch(modUrl, (rawUrl: string | null) => {
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-btn
-          icon="mdi-arrow-left"
-          variant="text"
-          class="me-3"
-          :disabled="loading"
-          @click="cancelForm"
-        />
         <h1 class="me-5">
           {{ pack.name || pack.slug }}
         </h1>
         <v-spacer />
         <v-btn
           text="Back to pack"
+          prepend-icon="mdi-arrow-left"
           variant="text"
           :disabled="loading"
           @click="cancelForm"
