@@ -46,7 +46,7 @@ See the deployment examples in [examples](examples):
 | PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production`. |
 | PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account.       |
 | PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                          |
-| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your public host if behind a reverse proxy.                                    |
+| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your reverse proxy's IP or CIDR so audit logs show real client IPs. See [reverse proxy](docs/reverse-proxy.md). |
 | PWW_PUBLIC_URL      | external URL of the app                | Optional, only needed for OIDC login, e.g. `https://packwiz.example.com`. See [OIDC login](docs/oidc.md).                             |
 | PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.         |
 | PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits or download from private repositories from GitHub you can supply an API key. None is included by default.        |
@@ -85,6 +85,7 @@ See [OIDC login](docs/oidc.md) for setup.
 #### Audit Logs
 
 All API actions are logged in an audit log table.
+Behind a reverse proxy, see [reverse proxy](docs/reverse-proxy.md) to record real client IPs.
 
 ---
 
