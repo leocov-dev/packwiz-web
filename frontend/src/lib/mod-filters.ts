@@ -45,6 +45,33 @@ export function modSourceLabel(source: string | undefined): string {
   }
 }
 
+const GITHUB_SLUG = /^(?!\.+\/)[\w.-]+\/(?!\.+$)[\w.-]+$/
+
+/**
+ * The mod's page on its source site, or "" when the source or its id is missing.
+ * Built from the source's update data: Modrinth `mod-id`, CurseForge `project-id`
+ * (the /projects/<id> URL redirects to the project page), GitHub `slug` (owner/repo).
+ */
+export function modPageUrl(source: string | undefined, update: {[key: string]: string | number} | undefined): string {
+  const data = update ?? {}
+  switch ((source ?? "").toLowerCase()) {
+    case "modrinth": {
+      const id = String(data["mod-id"] ?? "").trim()
+      return id ? `https://modrinth.com/project/${encodeURIComponent(id)}` : ""
+    }
+    case "curseforge": {
+      const id = String(data["project-id"] ?? "").trim()
+      return /^\d+$/.test(id) ? `https://www.curseforge.com/projects/${id}` : ""
+    }
+    case "github": {
+      const slug = String(data["slug"] ?? "").trim()
+      return GITHUB_SLUG.test(slug) ? `https://github.com/${slug}` : ""
+    }
+    default:
+      return ""
+  }
+}
+
 export function modSideLabel(side: string | undefined): string {
   switch (side) {
     case "client": return "Client"

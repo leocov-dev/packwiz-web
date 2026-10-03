@@ -3,7 +3,7 @@
 import type {Mod, UpdateCheckItem} from "@/interfaces/pack.ts";
 import {modUpdateBadge} from "@/lib/update-checks.ts";
 import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
-import {dependencyTooltip, displayVersion, modSideLabel, modVersion, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
+import {dependencyTooltip, displayVersion, modSideLabel, modVersion, modPageUrl, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import ModEditDialog from "@/components/mods/ModEditDialog.vue";
@@ -72,6 +72,7 @@ const onRemove = async () => {
 }
 
 const sourceLabel = computed(() => modSourceLabel(mod.source))
+const pageUrl = computed(() => modPageUrl(mod.source, mod.update))
 const sideLabel = computed(() => modSideLabel(mod.side))
 const removeText = computed(() => removeModMessage(mod.name, orphanNames, mod.isDependency))
 const dependencyHint = computed(() => dependencyTooltip(dependentNames))
@@ -238,6 +239,17 @@ const onTogglePin = async () => {
       <v-spacer />
 
       <div class="d-flex align-center ga-2">
+        <v-btn
+          v-if="pageUrl"
+          v-tooltip="`Open on ${sourceLabel || 'source site'}`"
+          density="comfortable"
+          variant="text"
+          icon="mdi-open-in-new"
+          :href="pageUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="`Open ${mod.name} on ${sourceLabel || 'source site'} (new tab)`"
+        />
         <template v-if="!mod.isDependency || mod.pinned">
           <v-btn
             v-if="canConfigure && !mod.isDependency"

@@ -1,4 +1,5 @@
 import {describe, expect, it} from "vitest"
+import {modPageUrl} from "@/lib/mod-filters.ts"
 import type {Mod} from "@/interfaces/pack.ts"
 import {
   applyModListState, applyPinOverrides, buildDependentNamesMap, buildOrphanNamesMap, buildDependentsMap, buildModListQuery, countMods, DEFAULT_MOD_LIST_STATE, dependencyTooltip,
@@ -255,5 +256,33 @@ describe("displayVersion", () => {
   it("is empty when nothing is known", () => {
     expect(displayVersion({fileName: ""})).toBe("")
     expect(displayVersion({} as Mod)).toBe("")
+  })
+})
+
+describe("modPageUrl", () => {
+  it("builds a Modrinth project url", () => {
+    expect(modPageUrl("modrinth", {"mod-id": "AANobbMI", version: "x"})).toBe("https://modrinth.com/project/AANobbMI")
+  })
+
+  it("builds a CurseForge project url from a numeric id", () => {
+    expect(modPageUrl("curseforge", {"project-id": 238222, "file-id": 1})).toBe("https://www.curseforge.com/projects/238222")
+    expect(modPageUrl("CurseForge", {"project-id": "238222"})).toBe("https://www.curseforge.com/projects/238222")
+  })
+
+  it("builds a GitHub repo url from owner/repo", () => {
+    expect(modPageUrl("github", {slug: "owner/repo", tag: "v1"})).toBe("https://github.com/owner/repo")
+  })
+
+  it("returns empty when the id is missing or malformed", () => {
+    expect(modPageUrl("modrinth", {})).toBe("")
+    expect(modPageUrl("curseforge", {"project-id": "abc"})).toBe("")
+    expect(modPageUrl("github", {slug: "not a repo"})).toBe("")
+    expect(modPageUrl("github", {slug: "../evil"})).toBe("")
+  })
+
+  it("returns empty for unknown or missing sources", () => {
+    expect(modPageUrl("", {"mod-id": "x"})).toBe("")
+    expect(modPageUrl(undefined, undefined)).toBe("")
+    expect(modPageUrl("other", {"mod-id": "x"})).toBe("")
   })
 })
