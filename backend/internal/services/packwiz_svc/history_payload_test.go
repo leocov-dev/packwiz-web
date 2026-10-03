@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	"gorm.io/datatypes"
 
@@ -301,5 +302,25 @@ func TestResolveDependencyIds(t *testing.T) {
 	}
 	if resolveDependencyIds(ids, nil) == nil {
 		t.Fatal("result must not be nil")
+	}
+}
+
+func TestCloneDescription(t *testing.T) {
+	at := time.Date(2026, time.October, 3, 9, 5, 0, 0, time.UTC)
+
+	if got, want := cloneDescription("My Pack", at, ""), "cloned from My Pack on 2026/10/03 09:05"; got != want {
+		t.Errorf("empty description: got %q want %q", got, want)
+	}
+
+	got := cloneDescription("My Pack", at, "Original text")
+	want := "cloned from My Pack on 2026/10/03 09:05\n\nOriginal text"
+	if got != want {
+		t.Errorf("with description: got %q want %q", got, want)
+	}
+
+	// 24 hour clock, zero padded
+	late := time.Date(2026, time.January, 2, 23, 7, 0, 0, time.UTC)
+	if got, want := cloneDescription("x", late, ""), "cloned from x on 2026/01/02 23:07"; got != want {
+		t.Errorf("padding: got %q want %q", got, want)
 	}
 }

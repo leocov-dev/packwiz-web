@@ -472,6 +472,16 @@ func (ps *PackwizService) RevertToSnapshot(packId, snapshotId uint, user tables.
 	return dto.RevertSnapshotResponse{Changed: changed, HeadID: snapshotId}, nil
 }
 
+// cloneDescription prepends a "cloned from" line to the description a clone
+// inherits from its snapshot, e.g. "cloned from My Pack on 2026/10/03 14:05".
+func cloneDescription(sourceName string, at time.Time, original string) string {
+	note := fmt.Sprintf("cloned from %s on %s", sourceName, at.Format("2006/01/02 15:04"))
+	if original == "" {
+		return note
+	}
+	return note + "\n\n" + original
+}
+
 // CloneFromSnapshot creates a new draft pack from a snapshot's content. The
 // caller becomes its owner. Abandoned snapshots can be cloned.
 func (ps *PackwizService) CloneFromSnapshot(packId, snapshotId uint, request dto.CloneSnapshotRequest, user tables.User) (uint, response.ServerError) {
@@ -488,10 +498,19 @@ func (ps *PackwizService) CloneFromSnapshot(packId, snapshotId uint, request dto
 		return 0, response.New(http.StatusConflict, "pack already exists")
 	}
 
+	var source tables.Pack
+	if err := ps.db.Unscoped().Select("id", "name", "slug").First(&source, packId).Error; err != nil {
+		return 0, response.Wrap(err)
+	}
+	sourceName := source.Name
+	if sourceName == "" {
+		sourceName = source.Slug
+	}
+
 	newPack := &tables.Pack{
 		Slug:                   request.Slug,
 		Name:                   request.Name,
-		Description:            payload.Pack.Description,
+		Description:            cloneDescription(sourceName, time.Now(), payload.Pack.Description),
 		CreatedBy:              user.ID,
 		UpdatedBy:              user.ID,
 		IsPublic:               false,
