@@ -101,6 +101,32 @@ responsibilities separate.
 - Run `make test` before submitting a change; it runs the full suite with
   coverage and must pass.
 
+### Checking SQL against a real Postgres
+
+There is no DB test harness, so raw SQL, `FOR UPDATE`, JSONB writes and
+migrations are only exercised by hand. Do it in a **temporary database inside
+the local dev container** (`make dev-db-up`, container `localdev-postgres-1`,
+host port 55432, user `postgres`, password `insecure-db-password`). Never use
+the `packwiz` database: it holds the developer's data. **Always drop the
+scratch database when done**, so the container volume does not grow.
+
+1. Create it: `docker exec localdev-postgres-1 psql -U postgres -c "CREATE DATABASE scratch_<topic>;"`
+2. Migrate it: `go build -o bin/backend .`, then run `bin/backend migrate` with
+   `PWW_MODE=development PWW_PG_PORT=55432 PWW_PG_PASSWORD=insecure-db-password
+   PWW_PG_DBNAME=scratch_<topic> PWW_SESSION_SECRET=insecure-session-secret
+   PWW_ADMIN_PASSWORD=insecure-admin-pass-change-me`. `bin/` is gitignored.
+3. Test the service layer with a temporary `_test.go` that opens gorm directly on
+   that database and skips unless an env var is set. Run it with `-v` to confirm
+   it ran (a skipped test also prints `ok`). Do not commit it.
+4. Clean up, even when the test failed: delete the temp test file, then
+   `docker exec localdev-postgres-1 psql -U postgres -c "DROP DATABASE scratch_<topic>;"`
+   (add `WITH (FORCE)` if connections are still open), then check that only
+   `postgres` and `packwiz` remain:
+   `docker exec localdev-postgres-1 psql -U postgres -Atc "select datname from pg_database where datname not like 'template%'"`.
+
+Do not start the backend server for this. Its port (8080) is hardcoded and a
+developer's own instance usually holds it; test the service layer instead.
+
 ## 6. Before submitting a change
 
 1. `make fmt` (or `make fmtcheck` to verify without modifying).
