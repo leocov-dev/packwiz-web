@@ -16,6 +16,7 @@ import (
 func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	packwizController := controllers.NewPackwizController(db, riverClient)
 	snapshotController := controllers.NewPackSnapshotController(db)
+	accessController := controllers.NewPackAccessController(db)
 	authz := authz_svc.NewService(db)
 
 	packGroup := router.Group("pack", handlers...)
@@ -54,6 +55,13 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.POST("users", can(authz_svc.PackUsersManage), packwizController.AddPackUser)
 			packIdGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.RemovePackUser)
 			packIdGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.EditUserAccess)
+
+			accessGroup := packIdGroup.Group("access")
+			{
+				accessGroup.GET("", can(authz_svc.PackView), accessController.PackSummary)
+				accessGroup.GET("series", can(authz_svc.PackView), accessController.PackSeries)
+				accessGroup.GET("recent", can(authz_svc.PackView), accessController.PackRecent)
+			}
 
 			snapshotsGroup := packIdGroup.Group("snapshots")
 			{

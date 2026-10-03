@@ -35,6 +35,12 @@ const items: { text: string, icon: string, route: string, permission?: Permissio
     route: '/admin/audit',
     permission: Perm.AuditView,
   },
+  {
+    text: 'Pack Access',
+    icon: 'mdi-chart-bar',
+    route: '/admin/pack-access',
+    permission: Perm.AuditView,
+  },
 ]
 
 const userItems = computed(() => {

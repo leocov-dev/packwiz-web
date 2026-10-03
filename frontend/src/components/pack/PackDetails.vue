@@ -30,6 +30,7 @@ import {
   updateAllLabel,
   updatesAvailableText
 } from "@/lib/update-checks.ts";
+import PackAccessSparkline from "@/components/pack/PackAccessSparkline.vue";
 import {applyPinOverrides} from "@/lib/mod-filters.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
@@ -56,7 +57,7 @@ const router = useRouter()
 const {can} = usePackPermissions(() => pack)
 
 const canManageMenu = computed(() => [
-  Perm.PackUsersView, Perm.PackSnapshotView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility,
+  Perm.PackUsersView, Perm.PackSnapshotView, Perm.PackView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility,
   Perm.PackArchive,
 ].some(can))
 const hasToolbar = computed(() => canManageMenu.value || [
@@ -262,6 +263,14 @@ const updateAll = async () => {
             status="public"
             class="me-2"
           />
+          <router-link
+            v-if="can(Perm.PackView)"
+            :to="`/packs/${pack.id}/access`"
+            class="d-none d-md-flex ms-3"
+            aria-label="View pack access metrics"
+          >
+            <PackAccessSparkline :pack-id="pack.id" />
+          </router-link>
         </div>
 
         <PackActions
@@ -344,6 +353,12 @@ const updateAll = async () => {
               prepend-icon="mdi-history"
               title="History"
               :to="`/packs/${pack.id}/snapshots`"
+            />
+            <v-list-item
+              v-if="can(Perm.PackView)"
+              prepend-icon="mdi-chart-bar"
+              title="Access"
+              :to="`/packs/${pack.id}/access`"
             />
             <v-list-item
               v-if="can(Perm.PackMigrate)"

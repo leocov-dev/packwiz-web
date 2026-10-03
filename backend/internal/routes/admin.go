@@ -10,6 +10,7 @@ import (
 
 func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	adminController := controllers.NewAdminController(db)
+	accessController := controllers.NewPackAccessController(db)
 
 	adminGroup := router.Group("admin", handlers...)
 	{
@@ -24,6 +25,8 @@ func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handle
 		adminGroup.GET("permissions", middleware.RequirePermission(authz_svc.UserView), adminController.ListPermissions)
 		adminGroup.PUT("users/:userId/roles", middleware.RequirePermission(authz_svc.UserRolesAssign), adminController.SetUserRoles)
 		adminGroup.GET("audits", middleware.RequirePermission(authz_svc.AuditView), adminController.GetAuditsPaginated)
+		adminGroup.GET("pack-access", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemSummary)
+		adminGroup.GET("pack-access/recent", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemRecent)
 	}
 
 	return adminGroup

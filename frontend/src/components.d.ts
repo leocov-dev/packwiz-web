@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AcceptableVersions: typeof import('./components/forms/AcceptableVersions.vue')['default']
+    AccessLineChart: typeof import('./components/access/AccessLineChart.vue')['default']
     AddCollaboratorDialog: typeof import('./components/pack/AddCollaboratorDialog.vue')['default']
     AddModForm: typeof import('./components/mods/AddModForm.vue')['default']
     AdminUserCreateForm: typeof import('./components/user/AdminUserCreateForm.vue')['default']
@@ -40,6 +41,8 @@ declare module 'vue' {
     Navigation: typeof import('./components/Navigation.vue')['default']
     OidcProviderDialog: typeof import('./components/oidc/OidcProviderDialog.vue')['default']
     OidcProviderList: typeof import('./components/oidc/OidcProviderList.vue')['default']
+    PackAccessMetrics: typeof import('./components/pack/PackAccessMetrics.vue')['default']
+    PackAccessSparkline: typeof import('./components/pack/PackAccessSparkline.vue')['default']
     PackActions: typeof import('./components/pack/PackActions.vue')['default']
     PackCard: typeof import('./components/pack/PackCard.vue')['default']
     PackCollaborators: typeof import('./components/pack/PackCollaborators.vue')['default']
@@ -59,6 +62,7 @@ declare module 'vue' {
     SlugAndName: typeof import('./components/forms/SlugAndName.vue')['default']
     SnapshotDetailDialog: typeof import('./components/pack/SnapshotDetailDialog.vue')['default']
     SnapshotDiff: typeof import('./components/pack/SnapshotDiff.vue')['default']
+    SystemPackAccess: typeof import('./components/access/SystemPackAccess.vue')['default']
     ThemeSwitch: typeof import('./components/ThemeSwitch.vue')['default']
     UnderConstruction: typeof import('./components/UnderConstruction.vue')['default']
     UpdateAllResultDialog: typeof import('./components/pack/UpdateAllResultDialog.vue')['default']

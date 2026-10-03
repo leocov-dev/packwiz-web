@@ -7,8 +7,10 @@ import (
 	"gorm.io/gorm"
 	"packwiz-web/internal/log"
 	"packwiz-web/internal/middleware/meta"
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/utils"
+	"strings"
 )
 
 func SkipAudit(c *gin.Context) {
@@ -107,9 +109,50 @@ func paramsToMap(params gin.Params) map[string]string {
 	return paramsMap
 }
 
-func PackwizAudit(db *gorm.DB) gin.HandlerFunc {
+// PackAccessRecorder stores pack access records. Implemented by
+// pack_access_svc.PackAccessService.
+type PackAccessRecorder interface {
+	Record(access tables.PackAccess)
+}
+
+const packTomlSuffix = "/pack.toml"
+
+// PackwizAudit records every request for a pack's pack.toml, including ones
+// ConsumerAuthentication rejects, so it must be registered before it.
+// ConsumerAuthentication publishes the pack and user it resolved in the
+// context; both can be absent on failure.
+func PackwizAudit(recorder PackAccessRecorder) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: log access for graphs
 		c.Next()
+
+		if !strings.HasSuffix(c.FullPath(), packTomlSuffix) {
+			return
+		}
+
+		status := c.Writer.Status()
+		access := tables.PackAccess{
+			PackSlug:   c.Param(string(params.PackSlug)),
+			IpAddress:  c.ClientIP(),
+			UserAgent:  truncate(c.Request.UserAgent(), 512),
+			StatusCode: status,
+			Success:    status >= 200 && status < 300,
+		}
+		if pack, ok := c.Get(ConsumerPackKey); ok {
+			id := pack.(tables.Pack).ID
+			access.PackId = &id
+		}
+		if user, ok := c.Get(ConsumerUserKey); ok {
+			id := user.(tables.User).ID
+			access.UserId = &id
+		}
+
+		recorder.Record(access)
 	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max]
 }

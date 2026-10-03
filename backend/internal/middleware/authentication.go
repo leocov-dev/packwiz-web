@@ -62,6 +62,12 @@ func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// Context keys ConsumerAuthentication sets for PackwizAudit.
+const (
+	ConsumerPackKey = "consumerPack"
+	ConsumerUserKey = "consumerUser"
+)
+
 func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.Param(string(params.PackSlug))
@@ -76,6 +82,8 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
+
+		c.Set(ConsumerPackKey, pack)
 
 		if pack.IsPublic {
 			c.Next()
@@ -99,6 +107,8 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
+		c.Set(ConsumerUserKey, user)
 
 		authz := authz_svc.NewService(db)
 		system, err := authz.SystemPermissions(user)

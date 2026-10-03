@@ -121,3 +121,18 @@ PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/pin
 
 ### PATCH un-pin a named modpack to prevent updates
 PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/unpin
+
+### GET pack.toml access series (viewers). Daily successful request counts, oldest first, zero-filled: [{date, success, failure}]
+GET {{apiRoot}}/v1/packwiz/pack/packA/access/series?days=7
+
+### GET pack.toml access metrics (viewers). Successful requests only: {days, series, total, uniqueIps, uniqueUsers, topUsers, topIps}
+GET {{apiRoot}}/v1/packwiz/pack/packA/access?days=30
+
+### GET recent pack.toml accesses (viewers). Successful requests only, paginated
+GET {{apiRoot}}/v1/packwiz/pack/packA/access/recent?days=30&page=1&pageSize=25
+
+### GET system-wide pack.toml access metrics (audit.view). Includes failures: {days, series, success, failure, uniqueIps, packs, topFailedIps}
+GET {{apiRoot}}/v1/admin/pack-access?days=30
+
+### GET system-wide recent pack.toml accesses (audit.view). outcome=all|success|failure, optional packId
+GET {{apiRoot}}/v1/admin/pack-access/recent?days=30&page=1&pageSize=25&outcome=failure

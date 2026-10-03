@@ -14,6 +14,7 @@ import (
 	"packwiz-web/internal/routes"
 	"packwiz-web/internal/services/audit_svc"
 	"packwiz-web/internal/services/oidc_svc"
+	"packwiz-web/internal/services/pack_access_svc"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/public"
 	"time"
@@ -49,7 +50,8 @@ func NewRouter() *gin.Engine {
 	// (unstarted, insert-only) client below - it never needs to enqueue jobs
 	// itself, so it's built without a river client of its own.
 	jobResolver := packwiz_svc.NewPackwizService(db, nil)
-	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, audit_svc.NewAuditService(db)))
+	packAccessSvc := pack_access_svc.NewPackAccessService(db)
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc))
 	if err != nil {
 		log.Error("failed to create river client:", err)
 		panic(err)
@@ -57,8 +59,9 @@ func NewRouter() *gin.Engine {
 
 	// -------------------------------------------------------------------------
 	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
+	// audit runs first so it also records requests authentication rejects
+	packwizFiles.Use(middleware.PackwizAudit(packAccessSvc))
 	packwizFiles.Use(middleware.ConsumerAuthentication(db))
-	packwizFiles.Use(middleware.PackwizAudit(db))
 	{
 		tomlController := controllers.NewTomlController(db)
 		packwizFiles.GET("pack.toml", tomlController.RenderPackToml)
