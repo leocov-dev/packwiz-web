@@ -133,7 +133,7 @@ func init() {
 		Version:           versionTag,
 		Mode:              config.GetString(envMode),
 		AdminPassword:     config.GetString(envAdminPassword),
-		TrustedProxies:    strings.Fields(config.GetString(envProxies)),
+		TrustedProxies:    strings.FieldsFunc(config.GetString(envProxies), func(r rune) bool { return r == ',' || r == ' ' }),
 		SessionSecret:     []byte(config.GetString(envSessionSecret)),
 		PGHost:            config.GetString(pgHost),
 		PGUser:            config.GetString(pgUser),
