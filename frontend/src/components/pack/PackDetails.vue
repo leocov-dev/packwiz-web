@@ -31,6 +31,11 @@ import {
   updatesAvailableText
 } from "@/lib/update-checks.ts";
 import PackAccessSparkline from "@/components/pack/PackAccessSparkline.vue";
+import ConsumerImpactDialog from "@/components/pack/ConsumerImpactDialog.vue";
+import ChangelistEntryView from "@/components/changelist/ChangelistEntryView.vue";
+import type {ChangelistEntry} from "@/interfaces/changelist.ts";
+import {fetchPendingChanges} from "@/services/changelist.service.ts";
+import {changesTarget, entryIsEmpty} from "@/lib/changelist.ts";
 import {applyPinOverrides} from "@/lib/mod-filters.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
@@ -111,8 +116,27 @@ const convertToDraft = async () => {
   emit('reload')
 }
 
+// what publishing would release, loaded when the publish dialog opens
+const pendingChanges = ref<ChangelistEntry | null>(null)
+const pendingError = ref(false)
+watch(showPublishDialog, async (open) => {
+  if (!open) return
+  pendingChanges.value = null
+  pendingError.value = false
+  try {
+    pendingChanges.value = await fetchPendingChanges(pack.id)
+  } catch {
+    pendingError.value = true
+  }
+})
+const pendingChangesTarget = computed(() => !!pendingChanges.value && changesTarget(pendingChanges.value))
+
 const publish = async () => {
-  await publishPack(pack.id)
+  try {
+    await publishPack(pack.id)
+  } catch (e) {
+    snackbar.showSnackbar(apiErrorMessage(e, "Failed to publish pack"), "error")
+  }
   emit('reload')
 }
 
@@ -163,20 +187,72 @@ const updateAll = async () => {
   <div
     class="ma-6"
   >
-    <ConfirmationDialog
+    <ConsumerImpactDialog
       v-model="showPublishDialog"
-      title="Confirm Publish Pack"
-      text="Are you sure you want to publish this pack?
-      It will be accessible to users."
+      :pack-id="pack.id"
+      title="Publish pack"
+      accept-text="Publish"
+      :danger="pendingChangesTarget"
       @accepted="publish"
-    />
-    <ConfirmationDialog
+    >
+      <p class="mb-3">
+        Publishing serves this pack to its users again. These changes will reach their
+        instances on the next launch.
+      </p>
+      <v-alert
+        v-if="pendingChangesTarget"
+        class="mb-3"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        text="This publish changes the Minecraft version or loader. Players' instances
+        will be asked to switch, and worlds or mods they added may not survive it."
+      />
+      <v-progress-linear
+        v-if="!pendingChanges && !pendingError"
+        indeterminate
+      />
+      <p
+        v-else-if="pendingError"
+        class="text-error"
+      >
+        Couldn't load the pending changes.
+      </p>
+      <p
+        v-else-if="pendingChanges && pendingChanges.initial"
+        class="text-medium-emphasis"
+      >
+        This is the first publish of this pack.
+      </p>
+      <p
+        v-else-if="pendingChanges && entryIsEmpty(pendingChanges)"
+        class="text-medium-emphasis"
+      >
+        No changes since it was last published.
+      </p>
+      <ChangelistEntryView
+        v-else-if="pendingChanges"
+        :entry="pendingChanges"
+        :show-title="false"
+      />
+    </ConsumerImpactDialog>
+    <ConsumerImpactDialog
       v-model="showDraftDialog"
-      title="Confirm Convert to Draft"
-      text="Are you sure you want to convert this pack to draft?
-      Users will not be able to access this pack."
+      :pack-id="pack.id"
+      title="Convert to draft"
+      accept-text="Convert to draft"
+      danger
       @accepted="convertToDraft"
-    />
+    >
+      <p>
+        A draft is not served: its pack.toml, mod files and instance zip stop working, so
+        players can't sync or launch-update until the pack is published again.
+      </p>
+      <p class="mt-2">
+        A draft can change anything, including the Minecraft version and loader. The publish
+        dialog will show what reaches players before you publish again.
+      </p>
+    </ConsumerImpactDialog>
     <ConfirmationDialog
       v-model="showArchiveDialog"
       title="Confirm Archive Pack"
@@ -353,6 +429,12 @@ const updateAll = async () => {
               prepend-icon="mdi-history"
               title="History"
               :to="`/packs/${pack.id}/snapshots`"
+            />
+            <v-list-item
+              v-if="can(Perm.PackView)"
+              prepend-icon="mdi-format-list-bulleted"
+              title="Changelist"
+              :to="`/packs/${pack.id}/changelist`"
             />
             <v-list-item
               v-if="can(Perm.PackView)"

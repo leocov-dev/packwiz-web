@@ -36,6 +36,8 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.GET("", can(authz_svc.PackView), packwizController.GetOnePack)
 			packIdGroup.GET("updates", can(authz_svc.PackView), packwizController.GetUpdateChecks)
 			packIdGroup.GET("link", can(authz_svc.PackLink), packwizController.GetPersonalizedLink)
+			packIdGroup.GET("changelist", can(authz_svc.PackView), snapshotController.GetChangelist)
+			packIdGroup.GET("changelist/pending", can(authz_svc.PackPublish), snapshotController.GetPendingChanges)
 
 			packIdGroup.DELETE("", can(authz_svc.PackArchive), packwizController.ArchivePack)
 			packIdGroup.PATCH("unarchive", can(authz_svc.PackArchive), packwizController.UnArchivePack)

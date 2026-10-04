@@ -6,6 +6,9 @@ import MinecraftVersion, {LATEST_SENTINEL, LATEST_SNAPSHOT_SENTINEL} from "@/com
 import Loader from "@/components/forms/Loader.vue"
 import {migratePack, migrateDryRun, getMigrateJobStatus} from "@/services/packs.service.ts"
 import {useSnackbarStore} from "@/stores/snackbar.ts"
+import {apiErrorMessage} from "@/services/utils.ts"
+import {checkTargetChange} from "@/lib/target-guard.ts"
+import ConsumerImpactDialog from "@/components/pack/ConsumerImpactDialog.vue"
 
 const JOB_POLL_INTERVAL_MS = 2000
 const TERMINAL_JOB_STATES = ["completed", "discarded", "cancelled"]
@@ -30,6 +33,11 @@ const loading = ref(false)
 const dryRunResult = ref<MigrateDryRunResponse | null>(null)
 const dryRunLoading = ref(false)
 const dryRunError = ref(false)
+
+// published packs can't switch loader or go to an older Minecraft version,
+// and a Minecraft change is confirmed against who uses the pack
+const targetCheck = computed(() => checkTargetChange(pack, minecraftVersion.value || "", loader.value.name || ""))
+const showConfirm = ref(false)
 
 const isForge = computed(() => (loader.value.name || "").toLowerCase() === "forge")
 
@@ -121,6 +129,15 @@ const pollJobStatus = async () => {
   }
 }
 
+const requestSubmit = () => {
+  if (targetCheck.value.blocked) return
+  if (targetCheck.value.confirm) {
+    showConfirm.value = true
+    return
+  }
+  void submit()
+}
+
 const submit = async () => {
   loading.value = true
   jobError.value = false
@@ -140,7 +157,7 @@ const submit = async () => {
     }
   } catch (e) {
     console.error(e)
-    snackbar.showSnackbar("Failed to migrate pack", "error", 4000)
+    snackbar.showSnackbar(apiErrorMessage(e, "Failed to migrate pack"), "error", 4000)
   } finally {
     loading.value = false
   }
@@ -195,12 +212,21 @@ onUnmounted(stopJobPolling)
             />
           </v-form>
 
+          <v-alert
+            v-if="targetCheck.blocked"
+            class="mt-3"
+            type="error"
+            variant="tonal"
+            density="compact"
+            :text="targetCheck.blocked"
+          />
+
           <v-btn
             class="mt-2"
             variant="tonal"
             size="small"
             :loading="dryRunLoading"
-            :disabled="!isValid"
+            :disabled="!isValid || !!targetCheck.blocked"
             @click="preview"
           >
             Preview
@@ -326,8 +352,8 @@ onUnmounted(stopJobPolling)
           color="primary"
           variant="flat"
           :loading="loading"
-          :disabled="loading || !isValid"
-          @click="submit"
+          :disabled="loading || !isValid || !!targetCheck.blocked"
+          @click="requestSubmit"
         >
           Migrate
         </v-btn>
@@ -342,4 +368,19 @@ onUnmounted(stopJobPolling)
       </v-card-actions>
     </v-card>
   </v-dialog>
+  <ConsumerImpactDialog
+    v-model="showConfirm"
+    :pack-id="pack.id"
+    title="Change the Minecraft version?"
+    accept-text="Migrate"
+    danger
+    @accepted="submit"
+  >
+    <p>
+      This published pack moves from Minecraft <strong>{{ pack.mcVersion }}</strong> to
+      <strong>{{ minecraftVersion }}</strong>. On their next launch, players' instances will
+      be asked to switch. Their worlds are upgraded and can't be opened in the old version again,
+      and the server has to move to the same version.
+    </p>
+  </ConsumerImpactDialog>
 </template>

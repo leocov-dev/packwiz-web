@@ -36,6 +36,21 @@ func (pc *PublicPackController) GetPublicPack(c *gin.Context) {
 	dataOK(c, pack)
 }
 
+// GetPublicChangelist returns the changelist of a public pack, or 404.
+func (pc *PublicPackController) GetPublicChangelist(c *gin.Context) {
+	slug, err := mustBindParam(c, params.PackSlug)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	changelist, err := pc.packwizSvc.GetPublicChangelist(slug)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, changelist)
+}
+
 func (pc *PublicPackController) abortWithError(c *gin.Context, err response.ServerError) bool {
 	if err != nil {
 		err.JSON(c)

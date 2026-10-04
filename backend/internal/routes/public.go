@@ -18,4 +18,5 @@ func RegisterPublicRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Cl
 
 	// no user on these requests, so there is nothing for audit to attribute
 	router.GET("public/packs/:packSlug", publicController.GetPublicPack, middleware.SkipAudit)
+	router.GET("public/packs/:packSlug/changelist", publicController.GetPublicChangelist, middleware.SkipAudit)
 }

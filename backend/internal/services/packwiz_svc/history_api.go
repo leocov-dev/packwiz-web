@@ -84,8 +84,15 @@ func (row snapshotListRow) item(headID *uint) dto.PackSnapshotItem {
 	}
 }
 
+// revertBlockedError carries a guard refusal out of a revert transaction.
+type revertBlockedError struct{ response.ServerError }
+
 // snapshotErr maps a failed snapshot lookup or operation to a response.
 func snapshotErr(err error) response.ServerError {
+	var blocked revertBlockedError
+	if errors.As(err, &blocked) {
+		return blocked.ServerError
+	}
 	switch {
 	case errors.Is(err, errSnapshotNotFound), errors.Is(err, gorm.ErrRecordNotFound):
 		return response.New(http.StatusNotFound, "snapshot not found")
@@ -430,6 +437,10 @@ func (ps *PackwizService) RevertToSnapshot(packId, snapshotId uint, user tables.
 		payload, err := decodeHistoryPayload(target.SchemaVersion, target.Payload)
 		if err != nil {
 			return err
+		}
+
+		if guardErr := checkPublishedTargetChange(pack.Status, pack.MCVersion, pack.Loader, payload.Pack.MCVersion, payload.Pack.Loader); guardErr != nil {
+			return revertBlockedError{guardErr}
 		}
 
 		current, err := loadHistoryPayload(tx, pack)

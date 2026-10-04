@@ -1339,6 +1339,10 @@ func (ps *PackwizService) EditPack(packId uint, request dto.EditPackRequest, use
 		pack.AcceptableGameVersions = request.AcceptableVersions
 	}
 
+	if err := checkPublishedTargetChange(pack.Status, before.mc, before.loader, pack.MCVersion, pack.Loader); err != nil {
+		return err
+	}
+
 	targetChanged := pack.MCVersion != before.mc ||
 		pack.Loader != before.loader ||
 		pack.LoaderVersion != before.loaderVersion ||
@@ -1529,6 +1533,10 @@ func (ps *PackwizService) Migrate(ctx context.Context, packId uint, request dto.
 	target, tErr := resolveMigrationTarget(dbPack, request)
 	if tErr != nil {
 		return dto.MigrateResponse{}, tErr
+	}
+
+	if err := checkPublishedTargetChange(dbPack.Status, dbPack.MCVersion, dbPack.Loader, target.MCVersion, target.LoaderName); err != nil {
+		return dto.MigrateResponse{}, err
 	}
 
 	unchanged := target.MCVersion == dbPack.MCVersion &&
@@ -1773,6 +1781,10 @@ func (ps *PackwizService) MigrateDryRun(packId uint, request dto.MigratePackRequ
 	target, tErr := resolveMigrationTarget(dbPack, request)
 	if tErr != nil {
 		return dto.MigrateDryRunResponse{}, tErr
+	}
+
+	if err := checkPublishedTargetChange(dbPack.Status, dbPack.MCVersion, dbPack.Loader, target.MCVersion, target.LoaderName); err != nil {
+		return dto.MigrateDryRunResponse{}, err
 	}
 
 	results, checkErr := core.CheckAllMods(nil, target.Pack)

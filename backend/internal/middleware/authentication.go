@@ -10,6 +10,7 @@ import (
 	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/services/user_svc"
 	"packwiz-web/internal/tables"
+	"packwiz-web/internal/types"
 )
 
 func ApiAuthentication(db *gorm.DB) gin.HandlerFunc {
@@ -79,9 +80,11 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 
 		// gorm's default scope skips soft-deleted rows, so an archived pack is a
 		// 404 here even when it was public. The CanOnPack check below refuses
-		// archived packs too (pack.consume is not archived-allowed).
+		// archived packs too (pack.consume is not archived-allowed). Drafts are
+		// not served either: an author can change anything in a draft, including
+		// its loader, and none of that may reach clients until it is published.
 		var pack tables.Pack
-		if err := db.Where("slug = ?", slug).First(&pack).Error; err != nil {
+		if err := db.Where("slug = ? AND status = ?", slug, types.PackStatusPublished).First(&pack).Error; err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}

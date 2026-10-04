@@ -10,6 +10,8 @@ import {buildDataLoader} from "@/composables/data-loader.ts";
 import {downloadInstanceZip, fetchPublicPack, getClientSetupCommand} from "@/services/packs.service.ts";
 import {writeToClipboard} from "@/lib/clipboard.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
+import {fetchPublicChangelist} from "@/services/changelist.service.ts";
+import PackChangelist from "@/components/changelist/PackChangelist.vue";
 
 const route = useRoute()
 const snackbar = useSnackbarStore()
@@ -17,6 +19,8 @@ const snackbar = useSnackbarStore()
 const slug = computed(() => String((route.params as {slug: string}).slug))
 
 const {data: pack, isLoading, error} = buildDataLoader(() => fetchPublicPack(slug.value))
+
+const {data: changelist, error: changelistError} = buildDataLoader(() => fetchPublicChangelist(slug.value))
 
 const notFound = computed(() => axios.isAxiosError(error.value) && error.value.response?.status === 404)
 
@@ -320,6 +324,32 @@ onUnmounted(() => {
               </v-chip>
             </template>
           </v-data-table>
+        </v-card-text>
+      </v-card>
+
+      <v-card class="mt-4">
+        <v-card-title class="text-primary">
+          <v-icon
+            icon="mdi-format-list-bulleted"
+            class="me-2"
+          />
+          Changelist
+        </v-card-title>
+        <v-card-text>
+          <p
+            v-if="changelistError"
+            class="text-medium-emphasis"
+          >
+            Couldn't load the changelist.
+          </p>
+          <v-progress-linear
+            v-else-if="!changelist"
+            indeterminate
+          />
+          <PackChangelist
+            v-else
+            :entries="changelist.entries"
+          />
         </v-card-text>
       </v-card>
     </template>

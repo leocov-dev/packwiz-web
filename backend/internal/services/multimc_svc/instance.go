@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
+
+	"packwiz-web/internal/utils"
 )
 
 // bootstrapJar is packwiz-installer-bootstrap (MIT, v0.0.3), vendored so an
@@ -33,30 +34,12 @@ const (
 	zgcArgs = "-XX:+UseZGC -XX:+ZGenerational"
 )
 
-// requiresJava21 reports whether an MC release needs Java 21 or newer (1.20.5+,
-// and the 26.x year-based releases). Snapshots and anything unparseable return
+// requiresJava21 reports whether an MC version needs Java 21 or newer: 1.20.5
+// and later, year-based ids included. Unparseable ids (weekly snapshots) return
 // false, which just means no custom JVM args.
 func requiresJava21(mcVersion string) bool {
-	parts := strings.Split(mcVersion, ".")
-	nums := make([]int, 0, 3)
-	for _, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return false
-		}
-		nums = append(nums, n)
-	}
-	if len(nums) < 2 {
-		return false
-	}
-
-	if nums[0] != 1 {
-		return nums[0] >= 26
-	}
-	if nums[1] != 20 {
-		return nums[1] > 20
-	}
-	return len(nums) > 2 && nums[2] >= 5
+	cmp, ok := utils.CompareMinecraftVersions(mcVersion, "1.20.5")
+	return ok && cmp >= 0
 }
 
 // ErrInvalidPack marks a pack that cannot be described as an instance, like one

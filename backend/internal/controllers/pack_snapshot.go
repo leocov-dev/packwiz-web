@@ -173,3 +173,33 @@ func (pc *PackSnapshotController) abortWithError(c *gin.Context, err response.Se
 	}
 	return false
 }
+
+// GetChangelist returns a pack's readable changelist.
+func (pc *PackSnapshotController) GetChangelist(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.GetChangelist(packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}
+
+// GetPendingChanges returns what publishing the pack would release.
+func (pc *PackSnapshotController) GetPendingChanges(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.GetPendingChanges(packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}

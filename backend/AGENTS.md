@@ -248,3 +248,29 @@ and the vendored `packwiz-installer-bootstrap.jar`). Rules to keep:
   (`instanceZipLimit`) and `pack.toml` (`packTomlLimit`), per client IP. It
   relies on `PWW_TRUSTED_PROXIES` covering the reverse proxy; otherwise every client
   shares one bucket. `index.toml` and mod files are not limited (bulk installer fetches).
+
+## 11. Published pack rules and changelist
+
+Clients' launcher instances can follow a Minecraft or loader *version* bump
+(packwiz-installer rewrites `mmc-pack.json` after asking), but not a loader
+switch or a downgrade. Rules to keep:
+
+- **Drafts are not served.** `ConsumerAuthentication` only finds published packs,
+  so `pack.toml`, mod files and the instance zip 404 for drafts. Drafts may change
+  anything; the publish dialog shows what will reach clients
+  (`GET pack/:id/changelist/pending`, the live content against the history head).
+- **Published packs cannot change loader or move to an older Minecraft version**
+  (`checkPublishedTargetChange`, 409). It runs in `EditPack`, `Migrate`,
+  `MigrateDryRun` and `RevertToSnapshot`; any new path that changes a pack's
+  Minecraft version or loader must call it too. Minecraft ids are ordered by
+  `utils.CompareMinecraftVersions` (year-based `26.x` after `1.x`, dev builds
+  before their release); uncomparable ids (weekly snapshots) are let through.
+  The frontend mirrors it in `lib/target-guard.ts` for inline errors only.
+- **Changelist** (`packwiz_svc/changelist.go`) is derived from history, never
+  stored: events are snapshot creations plus reverts (abandoned snapshots point at
+  the restored one), bucketed in UTC as the last 10 days by day, the rest of the
+  last 3 calendar months by month, older by year. Each entry is the net change
+  from the previous bucket's end, so changes that cancel out disappear. Mods
+  changed only at installer level (hashes, URLs) are left out. Public at
+  `GET public/packs/:slug/changelist`; for members at `GET pack/:id/changelist`
+  (`pack.view`).

@@ -34,6 +34,7 @@ declare module 'vue-router/auto-routes' {
     '/packs/[packId]': RouteRecordInfo<'/packs/[packId]', '/packs/:packId', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].access': RouteRecordInfo<'/packs/[packId].access', '/packs/:packId/access', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].add-mod': RouteRecordInfo<'/packs/[packId].add-mod', '/packs/:packId/add-mod', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
+    '/packs/[packId].changelist': RouteRecordInfo<'/packs/[packId].changelist', '/packs/:packId/changelist', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].collaborators': RouteRecordInfo<'/packs/[packId].collaborators', '/packs/:packId/collaborators', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].edit': RouteRecordInfo<'/packs/[packId].edit', '/packs/:packId/edit', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
     '/packs/[packId].snapshots': RouteRecordInfo<'/packs/[packId].snapshots', '/packs/:packId/snapshots', { packId: ParamValue<true> }, { packId: ParamValue<false> }>,
