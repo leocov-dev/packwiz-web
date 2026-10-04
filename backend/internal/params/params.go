@@ -9,8 +9,11 @@ var (
 	PackId   Param = "packId"
 	ModId    Param = "modId"
 	ModType  Param = "modType"
-	UserID   Param = "userId"
-	JobId    Param = "jobId"
+
+	// InstanceFile is the instance zip's file name; any value is accepted.
+	InstanceFile Param = "instanceFile"
+	UserID       Param = "userId"
+	JobId        Param = "jobId"
 
 	SnapshotId Param = "snapshotId"
 
@@ -18,3 +21,7 @@ var (
 	ProviderId Param = "providerId"
 	IdentityId Param = "identityId"
 )
+
+// InstanceZipDir is the path segment, under a consumer pack, that the instance
+// zip is served from as InstanceZipDir/:InstanceFile.
+const InstanceZipDir = "multimc"

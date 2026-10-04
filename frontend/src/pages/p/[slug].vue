@@ -7,7 +7,7 @@ meta:
 <script setup lang="ts">
 import axios from "axios";
 import {buildDataLoader} from "@/composables/data-loader.ts";
-import {fetchPublicPack, getClientSetupCommand} from "@/services/packs.service.ts";
+import {downloadInstanceZip, fetchPublicPack, getClientSetupCommand} from "@/services/packs.service.ts";
 import {writeToClipboard} from "@/lib/clipboard.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 
@@ -59,10 +59,23 @@ const copy = async (text: string, message: string) => {
 }
 
 const copyLink = () => copy(pack.value!.packTomlUrl, 'Link copied to clipboard')
+const copyInstanceUrl = () => copy(pack.value!.multimcUrl, 'Import URL copied to clipboard')
 const copySetup = () => copy(
   getClientSetupCommand(pack.value!.packTomlUrl),
   'Client setup command copied to clipboard',
 )
+
+const downloading = ref(false)
+const downloadInstance = async () => {
+  downloading.value = true
+  try {
+    await downloadInstanceZip(pack.value!.multimcUrl)
+  } catch (e) {
+    snackbar.showSnackbar((e as Error).message, 'error', 3000)
+  } finally {
+    downloading.value = false
+  }
+}
 
 const defaultTitle = document.title
 
@@ -170,9 +183,36 @@ onUnmounted(() => {
           Install
         </v-card-title>
         <v-card-text>
+          <h4 class="mb-1">
+            For MultiMC or Prism Launcher
+          </h4>
           <p class="text-medium-emphasis mb-3">
-            Use the pack link with any packwiz installer. For MultiMC / Prism, paste the
-            setup command as the instance's pre-launch command to keep it in sync.
+            Download the instance zip, or copy its URL, then use "Add Instance" &rarr; "Import"
+            in the launcher. It is set up with the right Minecraft and loader version and keeps
+            itself in sync with this pack.
+          </p>
+          <div class="d-flex flex-wrap ga-2 mb-6">
+            <v-btn
+              color="primary"
+              prepend-icon="mdi-download"
+              text="Download instance (.zip)"
+              :loading="downloading"
+              @click="downloadInstance"
+            />
+            <v-btn
+              variant="tonal"
+              prepend-icon="mdi-clipboard-text-multiple-outline"
+              text="Copy import URL"
+              @click="copyInstanceUrl"
+            />
+          </div>
+
+          <h4 class="mb-1">
+            Other launchers
+          </h4>
+          <p class="text-medium-emphasis mb-3">
+            Use the pack link with any packwiz installer. To set up an instance by hand, paste the
+            setup command as its pre-launch command.
           </p>
           <v-text-field
             :model-value="pack.packTomlUrl"

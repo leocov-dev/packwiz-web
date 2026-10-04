@@ -33,8 +33,17 @@ export async function fetchPackAccessRecent(
   return plainToInstance(AccessRecordListResponse, response.data)
 }
 
-export async function fetchSystemAccessSummary(days: number): Promise<SystemAccessSummary> {
-  const response = await apiClient.get(`v1/admin/pack-access?days=${days}`)
+/**
+ * System-wide access sources: pack.toml syncs, or MultiMC / Prism instance zip
+ * downloads. Download stats are only shown to system admins.
+ */
+export type AccessSource = 'pack-access' | 'instance-downloads'
+
+export async function fetchSystemAccessSummary(
+  days: number,
+  source: AccessSource = 'pack-access',
+): Promise<SystemAccessSummary> {
+  const response = await apiClient.get(`v1/admin/${source}?days=${days}`)
   return plainToInstance(SystemAccessSummary, response.data)
 }
 
@@ -44,6 +53,7 @@ export async function fetchSystemAccessRecent(
   pageSize: number,
   outcome: AccessOutcome,
   packId?: number,
+  source: AccessSource = 'pack-access',
 ): Promise<AccessRecordListResponse> {
   const params = new URLSearchParams({
     days: String(days),
@@ -54,6 +64,6 @@ export async function fetchSystemAccessRecent(
   if (packId) {
     params.set('packId', String(packId))
   }
-  const response = await apiClient.get(`v1/admin/pack-access/recent?${params.toString()}`)
+  const response = await apiClient.get(`v1/admin/${source}/recent?${params.toString()}`)
   return plainToInstance(AccessRecordListResponse, response.data)
 }

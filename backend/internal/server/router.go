@@ -17,7 +17,16 @@ import (
 	"packwiz-web/internal/services/pack_access_svc"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/public"
+	"strings"
 	"time"
+)
+
+// Per-IP limits on consumer files. Unlike most of this app these are enforced
+// by the server rather than left to a reverse proxy: pack.toml starts every
+// sync, and the instance zip is generated on demand.
+const (
+	packTomlLimit    = "30-M"
+	instanceZipLimit = "10-M"
 )
 
 func NewRouter() *gin.Engine {
@@ -59,6 +68,16 @@ func NewRouter() *gin.Engine {
 
 	// -------------------------------------------------------------------------
 	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
+	// pack.toml is the entry point of every sync, so it is limited, ahead of
+	// audit and auth so rejected requests count too. index.toml and the per-mod
+	// files are fetched in bulk by the installer and stay unlimited; this is
+	// load protection, not a defense against token guessing.
+	packwizFiles.Use(middleware.RateLimitIf(packTomlLimit, func(c *gin.Context) bool {
+		return strings.HasSuffix(c.FullPath(), "/pack.toml")
+	}))
+	packwizFiles.Use(middleware.RateLimitIf(instanceZipLimit, func(c *gin.Context) bool {
+		return middleware.IsInstanceZipRoute(c)
+	}))
 	// audit runs first so it also records requests authentication rejects
 	packwizFiles.Use(middleware.PackwizAudit(packAccessSvc))
 	packwizFiles.Use(middleware.ConsumerAuthentication(db))
@@ -66,6 +85,10 @@ func NewRouter() *gin.Engine {
 		tomlController := controllers.NewTomlController(db)
 		packwizFiles.GET("pack.toml", tomlController.RenderPackToml)
 		packwizFiles.GET("index.toml", tomlController.RenderIndexToml)
+		packwizFiles.GET(
+			fmt.Sprintf("%s/:%s", params.InstanceZipDir, params.InstanceFile),
+			controllers.NewMultiMCController(db).DownloadInstance,
+		)
 		packwizFiles.GET(fmt.Sprintf(":%s/:%s", params.ModType, params.ModSlug), tomlController.RenderModToml)
 	}
 

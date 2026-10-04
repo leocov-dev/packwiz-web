@@ -27,6 +27,8 @@ func RegisterAdminRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Handle
 		adminGroup.GET("audits", middleware.RequirePermission(authz_svc.AuditView), adminController.GetAuditsPaginated)
 		adminGroup.GET("pack-access", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemSummary)
 		adminGroup.GET("pack-access/recent", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemRecent)
+		adminGroup.GET("instance-downloads", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemDownloadsSummary)
+		adminGroup.GET("instance-downloads/recent", middleware.RequirePermission(authz_svc.AuditView), accessController.SystemDownloadsRecent)
 	}
 
 	return adminGroup

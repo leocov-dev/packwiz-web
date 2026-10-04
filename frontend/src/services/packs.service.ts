@@ -1,3 +1,4 @@
+import axios from "axios"
 import {
   AllPacksResponse,
   MigrateDryRunResponse,
@@ -65,9 +66,30 @@ export async function fetchOnePack(packId: number, skipMods: boolean = false): P
 }
 
 
-export async function getPackPublicLink(packId: number): Promise<string> {
+export interface PackLinks {
+  /** pack.toml link for packwiz installers. */
+  link: string
+  /** Importable MultiMC / Prism instance zip; also works as an import URL. */
+  multimcLink: string
+}
+
+export async function getPackLinks(packId: number): Promise<PackLinks> {
   const response = await apiClient.get(`v1/packwiz/pack/${packId}/link`);
-  return response.data['link']
+  return response.data as PackLinks
+}
+
+export async function getPackPublicLink(packId: number): Promise<string> {
+  return (await getPackLinks(packId)).link
+}
+
+/** Copies the instance zip URL, for a launcher's "import from URL". */
+export async function instanceUrlToClipboard(packId: number) {
+  await writeToClipboard((await getPackLinks(packId)).multimcLink)
+}
+
+/** Downloads the MultiMC / Prism instance for a pack the user can access. */
+export async function downloadMultiMCInstance(packId: number) {
+  await downloadInstanceZip((await getPackLinks(packId)).multimcLink)
 }
 
 
@@ -89,6 +111,35 @@ export function getClientSetupCommand(link: string): string {
 export async function clientSetupCommandToClipboard(packId: number) {
   const link = await getPackPublicLink(packId)
   await writeToClipboard(getClientSetupCommand(link))
+}
+
+/**
+ * Downloads a MultiMC / Prism Launcher instance zip from its consumer URL.
+ * The URL carries its own token, so plain axios is used: no session, and no
+ * api interceptor logging the user out on a 401. The server rate-limits this,
+ * so a 429 gets its own message.
+ */
+export async function downloadInstanceZip(url: string) {
+  let response
+  try {
+    response = await axios.get(url, {responseType: 'blob'})
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 429) {
+      throw new Error('Too many downloads, try again in a minute')
+    }
+    throw new Error('Could not generate the instance')
+  }
+
+  const objectUrl = URL.createObjectURL(response.data)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  // the URL ends in "<Pack Name>.zip"; launchers name the instance after it
+  a.download = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? 'instance.zip')
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  // revoking right after click can cancel the download in Safari
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }
 
 /** Path of the standalone public page for a public pack. */

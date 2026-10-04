@@ -8,7 +8,6 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -1051,31 +1050,25 @@ func (ps *PackwizService) SetModPinnedValue(packId, modId uint, value bool, user
 	)
 }
 
-func (ps *PackwizService) GetPersonalLink(
+// GetPersonalLinks returns the user's consumer links for a pack: the public
+// links if the pack is public, otherwise links carrying the user's link token.
+func (ps *PackwizService) GetPersonalLinks(
 	user tables.User,
 	packId uint,
 	scheme string,
 	host string,
-) (url.URL, response.ServerError) {
-
-	var key string
-	if ps.IsPackPublicById(packId) {
-		key = publicLinkKey
-	} else {
-		key = user.LinkToken
-	}
-
+) (dto.PackLinksResponse, response.ServerError) {
 	pack, err := ps.GetPackById(packId)
 	if err != nil {
-		return url.URL{}, err
+		return dto.PackLinksResponse{}, err
 	}
 
-	link, parseErr := url.Parse(packTomlURL(scheme, host, key, pack.Slug))
-	if parseErr != nil {
-		return url.URL{}, response.New(http.StatusInternalServerError, "failed to build link url")
-	}
+	key := linkKey(pack, user.LinkToken)
 
-	return *link, nil
+	return dto.PackLinksResponse{
+		Link:        packTomlURL(scheme, host, key, pack.Slug),
+		MultiMCLink: instanceZipURL(scheme, host, key, pack),
+	}, nil
 }
 
 // PackUserInfo

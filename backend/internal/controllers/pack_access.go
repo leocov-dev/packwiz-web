@@ -89,15 +89,34 @@ func (pc *PackAccessController) PackRecent(c *gin.Context) {
 	dataOK(c, response.NewPaginated(records, query.Page, query.PageSize, total))
 }
 
-// SystemSummary returns system-wide access metrics, including failures.
+// SystemSummary returns system-wide pack.toml access metrics, including failures.
 func (pc *PackAccessController) SystemSummary(c *gin.Context) {
+	pc.systemSummary(c, pack_access_svc.SourcePackToml)
+}
+
+// SystemRecent pages through pack.toml accesses of all packs, including failures.
+func (pc *PackAccessController) SystemRecent(c *gin.Context) {
+	pc.systemRecent(c, pack_access_svc.SourcePackToml)
+}
+
+// SystemDownloadsSummary returns system-wide instance zip download metrics.
+func (pc *PackAccessController) SystemDownloadsSummary(c *gin.Context) {
+	pc.systemSummary(c, pack_access_svc.SourceInstanceZip)
+}
+
+// SystemDownloadsRecent pages through instance zip downloads of all packs.
+func (pc *PackAccessController) SystemDownloadsRecent(c *gin.Context) {
+	pc.systemRecent(c, pack_access_svc.SourceInstanceZip)
+}
+
+func (pc *PackAccessController) systemSummary(c *gin.Context, source pack_access_svc.Source) {
 	query := dto.PackAccessSummaryQuery{Days: defaultAccessDays}
 	if err := mustBindQuery(c, &query); err != nil {
 		err.JSON(c)
 		return
 	}
 
-	summary, err := pc.svc.SystemSummary(query.Days)
+	summary, err := pc.svc.SystemSummary(source, query.Days)
 	if err != nil {
 		err.JSON(c)
 		return
@@ -106,15 +125,14 @@ func (pc *PackAccessController) SystemSummary(c *gin.Context) {
 	dataOK(c, summary)
 }
 
-// SystemRecent pages through accesses of all packs, including failures.
-func (pc *PackAccessController) SystemRecent(c *gin.Context) {
+func (pc *PackAccessController) systemRecent(c *gin.Context, source pack_access_svc.Source) {
 	query := dto.PackAccessRecentQuery{Days: defaultAccessDays, Page: 1, PageSize: 25}
 	if err := mustBindQuery(c, &query); err != nil {
 		err.JSON(c)
 		return
 	}
 
-	records, total, err := pc.svc.SystemRecent(query)
+	records, total, err := pc.svc.SystemRecent(source, query)
 	if err != nil {
 		err.JSON(c)
 		return

@@ -2,6 +2,8 @@
 import type {Pack} from "@/interfaces/pack.ts";
 import {
   clientSetupCommandToClipboard,
+  downloadMultiMCInstance,
+  instanceUrlToClipboard,
   linkToClipboard,
   openPublicLink,
 } from "@/services/packs.service.ts";
@@ -21,6 +23,23 @@ const copyLink = async () => {
 
 const openLink = () => {
   openPublicLink(pack.id)
+}
+
+const downloading = ref(false)
+const downloadInstance = async () => {
+  downloading.value = true
+  try {
+    await downloadMultiMCInstance(pack.id)
+  } catch (e) {
+    snackbar.showSnackbar((e as Error).message, 'error', 3000)
+  } finally {
+    downloading.value = false
+  }
+}
+
+const copyInstanceUrl = async () => {
+  await instanceUrlToClipboard(pack.id)
+  snackbar.showSnackbar('Import URL copied to clipboard', 'default', 2000)
 }
 
 const copySetupCommand = async () => {
@@ -60,7 +79,33 @@ const copySetupCommand = async () => {
         </div>
 
         <h4 class="mb-1">
-          Client setup (MultiMC / Prism)
+          MultiMC or Prism Launcher instance
+        </h4>
+        <p class="text-medium-emphasis mb-3">
+          A ready-to-import instance with the right Minecraft and loader version. Download the
+          zip, or copy the URL and paste it into "Add Instance" &rarr; "Import". Both contain
+          {{ pack.isPublic ? 'the public' : 'your personal' }} link{{ pack.isPublic ? '' : ', so do not share them' }}.
+        </p>
+        <div class="d-flex flex-wrap ga-2 mb-6">
+          <v-btn
+            variant="tonal"
+            density="comfortable"
+            prepend-icon="mdi-download"
+            text="Download instance (.zip)"
+            :loading="downloading"
+            @click="downloadInstance"
+          />
+          <v-btn
+            variant="tonal"
+            density="comfortable"
+            prepend-icon="mdi-clipboard-text-multiple-outline"
+            text="Copy import URL"
+            @click="copyInstanceUrl"
+          />
+        </div>
+
+        <h4 class="mb-1">
+          Manual client setup
         </h4>
         <p class="text-medium-emphasis mb-3">
           Paste this command into the instance's custom commands as a pre-launch command.

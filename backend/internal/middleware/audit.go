@@ -109,15 +109,25 @@ func paramsToMap(params gin.Params) map[string]string {
 	return paramsMap
 }
 
-// PackAccessRecorder stores pack access records. Implemented by
+// PackAccessRecorder stores consumer access records. Implemented by
 // pack_access_svc.PackAccessService.
 type PackAccessRecorder interface {
 	Record(access tables.PackAccess)
+	RecordInstanceDownload(download tables.InstanceDownload)
 }
 
 const packTomlSuffix = "/pack.toml"
 
-// PackwizAudit records every request for a pack's pack.toml, including ones
+// instanceZipSuffix is the route pattern suffix of the instance zip.
+var instanceZipSuffix = fmt.Sprintf("/%s/:%s", params.InstanceZipDir, params.InstanceFile)
+
+// IsInstanceZipRoute reports whether the request matched the instance zip route.
+func IsInstanceZipRoute(c *gin.Context) bool {
+	return strings.HasSuffix(c.FullPath(), instanceZipSuffix)
+}
+
+// PackwizAudit records every request for a pack's pack.toml (as a pack access)
+// and for its instance zip (as an instance download), including ones
 // ConsumerAuthentication rejects, so it must be registered before it.
 // ConsumerAuthentication publishes the pack and user it resolved in the
 // context; both can be absent on failure.
@@ -125,7 +135,9 @@ func PackwizAudit(recorder PackAccessRecorder) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
-		if !strings.HasSuffix(c.FullPath(), packTomlSuffix) {
+		isToml := strings.HasSuffix(c.FullPath(), packTomlSuffix)
+		isZip := IsInstanceZipRoute(c)
+		if !isToml && !isZip {
 			return
 		}
 
@@ -146,7 +158,11 @@ func PackwizAudit(recorder PackAccessRecorder) gin.HandlerFunc {
 			access.UserId = &id
 		}
 
-		recorder.Record(access)
+		if isToml {
+			recorder.Record(access)
+			return
+		}
+		recorder.RecordInstanceDownload(tables.InstanceDownload(access))
 	}
 }
 

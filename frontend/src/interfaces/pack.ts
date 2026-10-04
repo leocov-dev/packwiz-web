@@ -261,6 +261,7 @@ export class PublicPack {
   packFormat!: string;
   updatedAt!: string;
   packTomlUrl!: string;
+  multimcUrl!: string;
   @Type(() => PublicPackMod)
   mods!: PublicPackMod[];
 }

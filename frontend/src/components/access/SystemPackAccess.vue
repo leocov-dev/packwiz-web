@@ -1,8 +1,20 @@
 <script setup lang="ts">
 import type {AccessOutcome} from "@/interfaces/access.ts";
 import {buildDataLoader} from "@/composables/data-loader.ts";
-import {fetchSystemAccessRecent, fetchSystemAccessSummary} from "@/services/access.service.ts";
+import {
+  type AccessSource,
+  fetchSystemAccessRecent,
+  fetchSystemAccessSummary,
+} from "@/services/access.service.ts";
 import AccessLineChart from "@/components/access/AccessLineChart.vue";
+
+const {source = 'pack-access', title = 'Pack Access'} = defineProps<{
+  source?: AccessSource
+  title?: string
+}>()
+
+// pack pages only show pack.toml syncs, so download rows don't link there
+const linkToPack = computed(() => source === 'pack-access')
 
 const rangeOptions = [
   {title: 'Last 7 days', value: 7},
@@ -25,13 +37,15 @@ const {
   data: summary,
   error: summaryError,
   reload: reloadSummary,
-} = buildDataLoader(() => fetchSystemAccessSummary(days.value))
+} = buildDataLoader(() => fetchSystemAccessSummary(days.value, source))
 
 const {
   isLoading: recentLoading,
   data: recent,
   reload: reloadRecent,
-} = buildDataLoader(() => fetchSystemAccessRecent(days.value, page.value, itemsPerPage.value, outcome.value))
+} = buildDataLoader(() => fetchSystemAccessRecent(
+  days.value, page.value, itemsPerPage.value, outcome.value, undefined, source,
+))
 
 const packHeaders = [
   {title: 'Pack', key: 'name'},
@@ -71,7 +85,7 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString()
   <v-card>
     <v-card-title class="d-flex flex-wrap align-center">
       <h1 class="me-auto">
-        Pack Access
+        {{ title }}
       </h1>
       <v-select
         v-model="days"
@@ -143,9 +157,13 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString()
               items-per-page="10"
             >
               <template #[`item.name`]="{ item }">
-                <router-link :to="`/packs/${item.packId}/access`">
+                <router-link
+                  v-if="linkToPack"
+                  :to="`/packs/${item.packId}/access`"
+                >
                   {{ item.name }}
                 </router-link>
+                <span v-else>{{ item.name }}</span>
               </template>
             </v-data-table>
           </v-col>

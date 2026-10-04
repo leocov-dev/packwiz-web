@@ -430,17 +430,12 @@ func (pc *PackwizController) GetPersonalizedLink(c *gin.Context) {
 		return
 	}
 
-	pack, err := pc.packwizSvc.GetPackById(packId)
+	links, err := pc.packwizSvc.GetPersonalLinks(user, packId, requestScheme(c), c.Request.Host)
 	if pc.abortWithError(c, err) {
 		return
 	}
 
-	link, err := pc.packwizSvc.GetPersonalLink(user, pack.ID, requestScheme(c), c.Request.Host)
-	if pc.abortWithError(c, err) {
-		return
-	}
-
-	dataOK(c, gin.H{"link": link.String()})
+	dataOK(c, links)
 }
 
 func (pc *PackwizController) GetPackUsers(c *gin.Context) {

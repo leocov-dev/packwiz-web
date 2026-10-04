@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"packwiz-web/internal/params"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
 	"packwiz-web/internal/types/dto"
@@ -28,18 +29,64 @@ func (ps *PackwizService) GetPublicPack(slug, scheme, host string) (dto.PublicPa
 		return dto.PublicPackResponse{}, response.New(http.StatusNotFound, "pack not found")
 	}
 
-	return buildPublicPack(pack, packTomlURL(scheme, host, publicLinkKey, pack.Slug)), nil
+	resp := buildPublicPack(pack, packTomlURL(scheme, host, publicLinkKey, pack.Slug))
+	resp.MultiMCURL = instanceZipURL(scheme, host, publicLinkKey, pack)
+	return resp, nil
 }
 
 // publicLinkKey is the token segment used in links to public packs.
 const publicLinkKey = "public"
 
 func packTomlURL(scheme, host, key, slug string) string {
+	return packFileURL(scheme, host, key, slug, "pack.toml")
+}
+
+// instanceZipURL is the MultiMC / Prism instance zip next to pack.toml. It is
+// authenticated by the same key, so a launcher can import it by URL. The last
+// segment is the pack name: Prism suggests the instance name from it.
+func instanceZipURL(scheme, host, key string, pack tables.Pack) string {
+	return packFileURL(scheme, host, key, pack.Slug, params.InstanceZipDir+"/"+InstanceZipFileName(pack.Name, pack.Slug))
+}
+
+// InstanceZipFileName is the zip's file name: the pack name without characters
+// that are unsafe in a file name on any OS, falling back to the slug. Prism and
+// MultiMC suggest the imported instance's name from it.
+func InstanceZipFileName(packName, slug string) string {
+	name := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return -1
+		}
+		return r
+	}, packName)
+	name = strings.Join(strings.Fields(name), " ")
+	name = strings.Trim(name, " .")
+	if name == "" {
+		name = slug
+	}
+	return name + ".zip"
+}
+
+func packFileURL(scheme, host, key, slug, file string) string {
 	return (&url.URL{
 		Scheme: scheme,
 		Host:   host,
-		Path:   fmt.Sprintf("/packwiz/%s/%s/pack.toml", key, slug),
+		Path:   fmt.Sprintf("/packwiz/%s/%s/%s", key, slug, file),
 	}).String()
+}
+
+// linkKey is the token segment of a consumer link: "public" for a public pack,
+// otherwise the user's own link token.
+func linkKey(pack tables.Pack, userToken string) string {
+	if pack.IsPublic {
+		return publicLinkKey
+	}
+	return userToken
+}
+
+// ConsumerPackTomlLink is the pack.toml link for a consumer request that has
+// already been authenticated with token.
+func (ps *PackwizService) ConsumerPackTomlLink(pack tables.Pack, token, scheme, host string) string {
+	return packTomlURL(scheme, host, linkKey(pack, token), pack.Slug)
 }
 
 // buildPublicPack maps a pack to its public view. It is pure so it can be tested

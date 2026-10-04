@@ -221,3 +221,30 @@ A published pack keeps a full snapshot of its content after every change (tables
 - **Snapshot payload changes** need a new `historySchemaVersion` and a branch in
   `decodeHistoryPayload`. Keep payload build, hash, diff and restore planning in pure
   functions (`history_payload.go`); there is no DB test harness.
+
+## 10. MultiMC / Prism instance export
+
+`multimc_svc` builds an importable instance zip (`instance.cfg`, `mmc-pack.json`,
+and the vendored `packwiz-installer-bootstrap.jar`). Rules to keep:
+
+- **`instance.cfg` uses the legacy MultiMC format**: no `ConfigVersion`, no
+  section header, values escaped by `cfgValue`. With `ConfigVersion`, Prism parses
+  through QSettings, where an unquoted `,` or `;` empties or truncates the name and
+  notes. `TestInstanceCfgRoundTrip` ports the launchers' parser to guard this.
+- **Links in the zip use `PWW_PUBLIC_URL`** when set, never just the request host,
+  because the zip lives on in the user's launcher.
+- **The zip is a consumer file**: `/packwiz/<token|public>/<slug>/multimc/<Pack Name>.zip`,
+  behind `ConsumerAuthentication` like `pack.toml`, so a launcher can import it by
+  URL with no session. Same auth and archived rules as `pack.toml`.
+- **Downloads are tracked in their own table** (`instance_downloads`, recorded by
+  `PackwizAudit`), never in `pack_accesses`: pack page stats count `pack.toml`
+  syncs only. Download metrics are system-admin only
+  (`/admin/instance-downloads`), via `pack_access_svc.SourceInstanceZip`, and are
+  pruned with pack accesses.
+- **The file name is the pack name** (`InstanceZipFileName`), in both the URL and
+  `Content-Disposition`: Prism names the imported instance after the file name
+  (or the URL's last segment), overriding `name` in `instance.cfg`.
+- **Rate limiting is server-side here**, unlike the rest of the app: the zip
+  (`instanceZipLimit`) and `pack.toml` (`packTomlLimit`), per client IP. It
+  relies on `PWW_TRUSTED_PROXIES` covering the reverse proxy; otherwise every client
+  shares one bucket. `index.toml` and mod files are not limited (bulk installer fetches).
