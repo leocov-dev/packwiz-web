@@ -4,6 +4,7 @@ import {useAuthStore} from "@/stores/auth";
 import {useAppStore} from "@/stores/app";
 import {Perm, type PermissionName} from "@/lib/permissions.ts";
 import {usePermissions} from "@/composables/usePermissions.ts";
+import {SOURCE_REPO_URL} from "@/lib/links.ts";
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -78,11 +79,24 @@ watch(
 
     <v-spacer />
 
-    <div
-      v-if="appStore.version"
-      class="text-caption text-medium-emphasis text-center text-truncate pb-2 px-1"
-    >
-      v{{ appStore.version }}
+    <div class="d-flex align-center justify-center ga-2 text-caption text-medium-emphasis pb-2 px-1">
+      <a
+        :href="SOURCE_REPO_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="d-inline-flex text-medium-emphasis text-decoration-none"
+        aria-label="Source code on GitHub"
+        title="Source code on GitHub"
+      >
+        <v-icon
+          icon="mdi-github"
+          size="20"
+        />
+      </a>
+      <span
+        v-if="appStore.version"
+        class="text-truncate"
+      >v{{ appStore.version }}</span>
     </div>
   </v-list>
 </template>
