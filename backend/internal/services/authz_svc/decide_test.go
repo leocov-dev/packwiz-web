@@ -44,7 +44,10 @@ func TestDecidePack(t *testing.T) {
 		{"archived blocks write for superuser", true, true, nil, nil, PackModAdd, ErrArchived},
 		{"archived allows view", true, false, nil, NewSet(PackView), PackView, nil},
 		{"archived allows unarchive for superuser", true, true, nil, nil, PackArchive, nil},
-		{"archived still needs the grant", true, false, nil, nil, PackConsume, ErrForbidden},
+		{"archived blocks consume", true, false, nil, NewSet(PackConsume), PackConsume, ErrArchived},
+		{"archived blocks consume for superuser", true, true, nil, nil, PackConsume, ErrArchived},
+		{"archived blocks link", true, false, nil, NewSet(PackLink), PackLink, ErrArchived},
+		{"archived still needs the grant", true, false, nil, nil, PackView, ErrForbidden},
 		{"archived allows snapshot view", true, false, nil, NewSet(PackSnapshotView), PackSnapshotView, nil},
 		{"archived blocks revert for superuser", true, true, nil, nil, PackSnapshotRevert, ErrArchived},
 	}
@@ -59,7 +62,7 @@ func TestDecidePack(t *testing.T) {
 }
 
 func TestArchivedAllowedMatchesPlan(t *testing.T) {
-	want := []string{PackView, PackConsume, PackLink, PackUsersView, PackArchive, PackSnapshotView}
+	want := []string{PackView, PackUsersView, PackArchive, PackSnapshotView}
 	if len(archivedAllowed) != len(want) {
 		t.Fatalf("archivedAllowed has %d entries, want %d", len(archivedAllowed), len(want))
 	}

@@ -44,10 +44,11 @@ var AllPermissions = []string{
 }
 
 // archivedAllowed are the only permissions that can pass on an archived pack.
+// Consume and link are left out on purpose: an archived pack stops working for
+// external consumers (installers, launcher instances), and no new links or
+// instance zips are handed out for it.
 var archivedAllowed = map[string]struct{}{
 	PackView:      {},
-	PackConsume:   {},
-	PackLink:      {},
 	PackUsersView: {},
 	PackArchive:   {}, // needed to unarchive
 	// history stays readable (and cloneable) on an archived pack; revert does not pass

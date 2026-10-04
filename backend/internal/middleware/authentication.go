@@ -77,6 +77,9 @@ func ConsumerAuthentication(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// gorm's default scope skips soft-deleted rows, so an archived pack is a
+		// 404 here even when it was public. The CanOnPack check below refuses
+		// archived packs too (pack.consume is not archived-allowed).
 		var pack tables.Pack
 		if err := db.Where("slug = ?", slug).First(&pack).Error; err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
