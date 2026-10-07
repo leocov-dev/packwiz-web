@@ -12,19 +12,20 @@
 A web service to manage [Packwiz](https://github.com/packwiz/packwiz) Minecraft Mod configurations.
 This uses a fork of Packwiz, [packwiz-nxt](https://github.com/leocov-dev/packwiz-nxt) that exposes more functionality as a library.
 
-You are able to administer Mods by creating new packs and adding, removing or updating mods.
-Any changes are immediately available to users.
+Create packs, add and update mods, and serve the result to servers and clients.
 
-1. [x] Manage Modpacks in a beautiful interactive web UI
-   1. [x] Create Packs and add Mods
-   2. [x] Edit Packs and Mods
-   3. [x] Update Packs and Mods
-2. [x] Admin and User accounts for secure collaboration
-3. [x] Serve static Modpack files to servers/clients
-4. [x] Duplicate existing packs to test out changes
-5. [x] Snapshot Modpacks and roll back to previous states
-6. [x] Import existing Packwiz mod configurations
-7. [x] OIDC authentication
+| Feature           | Description                                                              |
+|-------------------|--------------------------------------------------------------------------|
+| Pack management   | Create, edit and update packs and mods in an interactive web UI          |
+| Accounts          | Admin and user accounts with permission-based roles and pack collaborators |
+| OIDC login        | Sign in with Keycloak, Authentik, Google and others                      |
+| Static pack files | Serve public or token-protected packs to servers and clients             |
+| Public pack page  | Shareable page for each public pack                                      |
+| Snapshots         | Automatic pack history with revert and clone                             |
+| Duplicate         | Clone a pack to test out changes                                         |
+| Import            | Import a packwiz pack from a `pack.toml` URL or existing configuration   |
+| Export            | MultiMC / Prism instance export                                          |
+| Audit log         | All API actions logged, plus `pack.toml` access metrics                  |
 
 ![Mod packs](docs/screenshots/packs.png)
 
@@ -41,26 +42,29 @@ See the deployment examples in [examples](examples):
 
 ### Environment Variables
 
-| var                 | value                                  | description                                                                                                                           |
-|---------------------|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| PWW_MODE            | ["production", "development"]          | Developers should set this to `development` for additional logging. Do NOT deploy in `development` mode. The default is `production`. |
-| PWW_ADMIN_PASSWORD  | min 16 char string                     | Set the password for the default `admin` account, when starting the container this will always be applied to the admin account.       |
-| PWW_SESSION_SECRET  | a long random string                   | Encryption key for the HTTP session. You must set this, there is no default.                                                          |
-| PWW_TRUSTED_PROXIES | comma separated string list            | The `gin` server trusted proxies configuration, set to your reverse proxy's IP or CIDR so audit logs show real client IPs. See [reverse proxy](docs/reverse-proxy.md). |
-| PWW_AUDIT_RETENTION_DAYS | number of days                     | Audit log rows older than this are deleted daily by the worker. Default `90`, `0` keeps them forever. |
-| PWW_PUBLIC_URL      | external URL of the app                | Optional, only needed for OIDC login, e.g. `https://packwiz.example.com`. See [OIDC login](docs/oidc.md).                             |
-| PWW_CF_API_KEY      | base64 encoded Curseforge API key      | In order to register curseforge mods you must have an API key. The pre-build container images already include one by default.         |
-| PWW_GH_API_KEY      | GitHub API key                         | To avoid rate limits or download from private repositories from GitHub you can supply an API key. None is included by default.        |
+Variables can also be set in a `.env` file in the working directory or next to the executable.
+
+| var                      | default      | description                                                                                                                                           |
+|--------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| PWW_MODE                 | `production` | `production` or `development`. `development` adds logging, do NOT deploy with it.                                                                     |
+| PWW_ADMIN_PASSWORD       | random       | Password for the default `admin` account, applied on every start. You must set this, a random value is used otherwise so you cannot log in.         |
+| PWW_SESSION_SECRET       | insecure     | Encryption key for the HTTP session, set a long random string. OIDC login will not work with the default.                                            |
+| PWW_PUBLIC_URL           | none         | External URL of the app, e.g. `https://packwiz.example.com`. Required for OIDC login. See [OIDC login](docs/oidc.md).                                |
+| PWW_TRUSTED_PROXIES      | none         | Comma separated reverse proxy IPs or CIDRs, so audit logs show real client IPs. See [reverse proxy](docs/reverse-proxy.md).                          |
+| PWW_AUDIT_RETENTION_DAYS | `90`         | Audit log rows older than this many days are deleted daily by the worker. `0` keeps them forever.                                                     |
+| PWW_JOB_WORKER_POOL_SIZE | `10`         | Number of background jobs the worker runs at once.                                                                                                    |
+| PWW_CF_API_KEY           | none         | base64 encoded Curseforge API key, required to add Curseforge mods. The pre-built container images already include one.                              |
+| PWW_GH_API_KEY           | none         | GitHub API key, to avoid rate limits or download from private repositories.                                                                           |
 
 Postgres connection vars:
 
-| var             | description                                                  |
-|-----------------|--------------------------------------------------------------|
-| PWW_PG_HOST     | database host, url, ip addr, default: localhost              |
-| PWW_PG_PORT     | database connection port, default: 5432                      |
-| PWW_PG_USER     | database connection username, default: postgres              |
-| PWW_PG_PASSWORD | database connection password                                 |
-| PWW_PG_DBNAME   | database name to use, should already exist, default: packwiz |
+| var             | default    | description                                       |
+|-----------------|------------|---------------------------------------------------|
+| PWW_PG_HOST     | `localhost`| database host, url or ip addr                     |
+| PWW_PG_PORT     | `5432`     | database connection port                          |
+| PWW_PG_USER     | `postgres` | database connection username                      |
+| PWW_PG_PASSWORD | none       | database connection password                      |
+| PWW_PG_DBNAME   | `packwiz`  | database name to use, should already exist        |
 
 
 ### User Access

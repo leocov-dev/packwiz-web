@@ -9,7 +9,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - PWW_DATABASE=postgres
       - PWW_PG_HOST=postgres
       - PWW_PG_USER=packwiz
       - PWW_PG_PASSWORD=insecure-db-password
