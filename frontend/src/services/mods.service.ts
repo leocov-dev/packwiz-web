@@ -36,6 +36,10 @@ export async function unpinMod(packId: number, modId: number) {
   return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/unpin`)
 }
 
+export async function upliftMod(packId: number, modId: number) {
+  return apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/uplift`)
+}
+
 export async function updateModFromSource(packId: number, modId: number): Promise<UpdateModResponse> {
   const response = await apiClient.patch(`v1/packwiz/pack/${packId}/mod/${modId}/update`)
   return plainToInstance(UpdateModResponse, response.data)

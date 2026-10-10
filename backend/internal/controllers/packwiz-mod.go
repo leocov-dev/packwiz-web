@@ -324,6 +324,44 @@ func (pc *PackwizModController) PinMod(c *gin.Context) {
 	isOK(c)
 }
 
+func (pc *PackwizModController) UpliftMod(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	modId, err := mustBindIdParam(c, params.ModId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfModNotExist(c, packId, modId) {
+		return
+	}
+
+	data, err := pc.packwizSvc.GetMod(modId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if !data.IsDependency {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "mod is not a dependency"})
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	err = pc.packwizSvc.UpliftMod(packId, modId, user)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	isOK(c)
+}
+
 func (pc *PackwizModController) UnPinMod(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {

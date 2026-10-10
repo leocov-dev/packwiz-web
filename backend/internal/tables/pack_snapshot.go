@@ -18,6 +18,7 @@ const (
 	SnapshotModSide     SnapshotReason = "mod_side"
 	SnapshotModOption   SnapshotReason = "mod_option"
 	SnapshotModPin      SnapshotReason = "mod_pin"
+	SnapshotModUplift   SnapshotReason = "mod_uplift"
 	SnapshotRehash      SnapshotReason = "rehash"
 	SnapshotUpdateAll   SnapshotReason = "update_all"
 	SnapshotMigrate     SnapshotReason = "migrate"

@@ -1050,6 +1050,52 @@ func (ps *PackwizService) SetModPinnedValue(packId, modId uint, value bool, user
 	)
 }
 
+// UpliftMod promotes a dependency to a regular mod: clears is_dependency and
+// removes the mod from every sibling's dependency_ids, breaking the link.
+func (ps *PackwizService) UpliftMod(packId, modId uint, user tables.User) response.ServerError {
+	detail := map[string]any{}
+	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotModUplift, detail, func(tx *gorm.DB) error {
+		var mod tables.Mod
+		if err := tx.Where("id = ? AND pack_id = ?", modId, packId).First(&mod).Error; err != nil {
+			return err
+		}
+		detail["slug"] = mod.Slug
+		detail["name"] = mod.Name
+
+		if err := tx.Model(&tables.Mod{}).
+			Where("id = ? AND pack_id = ?", modId, packId).
+			Updates(map[string]any{"is_dependency": false, "updated_by": user.ID}).Error; err != nil {
+			return err
+		}
+
+		var siblings []tables.Mod
+		if err := tx.Where("pack_id = ? AND id <> ?", packId, modId).Find(&siblings).Error; err != nil {
+			return err
+		}
+		for _, sib := range siblings {
+			kept := make([]uint, 0, len(sib.DependencyIds))
+			for _, id := range sib.DependencyIds {
+				if id != modId {
+					kept = append(kept, id)
+				}
+			}
+			if len(kept) == len(sib.DependencyIds) {
+				continue
+			}
+			if err := tx.Model(&tables.Mod{}).
+				Where("id = ?", sib.ID).
+				Update("dependency_ids", datatypes.NewJSONSlice(kept)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return modWriteError(err, packId, modId)
+	}
+
+	return nil
+}
+
 // GetPersonalLinks returns the user's consumer links for a pack: the public
 // links if the pack is public, otherwise links carrying the user's link token.
 func (ps *PackwizService) GetPersonalLinks(

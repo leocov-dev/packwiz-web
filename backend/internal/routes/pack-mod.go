@@ -36,6 +36,7 @@ func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 		modIdGroup.PATCH("option", can(authz_svc.PackModConfigure), packModController.ChangeModOption)
 		modIdGroup.PATCH("pin", can(authz_svc.PackModConfigure), packModController.PinMod)
 		modIdGroup.PATCH("unpin", can(authz_svc.PackModConfigure), packModController.UnPinMod)
+		modIdGroup.PATCH("uplift", can(authz_svc.PackModConfigure), packModController.UpliftMod)
 	}
 
 	return modGroup

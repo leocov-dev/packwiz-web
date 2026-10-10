@@ -2,7 +2,7 @@
 
 import type {Mod, UpdateCheckItem} from "@/interfaces/pack.ts";
 import {modUpdateBadge} from "@/lib/update-checks.ts";
-import {pinMod, removeMod, unpinMod} from "@/services/mods.service.ts";
+import {pinMod, removeMod, unpinMod, upliftMod} from "@/services/mods.service.ts";
 import {dependencyTooltip, displayVersion, modSideLabel, modVersion, modPageUrl, modSourceLabel, removeModMessage} from "@/lib/mod-filters.ts";
 import {useSnackbarStore} from "@/stores/snackbar.ts";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
@@ -58,6 +58,19 @@ const handleError = (e: unknown, fallback: string) => {
   }
 }
 
+const onUplift = async () => {
+  loading.value = true
+  error.value = false
+  try {
+    await upliftMod(packId, mod.id)
+    emit('reload')
+  } catch (e) {
+    handleError(e, "Failed to uplift dependency")
+  } finally {
+    loading.value = false
+  }
+}
+
 const onRemove = async () => {
   loading.value = true
   error.value = false
@@ -79,10 +92,11 @@ const dependencyHint = computed(() => dependencyTooltip(dependentNames))
 // A dependency can only be removed once no mod requires it anymore.
 const removeBlocked = computed(() => mod.isDependency && dependentNames.length > 0)
 const editHint = computed(() => mod.isDependency
-  ? (dependentNames.length > 0 ? dependencyHint.value : `Dependencies can't be edited. ${dependencyHint.value}`)
+  ? (dependentNames.length > 0 ? dependencyHint.value : `Dependencies can't be edited; uplift it first. ${dependencyHint.value}`)
   : "")
 const removeHint = computed(() => removeBlocked.value ? dependencyHint.value : "")
 const showEditDialog = ref(false)
+const showUpliftDialog = ref(false)
 const pinTooltip = computed(() => pinned.value ? "Unpin" : "Pin (skip on Update All)")
 // uses the optimistic pin state so the badge follows a pin toggle immediately
 const updateBadge = computed(() => modUpdateBadge({pinned: pinned.value, version: mod.version}, updateCheck))
@@ -120,6 +134,14 @@ const onTogglePin = async () => {
       :text="removeText"
       accept-text="Remove"
       @accepted="onRemove"
+    />
+
+    <ConfirmationDialog
+      v-model="showUpliftDialog"
+      title="Uplift Dependency"
+      :text="`Convert ${mod.name} to a regular mod? It will no longer be listed as required by other mods, and can then be edited, pinned and removed freely.`"
+      accept-text="Uplift"
+      @accepted="onUplift"
     />
 
     <ModEditDialog
@@ -297,6 +319,16 @@ const onTogglePin = async () => {
               </span>
             </template>
           </v-tooltip>
+
+          <v-btn
+            v-if="canConfigure && mod.isDependency"
+            density="comfortable"
+            variant="tonal"
+            text="Uplift"
+            prepend-icon="mdi-arrow-up-bold-outline"
+            :disabled="loading"
+            @click="showUpliftDialog = true"
+          />
 
           <v-tooltip
             v-if="canRemove"
