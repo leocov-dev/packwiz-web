@@ -14,6 +14,8 @@ var (
 	InstanceFile Param = "instanceFile"
 	UserID       Param = "userId"
 	JobId        Param = "jobId"
+	BulkRunId    Param = "runId"
+	BulkItemId   Param = "itemId"
 
 	SnapshotId Param = "snapshotId"
 

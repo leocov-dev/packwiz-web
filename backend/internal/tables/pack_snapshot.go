@@ -13,6 +13,7 @@ const (
 	SnapshotPublish     SnapshotReason = "publish"
 	SnapshotPackEdit    SnapshotReason = "pack_edit"
 	SnapshotModAdd      SnapshotReason = "mod_add"
+	SnapshotModBulkAdd  SnapshotReason = "mod_bulk_add"
 	SnapshotModRemove   SnapshotReason = "mod_remove"
 	SnapshotModUpdate   SnapshotReason = "mod_update"
 	SnapshotModSide     SnapshotReason = "mod_side"

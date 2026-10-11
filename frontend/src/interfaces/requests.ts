@@ -91,3 +91,15 @@ export interface CloneSnapshotRequest {
 export interface ImportPackRequest {
   url: string;
 }
+
+/** A pasted list of mods: one name, slug or mod page URL per line. */
+export interface BulkAddRequest {
+  text: string;
+}
+
+export interface ResolveBulkItemRequest {
+  action: "pick" | "reject";
+  source?: "modrinth" | "curseforge";
+  slug?: string;
+  projectId?: string;
+}

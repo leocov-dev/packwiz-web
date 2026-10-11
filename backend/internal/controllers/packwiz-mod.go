@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/riverqueue/river"
 	"gorm.io/gorm"
 	"net/http"
 	"packwiz-web/internal/config"
@@ -17,8 +19,8 @@ type PackwizModController struct {
 	packwizSvc *packwiz_svc.PackwizService
 }
 
-func NewPackwizModController(db *gorm.DB) *PackwizModController {
-	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db, nil)}
+func NewPackwizModController(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizModController {
+	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient)}
 }
 
 func (pc *PackwizModController) AddMod(c *gin.Context) {
@@ -398,6 +400,112 @@ func (pc *PackwizModController) UnPinMod(c *gin.Context) {
 	}
 
 	isOK(c)
+}
+
+// StartBulkAdd stores a pasted list of mods and enqueues the job that adds
+// the exact matches (202).
+func (pc *PackwizModController) StartBulkAdd(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.BulkAddRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.RequestBulkAdd(c.Request.Context(), packId, user, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	c.JSON(http.StatusAccepted, result)
+}
+
+// GetLatestBulkAdd returns the pack's most recent bulk add ({"run": null} if none).
+func (pc *PackwizModController) GetLatestBulkAdd(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	result, err := pc.packwizSvc.GetLatestBulkAdd(c.Request.Context(), packId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, gin.H{"run": result})
+}
+
+// GetBulkAdd returns one bulk add run with its lines.
+func (pc *PackwizModController) GetBulkAdd(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	runId, err := mustBindIdParam(c, params.BulkRunId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.GetBulkAdd(c.Request.Context(), packId, runId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}
+
+// ResolveBulkItem picks a mod for, or rejects, one line left for review.
+func (pc *PackwizModController) ResolveBulkItem(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	runId, err := mustBindIdParam(c, params.BulkRunId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	itemId, err := mustBindIdParam(c, params.BulkItemId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.ResolveBulkItemRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.ResolveBulkItem(c.Request.Context(), packId, runId, itemId, user, request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
 }
 
 // -----------------------------------------------------------------------------

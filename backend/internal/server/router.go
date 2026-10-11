@@ -60,7 +60,7 @@ func NewRouter() *gin.Engine {
 	// itself, so it's built without a river client of its own.
 	jobResolver := packwiz_svc.NewPackwizService(db, nil)
 	packAccessSvc := pack_access_svc.NewPackAccessService(db)
-	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc))
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc))
 	if err != nil {
 		log.Error("failed to create river client:", err)
 		panic(err)

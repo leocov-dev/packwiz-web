@@ -16,24 +16,23 @@ import (
 	"packwiz-web/internal/types/response"
 )
 
-func lookupModrinthDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
-	var err error
+// errNoCompatibleVersion marks a mod that exists but has no version for the
+// pack's Minecraft version(s) and loader.
+var errNoCompatibleVersion = errors.New("no compatible version")
 
+func lookupModrinthDependencies(url string, pack core.Pack) ([]*core.Mod, error) {
 	_, version, err := modrinthProjectAndVersion(url, pack)
 	if err != nil {
 		return nil, err
 	}
+	return modrinthMissingDependencies(version, pack)
+}
 
-	var missingDependencies []*core.Mod
-	if len(version.Dependencies) > 0 {
-
-		missingDependencies, err = sources.ModrinthFindMissingDependencies(version, pack, "")
-		if err != nil {
-			return nil, err
-		}
+func modrinthMissingDependencies(version *modrinth.Version, pack core.Pack) ([]*core.Mod, error) {
+	if len(version.Dependencies) == 0 {
+		return nil, nil
 	}
-
-	return missingDependencies, nil
+	return sources.ModrinthFindMissingDependencies(version, pack, "")
 }
 
 func modrinthProjectAndVersion(url string, pack core.Pack) (*modrinth.Project, *modrinth.Version, error) {
@@ -54,34 +53,77 @@ func modrinthProjectAndVersion(url string, pack core.Pack) (*modrinth.Project, *
 
 	version, err := sources.ModrinthGetLatestVersion(*project.ID, *project.Title, pack, "")
 	if err != nil {
-		return nil, nil, fmt.Errorf("version lookup failed: %w", err)
+		// the project is returned so callers can name it
+		return project, nil, fmt.Errorf("version lookup failed: %w: %w", errNoCompatibleVersion, err)
 	}
 	if version == nil {
-		return nil, nil, fmt.Errorf("version not found for project: %s", *project.ID)
+		return project, nil, fmt.Errorf("version not found for project %s: %w", *project.ID, errNoCompatibleVersion)
 	}
 	log.Debug("version: ", *version.ID, *version.Name)
 
 	return project, version, nil
 }
 
-func addModrinthMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) {
+// resolveModrinthMod resolves a Modrinth URL or slug to the mod to add, its
+// missing dependencies and the projects its version declares incompatible.
+func resolveModrinthMod(url string, pack core.Pack) (resolvedMod, error) {
 	project, version, err := modrinthProjectAndVersion(url, pack)
 	if err != nil {
-		return nil, nil, err
+		if project != nil {
+			return resolvedMod{Ref: modrinthProjectRef(project)}, err
+		}
+		return resolvedMod{}, err
 	}
 
 	mainMod, err := sources.ModrinthNewMod(project, version, "", pack.GetCompatibleLoaders(), "")
 	if err != nil {
+		return resolvedMod{}, err
+	}
+	if mainMod == nil {
+		return resolvedMod{}, errors.New("failed to add mod")
+	}
+
+	deps, err := modrinthMissingDependencies(version, pack)
+	if err != nil {
+		return resolvedMod{}, err
+	}
+
+	return resolvedMod{
+		Ref:          modrinthProjectRef(project),
+		Mod:          mainMod,
+		Deps:         deps,
+		Incompatible: modrinthIncompatibleProjects(version),
+	}, nil
+}
+
+func modrinthProjectRef(project *modrinth.Project) projectRef {
+	return projectRef{
+		Source:    sourceModrinth,
+		ProjectID: strPtr(project.ID),
+		Slug:      strPtr(project.Slug),
+		Name:      strPtr(project.Title),
+	}
+}
+
+// modrinthIncompatibleProjects lists the project ids a version declares
+// incompatible. Declarations that only name a version id are ignored.
+func modrinthIncompatibleProjects(version *modrinth.Version) []string {
+	var out []string
+	for _, dep := range version.Dependencies {
+		if dep == nil || strPtr(dep.DependencyType) != "incompatible" || strPtr(dep.ProjectID) == "" {
+			continue
+		}
+		out = append(out, *dep.ProjectID)
+	}
+	return out
+}
+
+func addModrinthMod(url string, pack core.Pack) (*core.Mod, []*core.Mod, error) {
+	resolved, err := resolveModrinthMod(url, pack)
+	if err != nil {
 		return nil, nil, err
 	}
-
-	if mainMod == nil {
-		return nil, nil, errors.New("failed to add mod")
-	}
-
-	missingDependencies, err := lookupModrinthDependencies(url, pack)
-
-	return mainMod, missingDependencies, err
+	return resolved.Mod, resolved.Deps, nil
 }
 
 // strPtr
@@ -165,41 +207,16 @@ func getInstalledModIdentifiers(mods []tables.Mod) (slugs map[string]bool, proje
 // for the "search for a mod" picker in the add-mod flow. Returns up to 25 results and marks
 // installed mods.
 func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, versions []string) ([]dto.ModSearchResult, response.ServerError) {
-	var facets [][]string
-	if len(versions) > 0 {
-		versionFacets := make([]string, 0, len(versions))
-		for _, v := range versions {
-			versionFacets = append(versionFacets, "versions:"+v)
-		}
-		facets = append(facets, versionFacets)
-	}
-
 	var pack tables.Pack
 	if err := ps.db.Where("id = ?", packId).First(&pack).Error; err != nil {
 		return nil, response.New(http.StatusNotFound, "Pack not found")
 	}
-	metaPack := pack.AsMeta()
-	if loaders := metaPack.GetCompatibleLoaders(); len(loaders) > 0 {
-		loaderFacets := make([]string, 0, len(loaders))
-		for _, l := range loaders {
-			loaderFacets = append(loaderFacets, "categories:"+l)
-		}
-		facets = append(facets, loaderFacets)
-	}
 
-	searchRes, err := sources.GetModrinthClient().Projects.Search(&modrinth.SearchOptions{
-		Limit:  25,
-		Index:  "downloads",
-		Query:  query,
-		Facets: facets,
-	})
+	hits, err := searchModrinthHits(pack.AsMeta(), query, versions, 25)
 	if err != nil {
-		if err.Error() == "no projects found" {
-			return []dto.ModSearchResult{}, nil
-		}
 		return nil, response.Wrap(err)
 	}
-	if searchRes == nil || len(searchRes.Hits) == 0 {
+	if len(hits) == 0 {
 		return []dto.ModSearchResult{}, nil
 	}
 
@@ -209,8 +226,8 @@ func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, vers
 	}
 	slugs, projectIDs := getInstalledModIdentifiers(mods)
 
-	results := make([]dto.ModSearchResult, 0, len(searchRes.Hits))
-	for _, hit := range searchRes.Hits {
+	results := make([]dto.ModSearchResult, 0, len(hits))
+	for _, hit := range hits {
 		slug := strPtr(hit.Slug)
 		projId := strPtr(hit.ProjectID)
 		isInstalled := (slug != "" && slugs[strings.ToLower(slug)]) ||
@@ -221,4 +238,42 @@ func (ps *PackwizService) SearchModrinthProjects(packId uint, query string, vers
 	}
 
 	return results, nil
+}
+
+// searchModrinthHits searches Modrinth mods compatible with the pack's
+// loaders, and with versions when given, most downloaded first.
+func searchModrinthHits(pack core.Pack, query string, versions []string, limit int) ([]*modrinth.SearchResult, error) {
+	var facets [][]string
+	if len(versions) > 0 {
+		versionFacets := make([]string, 0, len(versions))
+		for _, v := range versions {
+			versionFacets = append(versionFacets, "versions:"+v)
+		}
+		facets = append(facets, versionFacets)
+	}
+
+	if loaders := pack.GetCompatibleLoaders(); len(loaders) > 0 {
+		loaderFacets := make([]string, 0, len(loaders))
+		for _, l := range loaders {
+			loaderFacets = append(loaderFacets, "categories:"+l)
+		}
+		facets = append(facets, loaderFacets)
+	}
+
+	searchRes, err := sources.GetModrinthClient().Projects.Search(&modrinth.SearchOptions{
+		Limit:  limit,
+		Index:  "downloads",
+		Query:  query,
+		Facets: facets,
+	})
+	if err != nil {
+		if err.Error() == "no projects found" {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if searchRes == nil {
+		return nil, nil
+	}
+	return searchRes.Hits, nil
 }

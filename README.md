@@ -17,6 +17,7 @@ Create packs, add and update mods, and serve the result to servers and clients.
 | Feature           | Description                                                              |
 |-------------------|--------------------------------------------------------------------------|
 | Pack management   | Create, edit and update packs and mods in an interactive web UI          |
+| Bulk add          | Paste a list of mods; exact matches are added, the rest wait for review  |
 | Accounts          | Admin and user accounts with permission-based roles and pack collaborators |
 | OIDC login        | Sign in with Keycloak, Authentik, Google and others                      |
 | Static pack files | Serve public or token-protected packs to servers and clients             |

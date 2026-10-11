@@ -2,6 +2,7 @@ package packwiz_svc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -53,20 +54,61 @@ func (ps *PackwizService) SearchCurseforgeProjects(packId uint, query string, ve
 		return nil, response.New(http.StatusBadRequest, "CurseForge API key not configured")
 	}
 
-	apiKey, err := libConfig.DecodeCfApiKey()
-	if err != nil {
-		return nil, response.New(http.StatusBadRequest, "Invalid CurseForge API key: "+err.Error())
-	}
-
 	var pack tables.Pack
 	if err := ps.db.Where("id = ?", packId).First(&pack).Error; err != nil {
 		return nil, response.New(http.StatusNotFound, "Pack not found")
 	}
 
+	searchRes, err := searchCurseforgeItems(pack, query, versions, 25)
+	if err != nil {
+		if errors.Is(err, errCurseforgeKey) {
+			return nil, response.New(http.StatusBadRequest, err.Error())
+		}
+		return nil, response.Wrap(err)
+	}
+
+	var mods []tables.Mod
+	if err := ps.db.Where("pack_id = ?", packId).Find(&mods).Error; err != nil {
+		log.Warn(fmt.Sprintf("failed to get installed mods for pack %d: %v", packId, err))
+	}
+	slugs, projectIDs := getInstalledModIdentifiers(mods)
+
+	results := make([]dto.ModSearchResult, 0, len(searchRes))
+	for _, item := range searchRes {
+		slug := item.Slug
+		projId := strconv.FormatUint(uint64(item.ID), 10)
+
+		iconUrl := item.Logo.ThumbnailURL
+		if iconUrl == "" {
+			iconUrl = item.Logo.URL
+		}
+
+		isInstalled := (slug != "" && slugs[strings.ToLower(slug)]) ||
+			(projId != "" && projectIDs[projId]) ||
+			(projId != "" && slugs[strings.ToLower(projId)])
+
+		results = append(results, curseforgeResultFromItem(item, projId, iconUrl, isInstalled))
+	}
+
+	return results, nil
+}
+
+// errCurseforgeKey marks a configured CurseForge API key that cannot be decoded.
+var errCurseforgeKey = errors.New("invalid CurseForge API key")
+
+// searchCurseforgeItems searches CurseForge mods compatible with the pack's
+// Minecraft version (or versions[0]) and loader, most popular first. Callers
+// check config.HasCurseforgeApiKey first.
+func searchCurseforgeItems(pack tables.Pack, query string, versions []string, pageSize int) ([]cfSearchItem, error) {
+	apiKey, err := libConfig.DecodeCfApiKey()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errCurseforgeKey, err)
+	}
+
 	params := url.Values{}
 	params.Set("gameId", "432") // Minecraft
 	params.Set("classId", "6")  // Minecraft Mods
-	params.Set("pageSize", "25")
+	params.Set("pageSize", strconv.Itoa(pageSize))
 	params.Set("sortField", "2") // Sort by popularity
 	params.Set("sortOrder", "desc")
 
@@ -105,7 +147,7 @@ func (ps *PackwizService) SearchCurseforgeProjects(packId uint, query string, ve
 	reqUrl := "https://api.curseforge.com/v1/mods/search?" + params.Encode()
 	req, err := http.NewRequest("GET", reqUrl, nil)
 	if err != nil {
-		return nil, response.Wrap(fmt.Errorf("failed to create CurseForge request: %w", err))
+		return nil, fmt.Errorf("failed to create CurseForge request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", core.UserAgent)
@@ -115,42 +157,19 @@ func (ps *PackwizService) SearchCurseforgeProjects(packId uint, query string, ve
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, response.Wrap(fmt.Errorf("CurseForge search request failed: %w", err))
+		return nil, fmt.Errorf("CurseForge search request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, response.Wrap(fmt.Errorf("CurseForge search returned status %d: %s", resp.StatusCode, string(body)))
+		return nil, fmt.Errorf("CurseForge search returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var searchRes cfSearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&searchRes); err != nil && err != io.EOF {
-		return nil, response.Wrap(fmt.Errorf("failed to parse CurseForge search response: %w", err))
+		return nil, fmt.Errorf("failed to parse CurseForge search response: %w", err)
 	}
 
-	var mods []tables.Mod
-	if err := ps.db.Where("pack_id = ?", packId).Find(&mods).Error; err != nil {
-		log.Warn(fmt.Sprintf("failed to get installed mods for pack %d: %v", packId, err))
-	}
-	slugs, projectIDs := getInstalledModIdentifiers(mods)
-
-	results := make([]dto.ModSearchResult, 0, len(searchRes.Data))
-	for _, item := range searchRes.Data {
-		slug := item.Slug
-		projId := strconv.FormatUint(uint64(item.ID), 10)
-
-		iconUrl := item.Logo.ThumbnailURL
-		if iconUrl == "" {
-			iconUrl = item.Logo.URL
-		}
-
-		isInstalled := (slug != "" && slugs[strings.ToLower(slug)]) ||
-			(projId != "" && projectIDs[projId]) ||
-			(projId != "" && slugs[strings.ToLower(projId)])
-
-		results = append(results, curseforgeResultFromItem(item, projId, iconUrl, isInstalled))
-	}
-
-	return results, nil
+	return searchRes.Data, nil
 }

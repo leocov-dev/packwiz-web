@@ -288,8 +288,15 @@ watch(modUrl, (rawUrl: string | null) => {
         closable
       />
 
-      <v-card-subtitle>
+      <v-card-subtitle class="d-flex align-center">
         <h3>Add New Mod</h3>
+        <v-spacer />
+        <v-btn
+          text="Add from a list"
+          prepend-icon="mdi-playlist-plus"
+          variant="tonal"
+          :to="`/packs/${pack.id}/bulk-add`"
+        />
       </v-card-subtitle>
 
       <div class="ma-6">

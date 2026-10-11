@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/riverqueue/river"
 	"gorm.io/gorm"
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
@@ -10,8 +12,8 @@ import (
 	"packwiz-web/internal/services/authz_svc"
 )
 
-func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
-	packModController := controllers.NewPackwizModController(db)
+func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], handlers ...gin.HandlerFunc) *gin.RouterGroup {
+	packModController := controllers.NewPackwizModController(db, riverClient)
 
 	modGroup := router.Group("mod", handlers...)
 
@@ -26,6 +28,14 @@ func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 	modGroup.GET("search/modrinth", can(authz_svc.PackModAdd), packModController.SearchModrinthMods)
 	modGroup.GET("search/curseforge", can(authz_svc.PackModAdd), packModController.SearchCurseforgeMods)
 	modGroup.GET("search/curseforge/status", can(authz_svc.PackModAdd), packModController.CurseforgeStatus)
+
+	bulkGroup := modGroup.Group("bulk")
+	{
+		bulkGroup.POST("", can(authz_svc.PackModAdd), packModController.StartBulkAdd)
+		bulkGroup.GET("latest", can(authz_svc.PackModAdd), packModController.GetLatestBulkAdd)
+		bulkGroup.GET(fmt.Sprintf(":%s", params.BulkRunId), can(authz_svc.PackModAdd), packModController.GetBulkAdd)
+		bulkGroup.POST(fmt.Sprintf(":%s/item/:%s", params.BulkRunId, params.BulkItemId), can(authz_svc.PackModAdd), packModController.ResolveBulkItem)
+	}
 
 	modIdGroup := modGroup.Group(fmt.Sprintf(":%s", params.ModId))
 	{

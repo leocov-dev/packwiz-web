@@ -21,7 +21,7 @@ const summary = (over: Partial<SnapshotSummary>): SnapshotSummary => ({
 describe("snapshotReasonLabel / snapshotReasonIcon", () => {
   it("labels every known reason", () => {
     const reasons = [
-      "baseline", "publish", "pack_edit", "mod_add", "mod_remove", "mod_update", "mod_side",
+      "baseline", "publish", "pack_edit", "mod_add", "mod_bulk_add", "mod_remove", "mod_update", "mod_side",
       "mod_option", "mod_pin", "mod_uplift", "rehash", "update_all", "migrate", "migrate_mods",
     ]
     for (const reason of reasons) {

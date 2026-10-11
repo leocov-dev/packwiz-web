@@ -364,35 +364,40 @@ func (ps *PackwizService) AddMod(packId uint, request dto.AddModRequest, user ta
 
 	detail := map[string]any{"slug": newMod.Slug, "name": newMod.Name}
 	if err := ps.withPackHistory(packId, user.ID, tables.SnapshotModAdd, detail, func(tx *gorm.DB) error {
-
-		var dependencyIds []uint
-
-		for _, mod := range dependencies {
-
-			existingMod, existsErr := ps.GetModBySlug(dbPack.Slug, mod.Slug)
-			if existsErr == nil {
-				dependencyIds = append(dependencyIds, existingMod.ID)
-				log.Info(fmt.Sprintf("mod '%s' already exists in pack '%s'", mod.Slug, dbPack.Slug))
-				continue
-			}
-
-			dbMod, err := createMod(mod, dbPack, user, tx, true, nil)
-			if err != nil {
-				return err
-			}
-			dependencyIds = append(dependencyIds, dbMod.ID)
-		}
-
-		if _, err := createMod(newMod, dbPack, user, tx, false, dependencyIds); err != nil {
-			return err
-		}
-
-		return nil
+		return insertModWithDeps(tx, dbPack, user, newMod, dependencies)
 	}); err != nil {
 		return response.Wrap(err)
 	}
 
 	return nil
+}
+
+// insertModWithDeps creates mod and its dependencies; dependencies already in
+// the pack are linked, not created again.
+func insertModWithDeps(tx *gorm.DB, dbPack tables.Pack, user tables.User, mod *core.Mod, dependencies []*core.Mod) error {
+	var dependencyIds []uint
+
+	for _, dep := range dependencies {
+		var existing tables.Mod
+		if err := tx.Select("id").Where("pack_id = ? AND slug = ?", dbPack.ID, dep.Slug).
+			Limit(1).Find(&existing).Error; err != nil {
+			return err
+		}
+		if existing.ID != 0 {
+			dependencyIds = append(dependencyIds, existing.ID)
+			log.Info(fmt.Sprintf("mod '%s' already exists in pack '%s'", dep.Slug, dbPack.Slug))
+			continue
+		}
+
+		dbMod, err := createMod(dep, dbPack, user, tx, true, nil)
+		if err != nil {
+			return err
+		}
+		dependencyIds = append(dependencyIds, dbMod.ID)
+	}
+
+	_, err := createMod(mod, dbPack, user, tx, false, dependencyIds)
+	return err
 }
 
 func createMod(mod *core.Mod, dbPack tables.Pack, user tables.User, db *gorm.DB, isDependency bool, dependencyIds []uint) (*tables.Mod, error) {

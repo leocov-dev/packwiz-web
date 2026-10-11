@@ -75,7 +75,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 				snapshotsGroup.POST(fmt.Sprintf(":%s/rebase", params.SnapshotId), can(authz_svc.PackSnapshotManage), meta.Tag(meta.CategoryPackRebase), snapshotController.RebaseOnSnapshot)
 			}
 
-			RegisterPackModRoutes(packIdGroup, db)
+			RegisterPackModRoutes(packIdGroup, db, riverClient)
 		}
 
 	}

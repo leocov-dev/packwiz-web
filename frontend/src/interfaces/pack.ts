@@ -265,3 +265,54 @@ export class PublicPack {
   @Type(() => PublicPackMod)
   mods!: PublicPackMod[];
 }
+
+export type BulkAddStatus = "queued" | "running" | "done" | "failed"
+
+export type BulkItemStatus =
+  | "queued" | "added" | "pending" | "incompatible_version" | "conflict"
+  | "skipped" | "failed" | "picked" | "rejected"
+
+export type BulkAddSource = "modrinth" | "curseforge"
+
+/** A search hit stored for review of a bulk add line. */
+export class BulkAddCandidate {
+  source!: BulkAddSource;
+  slug!: string;
+  title!: string;
+  projectId!: string;
+  iconUrl?: string;
+}
+
+/** One line of a bulk add, in list order (position is 1-based). */
+export class BulkAddItem {
+  id!: number;
+  position!: number;
+  line!: string;
+  status!: BulkItemStatus;
+  /** Matched or picked mod; empty when nothing matched. */
+  source!: BulkAddSource | "";
+  slug!: string;
+  name!: string;
+  projectId!: string;
+  reason!: string;
+  /** Line that won a conflict or added the mod first; 0 for an installed mod. */
+  conflictsWithPosition!: number;
+  @Type(() => BulkAddCandidate)
+  candidates!: BulkAddCandidate[];
+}
+
+export class BulkAddRun {
+  id!: number;
+  status!: BulkAddStatus;
+  error!: string;
+  createdAt!: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  @Type(() => BulkAddItem)
+  items!: BulkAddItem[];
+}
+
+export class BulkAddLatestResponse {
+  @Type(() => BulkAddRun)
+  run!: BulkAddRun | null;
+}

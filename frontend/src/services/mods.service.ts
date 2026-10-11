@@ -1,6 +1,6 @@
 import {apiClient} from "@/services/api.service.ts";
-import type {AddModRequest, ChangeModOptionRequest, ChangeModSideRequest} from "@/interfaces/requests.ts";
-import {Mod, ModDependenciesResponse, ModSearchResponse, UpdateModResponse} from "@/interfaces/pack.ts";
+import type {AddModRequest, BulkAddRequest, ChangeModOptionRequest, ChangeModSideRequest, ResolveBulkItemRequest} from "@/interfaces/requests.ts";
+import {BulkAddItem, BulkAddLatestResponse, BulkAddRun, Mod, ModDependenciesResponse, ModSearchResponse, UpdateModResponse} from "@/interfaces/pack.ts";
 import {plainToInstance} from "class-transformer";
 
 export async function fetchOneMod(packId: number, modId: number): Promise<Mod> {
@@ -70,4 +70,24 @@ export async function searchCurseforgeMods(packId: number, query: string, versio
 export async function getCurseforgeStatus(packId: number): Promise<{ available: boolean }> {
   const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/search/curseforge/status`)
   return response.data
+}
+
+export async function startBulkAdd(packId: number, request: BulkAddRequest): Promise<BulkAddRun> {
+  const response = await apiClient.post(`v1/packwiz/pack/${packId}/mod/bulk`, request)
+  return plainToInstance(BulkAddRun, response.data)
+}
+
+export async function fetchLatestBulkAdd(packId: number): Promise<BulkAddRun | null> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/bulk/latest`)
+  return plainToInstance(BulkAddLatestResponse, response.data).run ?? null
+}
+
+export async function fetchBulkAdd(packId: number, runId: number): Promise<BulkAddRun> {
+  const response = await apiClient.get(`v1/packwiz/pack/${packId}/mod/bulk/${runId}`)
+  return plainToInstance(BulkAddRun, response.data)
+}
+
+export async function resolveBulkItem(packId: number, runId: number, itemId: number, request: ResolveBulkItemRequest): Promise<BulkAddItem> {
+  const response = await apiClient.post(`v1/packwiz/pack/${packId}/mod/bulk/${runId}/item/${itemId}`, request)
+  return plainToInstance(BulkAddItem, response.data)
 }
