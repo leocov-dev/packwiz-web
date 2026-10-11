@@ -12,7 +12,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/leocov-dev/packwiz-nxt v0.0.14
+	github.com/leocov-dev/packwiz-nxt v0.0.15
 	github.com/riverqueue/river v0.47.0
 	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.47.0
 	github.com/riverqueue/river/rivertype v0.47.0
