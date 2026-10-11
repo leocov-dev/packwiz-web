@@ -2,6 +2,7 @@
 import type {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import ModsList from "@/components/mods/ModsList.vue";
+import {packStatusKey} from "@/lib/pack-status.ts";
 import {toTitleCase} from "@/services/utils.ts";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
@@ -305,6 +306,17 @@ const updateAll = async () => {
       @rehashed="emit('reload')"
     />
 
+    <v-sheet
+      v-if="pack.status === 'draft' && !pack.isArchived"
+      color="secondary"
+      class="d-flex align-center justify-center ga-3 px-4 py-2 mb-2 rounded"
+      role="status"
+    >
+      <v-icon icon="mdi-file-edit" />
+      <span class="text-h6 font-weight-bold text-uppercase">Draft</span>
+      <span class="text-body-2 d-none d-sm-inline">Not served to players until published</span>
+    </v-sheet>
+
     <v-card>
       <v-card-title
         class="d-flex flex-wrap align-center"
@@ -331,12 +343,7 @@ const updateAll = async () => {
             {{ pack.name }}
           </h1>
           <PackStatus
-            :status="pack.isArchived ? 'archived' : pack.status"
-            class="me-2"
-          />
-          <PackStatus
-            v-if="pack.isPublic"
-            status="public"
+            :status="packStatusKey(pack)"
             class="me-2"
           />
           <router-link
@@ -456,7 +463,7 @@ const updateAll = async () => {
             />
             <v-list-item
               v-if="can(Perm.PackPublish) && pack.status === 'draft'"
-              prepend-icon="mdi-earth"
+              prepend-icon="mdi-publish"
               title="Publish"
               @click="showPublishDialog = true"
             />

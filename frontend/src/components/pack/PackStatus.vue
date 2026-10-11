@@ -7,7 +7,7 @@ const { status, class: classDef = undefined } = defineProps<{
 
 const statusMap = {
   published: {
-    icon: 'mdi-earth',
+    icon: 'mdi-rocket-launch',
     tooltip: 'This pack is published',
     color: 'primary',
   },
@@ -22,7 +22,7 @@ const statusMap = {
     color: 'disabled',
   },
   public: {
-    icon: 'mdi-account-group',
+    icon: 'mdi-earth',
     tooltip: 'This pack does not require authentication',
     color: 'red',
   },

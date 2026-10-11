@@ -3,6 +3,7 @@ import {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
+import {packStatusKey} from "@/lib/pack-status.ts";
 import {toTitleCase} from "@/services/utils.ts";
 
 const loaderColors: Record<string, string> = {
@@ -19,6 +20,8 @@ const {can} = usePackPermissions(() => pack)
 
 const loaderColor = computed(() => loaderColors[pack.loader?.toLowerCase()] ?? 'grey')
 
+const isDraft = computed(() => pack.status === 'draft' && !pack.isArchived)
+
 const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
 </script>
 
@@ -27,27 +30,13 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
     min-height="160"
     max-height="160"
     class="d-flex flex-column"
+    :class="{ 'pack-card--draft': isDraft }"
   >
     <v-card-title class="d-flex justify-center">
       <h4 class="me-auto">
         {{ pack.name }}
       </h4>
-      <v-chip
-        v-if="pack.loader"
-        :color="loaderColor"
-        size="small"
-        label
-        class="me-2"
-      >
-        {{ toTitleCase(pack.loader) }}
-      </v-chip>
-      <PackStatus :status="pack.isArchived ? 'archived' : pack.status" />
-
-      <PackStatus
-        v-if="pack.isPublic"
-        class="ms-2"
-        status="public"
-      />
+      <PackStatus :status="packStatusKey(pack)" />
     </v-card-title>
 
     <v-card-text class="multiline-truncate flex-grow-1">
@@ -57,12 +46,35 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
     <v-card-actions class="ms-2 me-2 d-flex justify-end">
       <v-btn
         v-if="can(Perm.PackView)"
-        class="me-auto"
+        class="me-3"
         :text="viewLabel"
         :to="`/packs/${pack.id}`"
         variant="tonal"
         density="comfortable"
       />
+
+      <v-chip
+        v-if="pack.loader"
+        :color="loaderColor"
+        variant="flat"
+        size="small"
+        label
+      >
+        {{ toTitleCase(pack.loader) }}
+      </v-chip>
+
+      <v-chip
+        v-if="pack.mcVersion"
+        color="green-darken-2"
+        variant="flat"
+        size="small"
+        label
+        class="ms-2"
+      >
+        {{ pack.mcVersion }}
+      </v-chip>
+
+      <v-spacer />
 
       <PackActions :pack="pack" />
     </v-card-actions>
@@ -70,6 +82,11 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
 </template>
 
 <style scoped>
+/* drafts: slightly greyer, less saturated surface */
+.pack-card--draft {
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 85%, grey);
+}
+
 /* No Vuetify utility clamps to N lines (see STYLE_GUIDE.md) */
 .multiline-truncate {
   display: -webkit-box;

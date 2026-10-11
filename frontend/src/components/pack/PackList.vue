@@ -55,6 +55,13 @@ watch(
 
 const page = ref(1)
 
+// published first, then drafts (sort is stable, so backend order holds within a group)
+const sectionOf = (pack: PackResponse) => pack.status === 'draft' ? 'draft' : 'published'
+const sectionTitles = {published: 'Published', draft: 'Drafts'}
+const sortedPacks = computed(() =>
+  [...(data.value ?? [])].sort((a, b) =>
+    Number(sectionOf(a) === 'draft') - Number(sectionOf(b) === 'draft')))
+
 </script>
 
 <template>
@@ -66,7 +73,7 @@ const page = ref(1)
     <v-data-iterator
       v-model:page="page"
       :loading="isLoading"
-      :items="data"
+      :items="sortedPacks"
       items-per-page="12"
     >
       <template #header>
@@ -129,18 +136,31 @@ const page = ref(1)
 
       <template #default="{ items }">
         <v-row class="my-0">
-          <v-col
-            v-for="item in items"
+          <template
+            v-for="(item, i) in items"
             :key="item.raw.id"
-            cols="12"
-            md="4"
-            sm="12"
           >
-            <PackCard
-              :pack="item.raw"
-              elevation="4"
-            />
-          </v-col>
+            <v-col
+              v-if="i === 0 || sectionOf(items[i - 1].raw) !== sectionOf(item.raw)"
+              cols="12"
+              class="pb-0"
+            >
+              <div class="text-overline text-medium-emphasis">
+                {{ sectionTitles[sectionOf(item.raw)] }}
+              </div>
+              <v-divider />
+            </v-col>
+            <v-col
+              cols="12"
+              md="4"
+              sm="12"
+            >
+              <PackCard
+                :pack="item.raw"
+                elevation="4"
+              />
+            </v-col>
+          </template>
         </v-row>
       </template>
 
