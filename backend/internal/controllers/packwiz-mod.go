@@ -192,6 +192,36 @@ func (pc *PackwizModController) RemoveMod(c *gin.Context) {
 	isOK(c)
 }
 
+// RemoveMods removes several mods of the pack in one history snapshot.
+func (pc *PackwizModController) RemoveMods(c *gin.Context) {
+	packId, err := mustBindIdParam(c, params.PackId)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	if pc.abortIfPackNotExist(c, packId, false) {
+		return
+	}
+
+	user, err := mustBindCurrentUser(c)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	var request dto.RemoveModsRequest
+	err = mustBindJson(c, &request)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	result, err := pc.packwizSvc.RemoveMods(packId, request, user)
+	if pc.abortWithError(c, err) {
+		return
+	}
+
+	dataOK(c, result)
+}
+
 func (pc *PackwizModController) UpdateMod(c *gin.Context) {
 	packId, err := mustBindIdParam(c, params.PackId)
 	if pc.abortWithError(c, err) {

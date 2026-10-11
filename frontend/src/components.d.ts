@@ -62,6 +62,7 @@ declare module 'vue' {
     PackSnapshots: typeof import('./components/pack/PackSnapshots.vue')['default']
     PackStatus: typeof import('./components/pack/PackStatus.vue')['default']
     RehashDialog: typeof import('./components/pack/RehashDialog.vue')['default']
+    RemoveModsDialog: typeof import('./components/mods/RemoveModsDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SearchBar: typeof import('./components/SearchBar.vue')['default']

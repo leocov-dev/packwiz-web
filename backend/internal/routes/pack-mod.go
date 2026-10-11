@@ -23,6 +23,7 @@ func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.C
 	}
 
 	modGroup.POST("", can(authz_svc.PackModAdd), packModController.AddMod)
+	modGroup.POST("remove", can(authz_svc.PackModRemove), packModController.RemoveMods)
 	modGroup.POST("missing-dependencies", can(authz_svc.PackModAdd), packModController.ListMissingDependencies)
 	modGroup.GET("search", can(authz_svc.PackModAdd), packModController.SearchModrinthMods)
 	modGroup.GET("search/modrinth", can(authz_svc.PackModAdd), packModController.SearchModrinthMods)

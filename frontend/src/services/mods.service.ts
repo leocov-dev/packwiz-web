@@ -91,3 +91,8 @@ export async function resolveBulkItem(packId: number, runId: number, itemId: num
   const response = await apiClient.post(`v1/packwiz/pack/${packId}/mod/bulk/${runId}/item/${itemId}`, request)
   return plainToInstance(BulkAddItem, response.data)
 }
+
+export async function removeMods(packId: number, modIds: number[]): Promise<{ removed: number }> {
+  const response = await apiClient.post(`v1/packwiz/pack/${packId}/mod/remove`, {modIds})
+  return response.data
+}

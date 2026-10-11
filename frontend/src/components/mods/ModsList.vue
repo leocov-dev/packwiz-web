@@ -18,6 +18,8 @@ import {
   type ModSide,
   type ModSort,
 } from "@/lib/mod-filters.ts";
+import {pruneSelection, toggleAll, toggleSelected} from "@/lib/mod-selection.ts";
+import RemoveModsDialog from "@/components/mods/RemoveModsDialog.vue";
 
 const {packId, mods, permissions, updateChecks = new Map()} = defineProps<{
   packId: number,
@@ -28,6 +30,7 @@ const {packId, mods, permissions, updateChecks = new Map()} = defineProps<{
 
 const canAdd = computed(() => hasPermission(permissions, Perm.PackModAdd))
 const canCheckUpdates = computed(() => hasPermission(permissions, Perm.PackUpdatesCheck))
+const canRemove = computed(() => hasPermission(permissions, Perm.PackModRemove))
 
 const emit = defineEmits<{
   (e: 'add-mod'): void
@@ -83,6 +86,7 @@ const pinOverrides = ref(new Map<number, boolean>())
 watch(() => mods, () => {
   pinOverrides.value = new Map()
   emit('pin-overrides', pinOverrides.value)
+  selected.value = pruneSelection(selected.value, mods)
 })
 const onPinned = (id: number, value: boolean) => {
   const next = new Map(pinOverrides.value)
@@ -128,6 +132,30 @@ const clearFilters = () => {
   appliedSearch.value = ''
   sideFilter.value = ''
   show.value = []
+}
+
+// Multi-select for removing several mods at once. The selection survives
+// filtering and paging; "select all" applies to every mod the filters show.
+const selecting = ref(false)
+const selected = ref<Set<number>>(new Set())
+const showRemoveDialog = ref(false)
+const shownSelectedCount = computed(() => sortedMods.value.filter(m => selected.value.has(m.id)).length)
+const allShownSelected = computed(() => sortedMods.value.length > 0 && shownSelectedCount.value === sortedMods.value.length)
+
+const toggleSelecting = () => {
+  selecting.value = !selecting.value
+  selected.value = new Set()
+}
+const toggleMod = (id: number) => {
+  selected.value = toggleSelected(selected.value, id)
+}
+const toggleAllShown = () => {
+  selected.value = toggleAll(selected.value, sortedMods.value)
+}
+const onRemoved = () => {
+  selecting.value = false
+  selected.value = new Set()
+  emit('reload')
 }
 
 // Gap only where a dependency directly follows a regular mod on the same page.
@@ -183,8 +211,46 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
             label="Sort"
             hide-details
           />
+          <v-btn
+            v-if="canRemove && hasMods"
+            :text="selecting ? 'Done' : 'Select'"
+            :prepend-icon="selecting ? 'mdi-check' : 'mdi-checkbox-multiple-outline'"
+            variant="tonal"
+            @click="toggleSelecting"
+          />
         </div>
       </v-toolbar>
+      <RemoveModsDialog
+        v-model="showRemoveDialog"
+        :pack-id="packId"
+        :mods="effectiveMods"
+        :selected="selected"
+        :dependents="dependents"
+        @removed="onRemoved"
+      />
+      <div
+        v-if="selecting"
+        class="d-flex flex-wrap align-center ga-2 px-4 pt-2"
+      >
+        <v-checkbox-btn
+          :model-value="allShownSelected"
+          :indeterminate="shownSelectedCount > 0 && !allShownSelected"
+          :disabled="sortedMods.length === 0"
+          :aria-label="allShownSelected ? 'Clear all shown mods' : 'Select all shown mods'"
+          class="flex-grow-0"
+          @update:model-value="toggleAllShown"
+        />
+        <span class="text-body-2">{{ selected.size }} selected</span>
+        <v-spacer />
+        <v-btn
+          text="Remove selected"
+          prepend-icon="mdi-delete-outline"
+          color="error"
+          variant="tonal"
+          :disabled="selected.size === 0"
+          @click="showRemoveDialog = true"
+        />
+      </div>
       <v-chip-group
         v-model="show"
         multiple
@@ -284,6 +350,16 @@ const isFirstDependency = (items: readonly {raw: Mod}[], index: number) =>
           :key="item.raw.id"
           :class="{'mt-6': isFirstDependency(items, index)}"
         >
+          <template
+            v-if="selecting"
+            #prepend
+          >
+            <v-checkbox-btn
+              :model-value="selected.has(item.raw.id)"
+              :aria-label="`Select ${item.raw.name}`"
+              @update:model-value="toggleMod(item.raw.id)"
+            />
+          </template>
           <ModCard
             :pack-id="packId"
             :mod="item.raw"
