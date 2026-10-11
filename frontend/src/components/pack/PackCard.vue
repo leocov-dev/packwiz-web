@@ -3,10 +3,21 @@ import {PackResponse} from "@/interfaces/pack.ts";
 import PackActions from "@/components/pack/PackActions.vue";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
+import {toTitleCase} from "@/services/utils.ts";
+
+const loaderColors: Record<string, string> = {
+  fabric: 'brown',
+  forge: 'blue-grey',
+  neoforge: 'orange',
+  quilt: 'purple',
+  liteloader: 'teal',
+}
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
 const {can} = usePackPermissions(() => pack)
+
+const loaderColor = computed(() => loaderColors[pack.loader?.toLowerCase()] ?? 'grey')
 
 const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
 </script>
@@ -21,6 +32,15 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
       <h4 class="me-auto">
         {{ pack.name }}
       </h4>
+      <v-chip
+        v-if="pack.loader"
+        :color="loaderColor"
+        size="small"
+        label
+        class="me-2"
+      >
+        {{ toTitleCase(pack.loader) }}
+      </v-chip>
       <PackStatus :status="pack.isArchived ? 'archived' : pack.status" />
 
       <PackStatus
