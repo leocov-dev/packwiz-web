@@ -3,20 +3,29 @@ import {useDisplay} from "vuetify";
 import type {CompatResponse, CompatStatus} from "@/interfaces/compat.ts"
 import CompatBadge from "@/components/pack/CompatBadge.vue"
 import {
+  type CompatReportContext,
   compatUnscannedText,
   findingTitle,
+  formatCompatReport,
   formatScannedAgo,
   groupFindings,
   severityDisplay,
 } from "@/lib/compat.ts"
+import {writeToClipboard} from "@/lib/clipboard.ts"
+import {getPackLinks} from "@/services/packs.service.ts"
+import {useSnackbarStore} from "@/stores/snackbar.ts"
 
-const {compat, status, loading, error, canRescan, rescanning} = defineProps<{
+const {packId, compat, status, loading, error, canRescan, rescanning, reportContext = {}, modUrls = new Map()} = defineProps<{
+  packId: number
   compat: CompatResponse | null
   status: CompatStatus
   loading: boolean
   error: string
   canRescan: boolean
   rescanning: boolean
+  reportContext?: CompatReportContext
+  /** Source page URL per mod slug; mods without one get no link. */
+  modUrls?: ReadonlyMap<string, string>
 }>()
 
 const model = defineModel<boolean>({required: true})
@@ -28,6 +37,20 @@ const groups = computed(() => groupFindings(compat?.findings ?? []))
 const unscannedText = computed(() => compatUnscannedText(compat?.unscanned ?? 0))
 const scannedText = computed(() => formatScannedAgo(compat?.scannedAt))
 const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status === 'ok' || status === 'stale'))
+
+const snackbar = useSnackbarStore()
+
+const onCopy = async () => {
+  if (!compat) return
+  try {
+    // the link is only identification, not authorization; skip it if it can't be fetched
+    const packLink = await getPackLinks(packId).then(l => l.link, () => undefined)
+    await writeToClipboard(formatCompatReport(compat, {...reportContext, packLink}, modUrls))
+    snackbar.showSnackbar("Results copied to clipboard", "default", 2000)
+  } catch {
+    snackbar.showSnackbar("Unable to copy results", "error")
+  }
+}
 </script>
 
 <template>
@@ -121,14 +144,27 @@ const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status 
             variant="outlined"
             class="mb-2 pa-3"
           >
-            <v-btn
-              :text="mod.slug"
-              :aria-label="`Show ${mod.slug} in the mod list`"
-              variant="text"
-              density="comfortable"
-              class="text-none font-weight-medium mb-1 px-1"
-              @click="emit('select-mod', mod.slug)"
-            />
+            <div class="d-flex align-center ga-1 mb-1">
+              <span class="font-weight-medium text-break">{{ mod.slug }}</span>
+              <v-spacer />
+              <v-btn
+                icon="mdi-filter-outline"
+                :aria-label="`Show ${mod.slug} in the mod list`"
+                variant="text"
+                density="comfortable"
+                @click="emit('select-mod', mod.slug)"
+              />
+              <v-btn
+                v-if="modUrls.get(mod.slug)"
+                icon="mdi-open-in-new"
+                :aria-label="`Open ${mod.slug} source page in a new tab`"
+                :href="modUrls.get(mod.slug)"
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="text"
+                density="comfortable"
+              />
+            </div>
             <div
               v-for="(finding, i) in mod.findings"
               :key="`${finding.code}-${i}`"
@@ -165,6 +201,12 @@ const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status 
           :loading="rescanning || status === 'queued' || status === 'scanning'"
           :disabled="rescanning || status === 'queued' || status === 'scanning'"
           @click="emit('rescan')"
+        />
+        <v-btn
+          v-if="compat"
+          prepend-icon="mdi-clipboard-text-multiple-outline"
+          text="Copy"
+          @click="onCopy"
         />
         <v-spacer />
         <v-btn

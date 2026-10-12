@@ -1,5 +1,5 @@
 import {formatAgo} from "@/lib/format-ago.ts"
-import type {CompatFindingItem, CompatSeverity, CompatStatus} from "@/interfaces/compat.ts"
+import type {CompatFindingItem, CompatResponse, CompatSeverity, CompatStatus} from "@/interfaces/compat.ts"
 
 export interface CompatDisplay {
   icon: string
@@ -130,6 +130,56 @@ export function compatUnscannedText(unscanned: number): string {
 
 export function formatScannedAgo(scannedAt: string | null | undefined, now: number = Date.now()): string {
   return formatAgo("Last scanned", scannedAt, now) || "Never scanned"
+}
+
+/** Pack facts that help a reviewer judge the findings. */
+export interface CompatReportContext {
+  name?: string
+  mcVersion?: string
+  loader?: string
+  loaderVersion?: string
+  /** pack.toml link (public or personalized). */
+  packLink?: string
+}
+
+/** Clean plaintext report of a compat result (`modUrls`: source page per mod slug), meant to be pasted to an AI agent for review. */
+export function formatCompatReport(
+  compat: Pick<CompatResponse, "status" | "counts" | "unscanned" | "scannedAt" | "runError" | "findings">,
+  context: CompatReportContext = {},
+  modUrls: ReadonlyMap<string, string> = new Map(),
+): string {
+  const lines: string[] = ["Minecraft mod compatibility report"]
+  if (context.name) lines.push(`Pack: ${context.name}`)
+  if (context.mcVersion) lines.push(`Minecraft version: ${context.mcVersion}`)
+  if (context.loader) {
+    lines.push(`Loader: ${[context.loader, context.loaderVersion].filter(Boolean).join(" ")}`)
+  }
+  if (context.packLink) lines.push(`pack.toml: ${context.packLink}`)
+  lines.push(`Status: ${compat.status}`)
+  if (compat.scannedAt) lines.push(`Scanned at: ${compat.scannedAt}`)
+  const countsText = compatCountsText(compat.counts)
+  if (countsText) lines.push(`Findings: ${countsText}`)
+  const unscannedText = compatUnscannedText(compat.unscanned)
+  if (unscannedText) lines.push(unscannedText)
+  if (compat.runError) lines.push(`Last scan problem: ${compat.runError}`)
+  lines.push("Note: based on mod metadata only; does not guarantee the pack launches.")
+
+  for (const group of groupFindings(compat.findings)) {
+    lines.push("", `## ${severityDisplay(group.severity).title} (${group.total})`)
+    for (const mod of group.mods) {
+      lines.push("", mod.slug)
+      const url = modUrls.get(mod.slug)
+      if (url) lines.push(`Source: ${url}`)
+      for (const finding of mod.findings) {
+        lines.push(`- ${findingTitle(finding.code)} [${finding.code}]: ${finding.message}`)
+        for (const [key, value] of Object.entries(finding.detail)) {
+          lines.push(`    ${key}: ${value}`)
+        }
+      }
+    }
+  }
+  if (compat.findings.length === 0) lines.push("", "No problems found.")
+  return lines.join("\n") + "\n"
 }
 
 export function shouldContinueCompatPolling(status: CompatStatus, elapsedMs: number): boolean {

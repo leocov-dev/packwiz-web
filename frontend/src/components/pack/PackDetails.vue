@@ -41,7 +41,7 @@ import ChangelistEntryView from "@/components/changelist/ChangelistEntryView.vue
 import type {ChangelistEntry} from "@/interfaces/changelist.ts";
 import {fetchPendingChanges} from "@/services/changelist.service.ts";
 import {changesTarget, entryIsEmpty} from "@/lib/changelist.ts";
-import {applyPinOverrides} from "@/lib/mod-filters.ts";
+import {applyPinOverrides, modPageUrl} from "@/lib/mod-filters.ts";
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
@@ -93,6 +93,14 @@ const onCompatSelectMod = (slug: string) => {
   showCompatDialog.value = false
   router.push({query: {...route.query, q: slug}})
 }
+const compatModUrls = computed(() => {
+  const urls = new Map<string, string>()
+  for (const m of pack.mods ?? []) {
+    const url = modPageUrl(m.source, m.update)
+    if (url) urls.set(m.slug, url)
+  }
+  return urls
+})
 const compatRescanAllowed = computed(() =>
   canRescan(can(Perm.PackUpdatesCheck), pack.isArchived))
 // Optimistic pin changes reported by ModsList (not yet in pack.mods); applied so
@@ -332,12 +340,15 @@ const updateAll = async () => {
 
     <CompatDialog
       v-model="showCompatDialog"
+      :pack-id="pack.id"
       :compat="compat.compat.value"
       :status="compat.status.value"
       :loading="compat.loading.value"
       :error="compat.error.value"
       :can-rescan="compatRescanAllowed"
       :rescanning="compat.rescanning.value"
+      :report-context="{name: pack.name, mcVersion: pack.mcVersion, loader: pack.loader, loaderVersion: pack.loaderVersion}"
+      :mod-urls="compatModUrls"
       @rescan="onCompatRescan"
       @select-mod="onCompatSelectMod"
     />

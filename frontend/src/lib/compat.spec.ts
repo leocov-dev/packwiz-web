@@ -6,6 +6,7 @@ import {
   compatDisplay,
   compatUnscannedText,
   findingTitle,
+  formatCompatReport,
   abandonedStatus,
   formatScannedAgo,
   groupFindings,
@@ -116,5 +117,46 @@ describe("abandonedStatus", () => {
     expect(abandonedStatus("queued")).toBe("stale")
     expect(abandonedStatus("scanning")).toBe("stale")
     expect(abandonedStatus("errors")).toBe("errors")
+  })
+})
+
+describe("formatCompatReport", () => {
+  const base = {
+    status: "errors" as CompatStatus,
+    counts: {errors: 2, warnings: 0, info: 0},
+    unscanned: 1,
+    scannedAt: "2026-01-01T00:00:00Z",
+    runError: "",
+  }
+  it("renders context, grouped findings and details as plaintext", () => {
+    const text = formatCompatReport(
+      {...base, findings: [
+        f({slug: "a", code: "missing_dependency", message: "needs b", detail: {dep: "b"}}),
+        f({slug: "c", code: "wrong_loader", message: "fabric on forge"}),
+      ]},
+      {name: "My Pack", mcVersion: "1.20.1", loader: "forge", loaderVersion: "47.2.0", packLink: "https://x/pack.toml"},
+    )
+    expect(text).toContain("pack.toml: https://x/pack.toml")
+    expect(text).toContain("Pack: My Pack")
+    expect(text).toContain("Loader: forge 47.2.0")
+    expect(text).toContain("Findings: 2 errors")
+    expect(text).toContain("1 mod could not be checked")
+    expect(text).toContain("## Errors (2)")
+    expect(text).toContain("- Missing dependency [missing_dependency]: needs b\n    dep: b")
+    expect(text.endsWith("\n")).toBe(true)
+  })
+  it("adds the source link under mods that have one", () => {
+    const text = formatCompatReport(
+      {...base, findings: [f({slug: "a"}), f({modId: 2, slug: "b"})]},
+      {},
+      new Map([["a", "https://modrinth.com/project/abc"]]),
+    )
+    expect(text).toContain("a\nSource: https://modrinth.com/project/abc\n- ")
+    expect(text).not.toContain("b\nSource:")
+  })
+  it("says so when there are no findings", () => {
+    const text = formatCompatReport({...base, status: "ok", counts: {errors: 0, warnings: 0, info: 0}, unscanned: 0, findings: []})
+    expect(text).toContain("No problems found.")
+    expect(text).not.toContain("Pack:")
   })
 })
