@@ -1,9 +1,12 @@
 package compat_svc
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/leocov-dev/packwiz-nxt/compat"
 	"github.com/leocov-dev/packwiz-nxt/jarmeta"
@@ -16,6 +19,8 @@ const (
 	// errorRetryAfter is how long a cached parse-error row is trusted before
 	// the jar is downloaded again (the failure may have been a bad download).
 	errorRetryAfter = 24 * time.Hour
+	// maxDetailText caps one value of a finding's detail map.
+	maxDetailText = 500
 	// maxErrorText caps the error text stored with a cached row or finding.
 	maxErrorText = 2000
 	// modTypeJar is the Mod.Type of jar mods; resource packs, shaders and
@@ -115,23 +120,80 @@ func rowFromResult(key JarKey, res jarResult) tables.ModJarMeta {
 		ParserVersion: ParserVersion,
 	}
 	if len(res.Metas) > 0 {
-		metas := datatypes.JSONSlice[jarmeta.LoaderMeta](res.Metas)
+		metas := datatypes.JSONSlice[jarmeta.LoaderMeta](sanitizeMetas(res.Metas))
 		row.Meta = &metas
 		for _, m := range res.Metas {
 			row.Loaders = append(row.Loaders, string(m.Loader))
 		}
 	}
 	if res.ParseErr != nil {
-		row.Error = truncate(res.ParseErr.Error(), maxErrorText)
+		row.Error = sanitizeText(res.ParseErr.Error(), maxErrorText)
 	}
 	return row
 }
 
-func truncate(s string, max int) string {
+// sanitizeText makes text from a jar, a parse error or a download error safe
+// for a Postgres text/jsonb column and caps it at max bytes. Postgres rejects
+// NUL and invalid UTF-8, so NULs are dropped and invalid bytes become U+FFFD;
+// the cut never splits a multibyte character.
+func sanitizeText(s string, max int) string {
+	s = strings.ToValidUTF8(s, "\uFFFD")
+	s = strings.ReplaceAll(s, "\x00", "")
 	if len(s) <= max {
 		return s
 	}
-	return s[:max]
+	cut := max
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+// jsonNul is how encoding/json writes a NUL inside a string. Postgres jsonb
+// rejects it.
+var jsonNul = []byte(`\u0000`)
+
+// stripJSONNul removes NUL escapes from encoded JSON. It walks escape pairs,
+// so an escaped backslash followed by the text "u0000" is left alone.
+func stripJSONNul(b []byte) []byte {
+	if !bytes.Contains(b, jsonNul) {
+		return b
+	}
+	out := make([]byte, 0, len(b))
+	for i := 0; i < len(b); {
+		if b[i] == '\\' {
+			if bytes.HasPrefix(b[i:], jsonNul) {
+				i += len(jsonNul)
+				continue
+			}
+			if i+1 < len(b) {
+				out = append(out, b[i], b[i+1])
+				i += 2
+				continue
+			}
+		}
+		out = append(out, b[i])
+		i++
+	}
+	return out
+}
+
+// sanitizeMetas returns metas that can be stored in a jsonb column: NULs that
+// jars declare inside strings are removed. Metas without any are returned as is.
+func sanitizeMetas(metas []jarmeta.LoaderMeta) []jarmeta.LoaderMeta {
+	raw, err := json.Marshal(metas)
+	if err != nil {
+		return metas
+	}
+	clean := stripJSONNul(raw)
+	if len(clean) == len(raw) {
+		return metas
+	}
+	var out []jarmeta.LoaderMeta
+	if err := json.Unmarshal(clean, &out); err != nil {
+		return metas
+	}
+	return out
 }
 
 // entryFor builds the compat input of one mod.
@@ -195,10 +257,10 @@ func findingRows(packID uint, findings []compat.Finding, modIDBySlug map[string]
 	for _, f := range findings {
 		row := tables.PackCompatFinding{
 			PackID:   packID,
-			Slug:     f.Slug,
+			Slug:     sanitizeText(f.Slug, maxErrorText),
 			Severity: string(f.Severity),
 			Code:     string(f.Code),
-			Message:  f.Message,
+			Message:  sanitizeText(f.Message, maxErrorText),
 		}
 		if id, ok := modIDBySlug[f.Slug]; ok {
 			row.ModID = &id
@@ -206,7 +268,7 @@ func findingRows(packID uint, findings []compat.Finding, modIDBySlug map[string]
 		if len(f.Detail) > 0 {
 			row.Detail = make(datatypes.JSONMap, len(f.Detail))
 			for k, v := range f.Detail {
-				row.Detail[k] = v
+				row.Detail[sanitizeText(k, maxDetailText)] = sanitizeText(v, maxDetailText)
 			}
 		}
 		rows = append(rows, row)

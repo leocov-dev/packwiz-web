@@ -10,11 +10,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
 )
+
+// newTestJarFetcher builds a fetcher whose client may connect to loopback, for
+// tests that use httptest servers. Downloads go to dir.
+func newTestJarFetcher(dir string) *HTTPJarFetcher {
+	return &HTTPJarFetcher{client: newGuardedClient(true), dir: dir}
+}
 
 func sha256Hex(b []byte) string {
 	sum := sha256.Sum256(b)
@@ -112,7 +119,7 @@ func TestHTTPJarFetcherFetch(t *testing.T) {
 		{"unknown hash format", &core.Mod{Download: core.ModDownload{URL: srv.URL + "/good.jar", HashFormat: "nope", Hash: "x"}}, ErrUnresolvable},
 		{"unknown mode", &core.Mod{Download: core.ModDownload{URL: srv.URL + "/good.jar", HashFormat: "sha256", Hash: sha256Hex(good), Mode: "weird"}}, ErrUnresolvable},
 	}
-	f := newTestJarFetcher()
+	f := newTestJarFetcher(t.TempDir())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jar, err := f.Fetch(context.Background(), tt.mod)
@@ -143,6 +150,38 @@ func TestHTTPJarFetcherFetch(t *testing.T) {
 	}
 }
 
+func TestHTTPJarFetcherPurgeTempDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "jars")
+	f := newTestJarFetcher(dir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	orphan := filepath.Join(dir, "pww-jar-orphan.jar")
+	if err := os.WriteFile(orphan, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.PurgeTempDir(); err != nil {
+		t.Fatalf("purge: %v", err)
+	}
+	if _, err := os.Stat(orphan); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("orphan still exists: %v", err)
+	}
+	// purging a directory that does not exist is fine, and downloads recreate it
+	if err := f.PurgeTempDir(); err != nil {
+		t.Fatalf("second purge: %v", err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("jar")) }))
+	defer srv.Close()
+	jar, err := f.Fetch(context.Background(), modFor(srv.URL, []byte("jar")))
+	if err != nil {
+		t.Fatalf("fetch after purge: %v", err)
+	}
+	defer func() { _ = jar.Close() }()
+	if filepath.Dir(jar.Name()) != dir {
+		t.Errorf("jar in %s, want %s", filepath.Dir(jar.Name()), dir)
+	}
+}
+
 func TestHTTPJarFetcherProductionClientBlocksLoopback(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("x")) }))
 	defer srv.Close()
@@ -164,7 +203,7 @@ func TestHTTPJarFetcherSizeLimit(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	f := newTestJarFetcher()
+	f := newTestJarFetcher(t.TempDir())
 	for _, path := range []string{"/declared", "/chunked"} {
 		t.Run(path, func(t *testing.T) {
 			jar, err := f.Fetch(context.Background(), modFor(srv.URL+path, big))

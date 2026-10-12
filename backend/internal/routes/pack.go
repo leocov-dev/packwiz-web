@@ -11,12 +11,12 @@ import (
 	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/authz_svc"
-	"packwiz-web/internal/services/compat_svc"
+	"packwiz-web/internal/services/packwiz_svc"
 )
 
-func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], compat *compat_svc.CompatService, handlers ...gin.HandlerFunc) *gin.RouterGroup {
-	packwizController := controllers.NewPackwizController(db, riverClient, compat)
-	snapshotController := controllers.NewPackSnapshotController(db, compat)
+func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, handlers ...gin.HandlerFunc) *gin.RouterGroup {
+	packwizController := controllers.NewPackwizController(db, riverClient, scans)
+	snapshotController := controllers.NewPackSnapshotController(db, scans)
 	accessController := controllers.NewPackAccessController(db)
 	authz := authz_svc.NewService(db)
 
@@ -76,7 +76,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 				snapshotsGroup.POST(fmt.Sprintf(":%s/rebase", params.SnapshotId), can(authz_svc.PackSnapshotManage), meta.Tag(meta.CategoryPackRebase), snapshotController.RebaseOnSnapshot)
 			}
 
-			RegisterPackModRoutes(packIdGroup, db, riverClient, compat)
+			RegisterPackModRoutes(packIdGroup, db, riverClient, scans)
 		}
 
 	}

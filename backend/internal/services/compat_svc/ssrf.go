@@ -33,6 +33,11 @@ var blockedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"),          // "this network"
 	netip.MustParsePrefix("100.64.0.0/10"),      // carrier-grade NAT
 	netip.MustParsePrefix("192.0.0.0/24"),       // IETF protocol assignments
+	netip.MustParsePrefix("192.0.2.0/24"),       // documentation (TEST-NET-1)
+	netip.MustParsePrefix("198.51.100.0/24"),    // documentation (TEST-NET-2)
+	netip.MustParsePrefix("203.0.113.0/24"),     // documentation (TEST-NET-3)
+	netip.MustParsePrefix("2002::/16"),          // 6to4: embeds an IPv4 address
+	netip.MustParsePrefix("2001::/32"),          // Teredo: embeds an IPv4 address
 	netip.MustParsePrefix("198.18.0.0/15"),      // benchmarking
 	netip.MustParsePrefix("240.0.0.0/4"),        // reserved
 	netip.MustParsePrefix("64:ff9b::/96"),       // NAT64: embeds an IPv4 address

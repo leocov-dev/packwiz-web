@@ -38,6 +38,15 @@ func TestIsBlockedAddr(t *testing.T) {
 		{"::ffff:10.1.1.1", true},
 		{"::ffff:8.8.8.8", false},
 		{"64:ff9b::7f00:1", true},
+		{"192.0.2.10", true},                           // TEST-NET-1
+		{"198.51.100.7", true},                         // TEST-NET-2
+		{"203.0.113.99", true},                         // TEST-NET-3
+		{"2002:7f00:1::1", true},                       // 6to4 embedding 127.0.0.1
+		{"2001:0:4136:e378:8000:63bf:3fff:fdd2", true}, // Teredo
+		{"2001:db8::1", true},
+		{"192.0.3.1", false},
+		{"2001:1::1", false},
+		{"2003::1", false},
 		{"172.15.0.1", false},
 		{"172.32.0.1", false},
 		{"8.8.8.8", false},
