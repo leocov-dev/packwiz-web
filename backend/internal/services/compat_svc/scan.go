@@ -138,6 +138,8 @@ func (s *CompatService) scan(ctx context.Context, packID uint) error {
 			return fmt.Errorf("scan interrupted: %w", ctx.Err())
 		case errors.Is(err, errBudgetExhausted):
 			skipped = append(skipped, notScanned(m.Slug, "download budget exhausted; the next scan continues"))
+		case errors.Is(err, ErrTooLarge):
+			skipped = append(skipped, notScanned(m.Slug, fmt.Sprintf("the jar exceeds the %d MiB scan size limit", MaxJarSize>>20)))
 		default:
 			// download or lookup problems say nothing about the jar: count the
 			// mod as unscanned and emit no finding for it

@@ -14,7 +14,7 @@ import (
 const (
 	// MaxJarSize is the largest jar that is downloaded. It is checked against
 	// Content-Length up front and against the bytes actually read.
-	MaxJarSize int64 = 150 << 20
+	MaxJarSize int64 = 250 << 20
 	// DownloadTimeout bounds one jar download, including connecting and
 	// following redirects.
 	DownloadTimeout = 60 * time.Second
