@@ -44,6 +44,10 @@ var (
 			if runWorker {
 				db := database.GetClient()
 				compat := compat_svc.NewCompatService(db, nil, nil)
+				// jars of a previously killed worker would otherwise stay on disk
+				if err := compat.PurgeTempFiles(); err != nil {
+					log.Error("failed to purge jar temp files:", err)
+				}
 				resolver := packwiz_svc.NewPackwizService(db, nil, compat)
 				client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver, resolver, audit_svc.NewAuditService(db), pack_access_svc.NewPackAccessService(db), compat, compat, compat))
 				if err != nil {

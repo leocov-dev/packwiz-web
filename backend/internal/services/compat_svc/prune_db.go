@@ -8,6 +8,8 @@ import (
 	"github.com/leocov-dev/packwiz-nxt/jarmeta"
 	"github.com/lib/pq"
 	"gorm.io/datatypes"
+
+	"packwiz-web/internal/jobs"
 )
 
 // pruneBatch is how many cache rows one DELETE removes.
@@ -28,6 +30,9 @@ type pruneRowRecord struct {
 // and the pack targets are loaded for the Go decision. It returns how many
 // rows were deleted.
 func (s *CompatService) PruneJarMeta(ctx context.Context) (int64, error) {
+	if s == nil {
+		return 0, jobs.ErrClientUnavailable
+	}
 	db := s.db.WithContext(ctx)
 	now := s.now()
 	cutoff := now.Add(-PruneAfter)

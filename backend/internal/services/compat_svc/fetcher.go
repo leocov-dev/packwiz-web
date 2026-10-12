@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
@@ -59,17 +60,27 @@ type JarFetcher interface {
 // MetaDownloader, whose URLs come from the CurseForge API and not from user data.
 type HTTPJarFetcher struct {
 	client *http.Client
+	// dir holds the downloads, in a directory of its own so that jars left by
+	// a killed process can be purged without touching other temp files.
+	dir string
 }
+
+// jarTempDirName is the directory under os.TempDir() that holds downloads.
+const jarTempDirName = "pww-compat-jars"
 
 // NewHTTPJarFetcher builds the production fetcher.
 func NewHTTPJarFetcher() *HTTPJarFetcher {
-	return &HTTPJarFetcher{client: newGuardedClient(false)}
+	return &HTTPJarFetcher{client: newGuardedClient(false), dir: filepath.Join(os.TempDir(), jarTempDirName)}
 }
 
-// newTestJarFetcher builds a fetcher whose client may connect to loopback, for
-// tests that use httptest servers.
-func newTestJarFetcher() *HTTPJarFetcher {
-	return &HTTPJarFetcher{client: newGuardedClient(true)}
+// PurgeTempDir deletes every file in the download directory. Call it once when
+// the worker starts: jars of a process killed mid-download (SIGKILL, OOM) are
+// otherwise never removed. It must not run while scans are in progress.
+func (f *HTTPJarFetcher) PurgeTempDir() error {
+	if err := os.RemoveAll(f.dir); err != nil {
+		return fmt.Errorf("purge jar temp dir: %w", err)
+	}
+	return nil
 }
 
 // Fetch implements JarFetcher.
@@ -96,7 +107,10 @@ func (f *HTTPJarFetcher) Fetch(ctx context.Context, mod *core.Mod) (*TempJar, er
 		return nil, fmt.Errorf("%w: %d bytes", ErrTooLarge, length)
 	}
 
-	file, err := os.CreateTemp("", "pww-jar-*.jar")
+	if err := os.MkdirAll(f.dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create jar temp dir: %w", err)
+	}
+	file, err := os.CreateTemp(f.dir, "pww-jar-*.jar")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}

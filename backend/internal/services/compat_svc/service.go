@@ -28,10 +28,13 @@ type CompatService struct {
 	riverClient *river.Client[*sql.Tx]
 	fetcher     JarFetcher
 	// flight makes concurrent resolutions of the same jar hash share one
-	// download. One CompatService runs scans per process, so this is
-	// process-wide in practice.
+	// download. The scan queue has one worker, so this only matters when
+	// scans of two packs ever run at once (a raised concurrency, tests); it
+	// is cheap and keeps that case from downloading a jar twice.
 	flight singleflight.Group
-	now    func() time.Time
+	// failures remembers recent download failures (see negativeCache).
+	failures *negativeCache
+	now      func() time.Time
 }
 
 // NewCompatService builds the service. riverClient may be nil (job resolver
@@ -40,12 +43,20 @@ func NewCompatService(db *gorm.DB, riverClient *river.Client[*sql.Tx], fetcher J
 	if fetcher == nil {
 		fetcher = NewHTTPJarFetcher()
 	}
-	return &CompatService{db: db, riverClient: riverClient, fetcher: fetcher, now: time.Now}
+	return &CompatService{db: db, riverClient: riverClient, fetcher: fetcher, failures: newNegativeCache(), now: time.Now}
 }
+
+// A nil *CompatService is a valid "no compat service": every method that needs
+// the service returns jobs.ErrClientUnavailable instead of panicking. This
+// matters because a nil *CompatService stored in an interface (a
+// ScanRequester) is a non-nil interface, so callers cannot detect it.
 
 // client returns the River client to enqueue with: the injected one, else the
 // one River stores in a worker's context.
 func (s *CompatService) client(ctx context.Context) (*river.Client[*sql.Tx], error) {
+	if s == nil {
+		return nil, jobs.ErrClientUnavailable
+	}
 	if s.riverClient != nil {
 		return s.riverClient, nil
 	}
@@ -61,6 +72,9 @@ func (s *CompatService) client(ctx context.Context) (*river.Client[*sql.Tx], err
 // one scan. Archived and unknown packs are skipped. Call it after the change
 // has committed, never inside its transaction.
 func (s *CompatService) RequestScan(ctx context.Context, packID uint) error {
+	if s == nil {
+		return jobs.ErrClientUnavailable
+	}
 	_, err := s.enqueue(ctx, packID, scheduledAt(s.now()))
 	return err
 }
@@ -78,6 +92,9 @@ type ManualScanResult struct {
 // but at most one per ManualScanMinInterval per pack and never while a scan is
 // queued or running.
 func (s *CompatService) RequestManualScan(ctx context.Context, packID uint) (ManualScanResult, error) {
+	if s == nil {
+		return ManualScanResult{}, jobs.ErrClientUnavailable
+	}
 	now := s.now()
 	run, err := s.getRun(ctx, packID)
 	if err != nil {
@@ -104,6 +121,29 @@ func statusOf(run *tables.PackCompatRun, now time.Time) Status {
 
 // enqueue inserts the scan job for a pack and marks its run queued. It reports
 // false when the pack is archived or missing, or a scan job is already pending.
+//
+// Run row protocol. pack_compat_runs.status moves queued -> running -> done or
+// failed, written by enqueue and by RunScan (worker). A change that arrives
+// while a scan job is active cannot get a job of its own (jobs are unique per
+// pack, including running ones), so it must make the active scan's result
+// count as "needs another scan" by flipping the run to queued; the catch-up job
+// re-enqueues a queued run that stayed queued for orphanQueuedAfter. The rules
+// that make this race free:
+//
+//   - The flip applies from running, done and failed, so it works in every
+//     phase of the active job: before RunScan wrote its running row (status
+//     still the previous result), while scanning, and after store/markFailed
+//     but before River marked the job completed.
+//   - The flip before RunScan's running upsert is overwritten by that upsert.
+//     That is correct: the change committed before the flip, hence before the
+//     scan reads the pack.
+//   - store and markFailed never replace a queued status, so a flip during the
+//     scan survives it.
+//   - The queued upsert after a fresh Insert does not overwrite a row that
+//     already belongs to this job (a fast worker may have written running or
+//     even finished before the upsert runs), see below.
+//   - If the job completed between Insert and the flip, the run is left queued
+//     with no job coming; catch-up repairs that after orphanQueuedAfter.
 func (s *CompatService) enqueue(ctx context.Context, packID uint, at time.Time) (bool, error) {
 	client, err := s.client(ctx)
 	if err != nil {
@@ -119,59 +159,69 @@ func (s *CompatService) enqueue(ctx context.Context, packID uint, at time.Time) 
 		return false, nil
 	}
 
-	var result *rivertype.JobInsertResult
-	for attempt := 0; ; attempt++ {
-		result, err = client.Insert(ctx, jobs.CompatScanArgs{PackID: packID}, &river.InsertOpts{ScheduledAt: at})
-		if err != nil {
-			return false, fmt.Errorf("enqueue compat scan of pack %d: %w", packID, err)
-		}
-		if !result.UniqueSkippedAsDuplicate {
-			break
-		}
+	result, err := client.Insert(ctx, jobs.CompatScanArgs{PackID: packID}, &river.InsertOpts{ScheduledAt: at})
+	if err != nil {
+		return false, fmt.Errorf("enqueue compat scan of pack %d: %w", packID, err)
+	}
+	if result.UniqueSkippedAsDuplicate {
 		if result.Job.State != rivertype.JobStateRunning {
 			// the pending job already has its queued run row
 			return false, nil
 		}
-		// A scan is running and may have read the pack before this change.
-		// Unique jobs include running ones, so no job can be queued now: flip
-		// the run back to queued instead. The running scan keeps that status
-		// when it finishes (see store) and the catch-up job re-enqueues it.
-		flipped := s.db.WithContext(ctx).Model(&tables.PackCompatRun{}).
-			Where("pack_id = ? AND status = ?", packID, tables.CompatRunning).
-			Updates(map[string]any{"status": tables.CompatQueued, "started_at": s.now()})
-		if flipped.Error != nil {
-			return false, fmt.Errorf("mark compat scan of pack %d for rescan: %w", packID, flipped.Error)
+		// A scan is running and may have read the pack before this change:
+		// ask for a rescan (see the protocol above).
+		if err := s.db.WithContext(ctx).Model(&tables.PackCompatRun{}).
+			Where("pack_id = ? AND status IN ?", packID, []string{tables.CompatRunning, tables.CompatDone, tables.CompatFailed}).
+			Updates(map[string]any{"status": tables.CompatQueued, "started_at": s.now()}).Error; err != nil {
+			return false, fmt.Errorf("mark compat scan of pack %d for rescan: %w", packID, err)
 		}
-		if flipped.RowsAffected > 0 || attempt > 0 {
-			return false, nil
-		}
-		// the scan finished in between: insert again, it is no longer a duplicate
+		return false, nil
 	}
 
-	queued := tables.PackCompatRun{PackID: packID, JobID: result.Job.ID, Status: tables.CompatQueued, StartedAt: s.now()}
-	if err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "pack_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"job_id", "status", "started_at"}),
-	}).Create(&queued).Error; err != nil {
-		return false, fmt.Errorf("mark compat scan of pack %d queued: %w", packID, err)
+	if err := s.markQueued(ctx, packID, result.Job.ID); err != nil {
+		return false, err
 	}
 	return true, nil
 }
 
+// markQueued records the run of a freshly inserted job as queued.
+//
+// The job may already be running, or even finished, before this upsert
+// executes (the insert is committed and the worker is fast). A row that
+// carries this job's id was written by the worker: leave it alone, or the
+// queued status would hide a running scan and cause a second scan.
+func (s *CompatService) markQueued(ctx context.Context, packID uint, jobID int64) error {
+	queued := tables.PackCompatRun{PackID: packID, JobID: jobID, Status: tables.CompatQueued, StartedAt: s.now()}
+	if err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "pack_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"job_id", "status", "started_at"}),
+		Where:     clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "pack_compat_runs.job_id <> ?", Vars: []any{jobID}}}},
+	}).Create(&queued).Error; err != nil {
+		return fmt.Errorf("mark compat scan of pack %d queued: %w", packID, err)
+	}
+	return nil
+}
+
 // EnqueueMissing schedules scans for packs that need one but have none coming:
-// packs with no run yet, and packs whose run was marked queued for a rescan
-// more than orphanQueuedAfter ago (a change arrived during a scan, see
-// enqueue). At most catchupBatch per call, spaced catchupStagger apart so many
+// packs with no run yet, packs whose run was marked queued for a rescan more
+// than orphanQueuedAfter ago (a change arrived during a scan, see enqueue), and
+// packs whose run has been running for more than runStaleAfter (a crashed
+// worker). catchupNeeded is the same rule for one run. At most catchupBatch per call, spaced catchupStagger apart so many
 // packs do not hit the worker at once. Each queued pack gets a fresh run row,
 // so the next call picks up the following batch. A pack whose job is in fact
 // still pending is skipped by the job's uniqueness. It returns how many scans
 // were queued.
 func (s *CompatService) EnqueueMissing(ctx context.Context) (int, error) {
+	if s == nil {
+		return 0, jobs.ErrClientUnavailable
+	}
 	var ids []uint
 	if err := s.db.WithContext(ctx).Model(&tables.Pack{}).
 		Where(`NOT EXISTS (SELECT 1 FROM pack_compat_runs r WHERE r.pack_id = packs.id)
-			OR EXISTS (SELECT 1 FROM pack_compat_runs r WHERE r.pack_id = packs.id AND r.status = ? AND r.started_at < ?)`,
-			tables.CompatQueued, s.now().Add(-orphanQueuedAfter)).
+			OR EXISTS (SELECT 1 FROM pack_compat_runs r WHERE r.pack_id = packs.id
+				AND ((r.status = ? AND r.started_at < ?) OR (r.status = ? AND r.started_at < ?)))`,
+			tables.CompatQueued, s.now().Add(-orphanQueuedAfter),
+			tables.CompatRunning, s.now().Add(-runStaleAfter)).
 		Order("packs.id").
 		Limit(catchupBatch).
 		Pluck("packs.id", &ids).Error; err != nil {
@@ -220,6 +270,9 @@ type Report struct {
 // status. Archived packs are included. gorm.ErrRecordNotFound (wrapped) means
 // the pack does not exist.
 func (s *CompatService) GetCompat(ctx context.Context, packID uint) (Report, error) {
+	if s == nil {
+		return Report{}, jobs.ErrClientUnavailable
+	}
 	db := s.db.WithContext(ctx)
 
 	pack, mods, err := loadScanInput(db, packID, true)

@@ -2,6 +2,7 @@ package compat_svc
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -124,7 +125,7 @@ func TestRowResultRoundTrip(t *testing.T) {
 }
 
 func TestRowFromResultTruncatesError(t *testing.T) {
-	row := rowFromResult(JarKey{}, jarResult{ParseErr: errors.New(string(make([]byte, maxErrorText*2)))})
+	row := rowFromResult(JarKey{}, jarResult{ParseErr: errors.New(strings.Repeat("a", maxErrorText*2))})
 	if len(row.Error) != maxErrorText {
 		t.Errorf("error length = %d, want %d", len(row.Error), maxErrorText)
 	}

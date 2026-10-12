@@ -52,3 +52,20 @@ func shouldEnqueueManual(run *tables.PackCompatRun, now time.Time) bool {
 	}
 	return now.Sub(lastRunActivity(run)) >= ManualScanMinInterval
 }
+
+// catchupNeeded reports whether the catch-up job should (re)queue a scan for a
+// pack with this run (nil: never scanned). It mirrors the query in
+// EnqueueMissing: a queued run nobody started within orphanQueuedAfter, or a
+// running run older than runStaleAfter whose worker must have died.
+func catchupNeeded(run *tables.PackCompatRun, now time.Time) bool {
+	if run == nil {
+		return true
+	}
+	switch run.Status {
+	case tables.CompatQueued:
+		return run.StartedAt.Before(now.Add(-orphanQueuedAfter))
+	case tables.CompatRunning:
+		return run.StartedAt.Before(now.Add(-runStaleAfter))
+	}
+	return false
+}
