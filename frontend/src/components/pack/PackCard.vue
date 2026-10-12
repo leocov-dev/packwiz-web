@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {PackResponse} from "@/interfaces/pack.ts";
+import CompatBadge from "@/components/pack/CompatBadge.vue";
 import PackActions from "@/components/pack/PackActions.vue";
 import {usePackPermissions} from "@/composables/usePackPermissions.ts";
 import {Perm} from "@/lib/permissions.ts";
@@ -16,6 +17,7 @@ const loaderColors: Record<string, string> = {
 
 const {pack} = defineProps<{ pack: PackResponse }>()
 
+const router = useRouter()
 const {can} = usePackPermissions(() => pack)
 
 const loaderColor = computed(() => loaderColors[pack.loader?.toLowerCase()] ?? 'grey')
@@ -36,6 +38,14 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
       <h4 class="me-auto">
         {{ pack.name }}
       </h4>
+      <CompatBadge
+        v-if="pack.compat"
+        class="me-2"
+        :status="pack.compat.status"
+        :errors="pack.compat.errors"
+        :warnings="pack.compat.warnings"
+        @click="router.push(`/packs/${pack.id}`)"
+      />
       <PackStatus :status="packStatusKey(pack)" />
     </v-card-title>
 

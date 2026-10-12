@@ -31,6 +31,10 @@ import {
   updateAllLabel,
   updatesAvailableText
 } from "@/lib/update-checks.ts";
+import CompatBadge from "@/components/pack/CompatBadge.vue";
+import CompatDialog from "@/components/pack/CompatDialog.vue";
+import {useCompat} from "@/composables/useCompat.ts";
+import {canRescan} from "@/lib/compat.ts";
 import PackAccessSparkline from "@/components/pack/PackAccessSparkline.vue";
 import ConsumerImpactDialog from "@/components/pack/ConsumerImpactDialog.vue";
 import ChangelistEntryView from "@/components/changelist/ChangelistEntryView.vue";
@@ -71,6 +75,16 @@ const hasToolbar = computed(() => canManageMenu.value || [
 ].some(can))
 
 const updateChecks = useUpdateChecks(() => pack.id)
+
+const showCompatDialog = ref(false)
+const compat = useCompat(() => pack.id, () => pack.compat)
+// a reload brings a fresh summary; drop the loaded detail and resume polling if needed
+watch(() => pack.compat, (next) => compat.sync(next))
+watch(showCompatDialog, (open) => {
+  if (open) compat.load()
+})
+const compatRescanAllowed = computed(() =>
+  canRescan(can(Perm.PackUpdatesCheck), pack.isArchived))
 // Optimistic pin changes reported by ModsList (not yet in pack.mods); applied so
 // "Update All (N)" matches the badges without a reload.
 const pinOverrides = ref<ReadonlyMap<number, boolean>>(new Map())
@@ -306,6 +320,17 @@ const updateAll = async () => {
       @rehashed="emit('reload')"
     />
 
+    <CompatDialog
+      v-model="showCompatDialog"
+      :compat="compat.compat.value"
+      :status="compat.status.value"
+      :loading="compat.loading.value"
+      :error="compat.error.value"
+      :can-rescan="compatRescanAllowed"
+      :rescanning="compat.rescanning.value"
+      @rescan="compat.rescan"
+    />
+
     <v-sheet
       v-if="pack.status === 'draft' && !pack.isArchived"
       color="secondary"
@@ -345,6 +370,13 @@ const updateAll = async () => {
           <PackStatus
             :status="packStatusKey(pack)"
             class="me-2"
+          />
+          <CompatBadge
+            :status="compat.status.value"
+            :errors="compat.summary.value?.errors"
+            :warnings="compat.summary.value?.warnings"
+            class="me-2"
+            @click="showCompatDialog = true"
           />
           <router-link
             v-if="can(Perm.PackView)"
