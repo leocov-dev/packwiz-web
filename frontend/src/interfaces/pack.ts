@@ -1,6 +1,7 @@
 import {Type} from "class-transformer";
 import type {LoaderVersions} from "@/stores/cache.ts";
 import type {User} from "@/interfaces/user.ts";
+import {CompatSummary} from "@/interfaces/compat.ts";
 
 
 export class AllPacksResponse {
@@ -39,6 +40,9 @@ export class PackResponse extends Pack {
   permissions: string[] = [];
   /** Pack role name, display only; empty when access comes from a system role. */
   currentUserRole?: string;
+  /** Jar compatibility result; absent until the pack was first scanned. */
+  @Type(() => CompatSummary)
+  compat?: CompatSummary;
 }
 
 export enum PackStatus {

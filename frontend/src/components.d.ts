@@ -28,6 +28,8 @@ declare module 'vue' {
     ChangePasswordForm: typeof import('./components/user/ChangePasswordForm.vue')['default']
     CloneSnapshotDialog: typeof import('./components/pack/CloneSnapshotDialog.vue')['default']
     CollaboratorCard: typeof import('./components/pack/CollaboratorCard.vue')['default']
+    CompatBadge: typeof import('./components/pack/CompatBadge.vue')['default']
+    CompatDialog: typeof import('./components/pack/CompatDialog.vue')['default']
     ConfirmationDialog: typeof import('./components/ConfirmationDialog.vue')['default']
     ConsumerImpactDialog: typeof import('./components/pack/ConsumerImpactDialog.vue')['default']
     CookiesWarn: typeof import('./components/CookiesWarn.vue')['default']
