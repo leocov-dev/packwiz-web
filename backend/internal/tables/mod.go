@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/leocov-dev/packwiz-nxt/core"
 	"gorm.io/datatypes"
+	"math"
 	"time"
 )
 
@@ -108,7 +109,7 @@ func (m Mod) AsMeta() *core.Mod {
 			Hash:       m.Download.Hash,
 			Mode:       m.Download.Mode,
 		},
-		Update:     core.ModUpdate{m.Source: core.ModSourceData(m.Update)},
+		Update:     core.ModUpdate{m.Source: core.ModSourceData(integralNumbersAsInts(m.Update))},
 		Option:     option,
 		Slug:       m.Slug,
 		ModType:    m.Type,
@@ -127,5 +128,48 @@ func ExtractModSource(mod *core.Mod) (string, map[string]interface{}) {
 		return "github", data
 	} else {
 		return "", map[string]interface{}{}
+	}
+}
+
+// maxSafeInteger is the largest integer a float64 (and so a JSON number read
+// into interface{}) represents exactly.
+const maxSafeInteger = 1 << 53
+
+// integralNumbersAsInts returns update data with whole-number float64 values
+// converted to int64, recursively. Update data is stored as JSON, so numbers
+// such as CurseForge project and file ids come back from the database as
+// float64, which TOML writes as "6928979.0". packwiz-installer decodes those
+// ids as integers and rejects the float form, so they must be written as
+// integers. The input is not modified.
+func integralNumbersAsInts(in map[string]interface{}) map[string]interface{} {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]interface{}, len(in))
+	for k, v := range in {
+		out[k] = integralValueAsInt(v)
+	}
+	return out
+}
+
+func integralValueAsInt(v interface{}) interface{} {
+	switch t := v.(type) {
+	case float64:
+		if t == math.Trunc(t) && math.Abs(t) <= maxSafeInteger {
+			return int64(t)
+		}
+		return t
+	case map[string]interface{}:
+		return integralNumbersAsInts(t)
+	case UpdateInfo:
+		return integralNumbersAsInts(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i, e := range t {
+			out[i] = integralValueAsInt(e)
+		}
+		return out
+	default:
+		return v
 	}
 }

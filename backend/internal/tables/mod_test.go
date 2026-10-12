@@ -1,6 +1,8 @@
 package tables
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/leocov-dev/packwiz-nxt/core"
@@ -87,5 +89,60 @@ default = true
 		if got := modToml(t, realisticMod(v)); got != golden {
 			t.Errorf("version %q: toml != golden:\n%s", v, got)
 		}
+	}
+}
+
+// Update data is stored as JSON, so ids come back from the database as float64.
+// They must be served as TOML integers: packwiz-installer rejects "6928979.0".
+func TestAsModTomlWritesCurseforgeIdsAsIntegers(t *testing.T) {
+	var update UpdateInfo
+	if err := update.Scan([]byte(`{"file-id": 6928979, "project-id": 419699}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	m := realisticMod("1.0")
+	m.Source = "curseforge"
+	m.Update = update
+
+	got := modToml(t, m)
+
+	for _, want := range []string{"file-id = 6928979\n", "project-id = 419699\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, ".0\n") {
+		t.Errorf("found a float-formatted number in:\n%s", got)
+	}
+}
+
+func TestIntegralNumbersAsInts(t *testing.T) {
+	in := map[string]interface{}{
+		"whole":  float64(42),
+		"frac":   1.5,
+		"huge":   float64(1 << 60),
+		"str":    "x",
+		"nested": map[string]interface{}{"id": float64(7)},
+		"list":   []interface{}{float64(1), 2.5, "y"},
+	}
+
+	got := integralNumbersAsInts(in)
+
+	want := map[string]interface{}{
+		"whole":  int64(42),
+		"frac":   1.5,
+		"huge":   float64(1 << 60),
+		"str":    "x",
+		"nested": map[string]interface{}{"id": int64(7)},
+		"list":   []interface{}{int64(1), 2.5, "y"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if _, ok := in["whole"].(float64); !ok {
+		t.Error("input was modified")
+	}
+	if integralNumbersAsInts(nil) != nil {
+		t.Error("nil input should stay nil")
 	}
 }
