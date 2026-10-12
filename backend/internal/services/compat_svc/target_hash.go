@@ -11,10 +11,10 @@ import (
 
 // ParserVersion is the version of the jar metadata parsing. Bump it to force
 // every cached mod_jar_meta row to be parsed again.
-const ParserVersion = 1
+const ParserVersion = 2
 
 // targetHashVersion namespaces the hash input so its format can change.
-const targetHashVersion = "v2"
+const targetHashVersion = "v3"
 
 // HashedMod is one pack mod as it enters the target hash.
 type HashedMod struct {
