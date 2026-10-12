@@ -108,6 +108,16 @@ POST {{apiRoot}}/v1/packwiz/pack/packA/updates/check?force=false
 # results: [{modId, updateAvailable, updateString?, latestVersion?, error?}], availableCount (excludes pinned)}
 GET {{apiRoot}}/v1/packwiz/pack/packA/updates
 
+### GET jar compatibility state (viewers). {status: unknown|queued|scanning|stale|ok|warnings|errors|failed,
+# counts {errors, warnings, info}, unscanned, scannedAt (null until a scan finished), runError,
+# findings: [{modId|null, slug, severity: error|warning|info, code, message, detail}]} sorted severity desc, slug, code.
+# Pack list and single pack responses carry compat: {status, errors, warnings} when the pack was scanned.
+GET {{apiRoot}}/v1/packwiz/pack/packA/compat
+
+### POST request a compat rescan (same permission as update checks). 202 {status, enqueued: true} when a scan was
+# enqueued; 200 {status, enqueued: false} when one is already active or the last run is under 60s old.
+POST {{apiRoot}}/v1/packwiz/pack/packA/compat/scan
+
 ### PATCH update a mods side
 PATCH {{apiRoot}}/v1/packwiz/pack/packA/mod/balm/side
 Content-Type: application/json

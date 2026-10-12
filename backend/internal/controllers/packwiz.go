@@ -22,8 +22,8 @@ type PackwizController struct {
 	packwizSvc *packwiz_svc.PackwizService
 }
 
-func NewPackwizController(db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester) *PackwizController {
-	return &PackwizController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient, scans)}
+func NewPackwizController(db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, compat packwiz_svc.CompatSummarizer) *PackwizController {
+	return &PackwizController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient, scans).WithCompatSummaries(compat)}
 }
 
 // -----------------------------------------------------------------------------

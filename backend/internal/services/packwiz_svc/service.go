@@ -35,6 +35,8 @@ type PackwizService struct {
 	// scans is asked to schedule a compatibility scan after a pack's mods or
 	// target change. It may be nil (read-only instances), see ScanRequester.
 	scans ScanRequester
+	// compat supplies compat badge summaries for pack responses; may be nil.
+	compat CompatSummarizer
 }
 
 // NewPackwizService builds the service. riverClient and scans may be nil for
@@ -101,6 +103,7 @@ func (ps *PackwizService) GetPacksWithPerms(
 	if err := ps.attachPermissions(results, user, system); err != nil {
 		return nil, err
 	}
+	ps.attachCompat(results)
 
 	log.Debug(fmt.Sprintf("Found %d packs", len(results)))
 
@@ -279,6 +282,7 @@ func (ps *PackwizService) GetPackWithPerms(packId uint, user tables.User, system
 	if err := ps.attachPermissions(one, user, system); err != nil {
 		return result, err
 	}
+	ps.attachCompat(one)
 
 	return one[0], nil
 }
