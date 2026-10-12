@@ -14,7 +14,7 @@ import (
 const ParserVersion = 2
 
 // targetHashVersion namespaces the hash input so its format can change.
-const targetHashVersion = "v3"
+const targetHashVersion = "v4"
 
 // HashedMod is one pack mod as it enters the target hash.
 type HashedMod struct {
