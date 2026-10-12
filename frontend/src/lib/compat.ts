@@ -70,6 +70,7 @@ const FINDING_TITLES: Record<string, string> = {
   conflicts: "Conflicting mod",
   parse_error: "Could not read mod metadata",
   no_metadata: "No mod metadata",
+  not_scanned: "Not checked",
   side_mismatch: "Side mismatch",
   unevaluable_range: "Version range not evaluated",
 }

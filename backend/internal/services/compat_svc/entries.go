@@ -206,6 +206,19 @@ func entryFor(m tables.Mod, res jarResult) compat.Entry {
 	}
 }
 
+// codeNotScanned is the info finding of a mod whose jar could not be checked.
+const codeNotScanned compat.Code = "not_scanned"
+
+// notScanned reports a mod that was skipped, so the report names it instead
+// of only counting it.
+func notScanned(slug, reason string) compat.Finding {
+	return compat.Finding{
+		Severity: compat.SeverityInfo, Code: codeNotScanned, Slug: slug,
+		Message: "mod could not be checked: " + reason,
+		Detail:  map[string]string{"reason": reason},
+	}
+}
+
 // softenForUnscanned downgrades missing_dependency errors to warnings when
 // some mods could not be scanned: the missing mod may be one of them, so the
 // error could be false.

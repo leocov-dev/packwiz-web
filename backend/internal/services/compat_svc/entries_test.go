@@ -197,3 +197,11 @@ func TestFindingRows(t *testing.T) {
 		t.Errorf("row1 = %+v", rows[1])
 	}
 }
+
+func TestNotScanned(t *testing.T) {
+	f := notScanned("jei", "the jar could not be downloaded")
+	if f.Severity != compat.SeverityInfo || f.Code != codeNotScanned || f.Slug != "jei" ||
+		f.Detail["reason"] != "the jar could not be downloaded" {
+		t.Fatalf("unexpected finding: %+v", f)
+	}
+}

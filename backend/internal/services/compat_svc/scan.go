@@ -116,7 +116,7 @@ func (s *CompatService) scan(ctx context.Context, packID uint) error {
 
 	entries := make([]compat.Entry, 0, len(jars))
 	modIDBySlug := make(map[string]uint, len(jars))
-	unscanned := 0
+	var skipped []compat.Finding
 	budget := newDownloadBudget()
 	used := make(map[JarKey]struct{}, len(jars))
 	for _, m := range jars {
@@ -137,14 +137,15 @@ func (s *CompatService) scan(ctx context.Context, packID uint) error {
 		case ctx.Err() != nil:
 			return fmt.Errorf("scan interrupted: %w", ctx.Err())
 		case errors.Is(err, errBudgetExhausted):
-			unscanned++
+			skipped = append(skipped, notScanned(m.Slug, "download budget exhausted; the next scan continues"))
 		default:
 			// download or lookup problems say nothing about the jar: count the
 			// mod as unscanned and emit no finding for it
 			log.Debug(fmt.Errorf("compat scan: mod %s of pack %d not scanned: %w", m.Slug, packID, err))
-			unscanned++
+			skipped = append(skipped, notScanned(m.Slug, "the jar could not be downloaded"))
 		}
 	}
+	unscanned := len(skipped)
 
 	s.touch(ctx, used)
 
@@ -154,6 +155,7 @@ func (s *CompatService) scan(ctx context.Context, packID uint) error {
 		LoaderVersion:    pack.LoaderVersion,
 	}, entries)
 	findings = softenForUnscanned(findings, unscanned)
+	findings = append(findings, skipped...)
 	counts := countFindings(findings)
 	rows := findingRows(packID, findings, modIDBySlug)
 
