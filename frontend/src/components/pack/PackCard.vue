@@ -34,13 +34,12 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
     class="d-flex flex-column"
     :class="{ 'pack-card--draft': isDraft }"
   >
-    <v-card-title class="d-flex justify-center">
+    <v-card-title class="d-flex justify-center ga-2">
       <h4 class="me-auto">
         {{ pack.name }}
       </h4>
       <CompatBadge
         v-if="pack.compat"
-        class="me-2"
         :status="pack.compat.status"
         :errors="pack.compat.errors"
         :warnings="pack.compat.warnings"
@@ -53,10 +52,9 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
       {{ pack.description }}
     </v-card-text>
 
-    <v-card-actions class="ms-2 me-2 d-flex justify-end">
+    <v-card-actions class="ms-2 me-2 d-flex justify-end ga-2">
       <v-btn
         v-if="can(Perm.PackView)"
-        class="me-3"
         :text="viewLabel"
         :to="`/packs/${pack.id}`"
         variant="tonal"
@@ -75,11 +73,10 @@ const viewLabel = computed(() => can(Perm.PackInfoEdit) ? "Edit" : "View")
 
       <v-chip
         v-if="pack.mcVersion"
-        color="green-darken-2"
-        variant="flat"
+        color="grey"
+        variant="outlined"
         size="small"
         label
-        class="ms-2"
       >
         {{ pack.mcVersion }}
       </v-chip>
