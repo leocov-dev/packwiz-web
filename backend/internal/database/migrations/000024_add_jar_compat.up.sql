@@ -52,3 +52,5 @@ CREATE TABLE pack_compat_findings
 );
 
 CREATE INDEX idx_pack_compat_findings_pack_id ON pack_compat_findings (pack_id);
+-- Speeds up the cascade when a mod is deleted.
+CREATE INDEX idx_pack_compat_findings_mod_id ON pack_compat_findings (mod_id);

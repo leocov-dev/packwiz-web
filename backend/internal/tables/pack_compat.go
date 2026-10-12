@@ -20,14 +20,15 @@ type PackCompatRun struct {
 	JobID  int64  `json:"jobId"`
 	Status string `json:"status"`
 	// TargetHash identifies the pack target and mods the scan ran against.
-	TargetHash     string     `json:"targetHash"`
-	ErrorCount     int        `json:"errorCount"`
-	WarningCount   int        `json:"warningCount"`
-	InfoCount      int        `json:"infoCount"`
-	UnscannedCount int        `json:"unscannedCount"`
-	StartedAt      time.Time  `json:"startedAt"`
-	FinishedAt     *time.Time `json:"finishedAt"`
-	Error          string     `json:"error"`
+	TargetHash     string `json:"targetHash"`
+	ErrorCount     int    `json:"errorCount"`
+	WarningCount   int    `json:"warningCount"`
+	InfoCount      int    `json:"infoCount"`
+	UnscannedCount int    `json:"unscannedCount"`
+	// StartedAt defaults to the current time on create (autoCreateTime).
+	StartedAt  time.Time  `gorm:"autoCreateTime" json:"startedAt"`
+	FinishedAt *time.Time `json:"finishedAt"`
+	Error      string     `json:"error"`
 }
 
 func (PackCompatRun) TableName() string {
