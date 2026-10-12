@@ -74,6 +74,15 @@ const listState = computed(() => ({
   show: show.value,
 }))
 
+// The query can change from outside (e.g. a link from the compatibility dialog):
+// adopt it. Our own replace() writes appliedSearch, so it is a no-op here.
+watch(() => parseModListQuery(route.query).q, (q) => {
+  if (q === appliedSearch.value) return
+  clearTimeout(searchTimer)
+  search.value = q
+  appliedSearch.value = q
+})
+
 watch(listState, (state) => {
   currentPage.value = 1
   router.replace({query: {...route.query, q: undefined, sort: undefined, side: undefined, show: undefined, ...buildModListQuery(state)}})

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useDisplay} from "vuetify";
 import type {CompatResponse, CompatStatus} from "@/interfaces/compat.ts"
 import CompatBadge from "@/components/pack/CompatBadge.vue"
 import {
@@ -19,7 +20,9 @@ const {compat, status, loading, error, canRescan, rescanning} = defineProps<{
 }>()
 
 const model = defineModel<boolean>({required: true})
-const emit = defineEmits<{ (e: 'rescan'): void }>()
+const emit = defineEmits<{ (e: 'rescan'): void, (e: 'select-mod', slug: string): void }>()
+
+const {smAndDown} = useDisplay()
 
 const groups = computed(() => groupFindings(compat?.findings ?? []))
 const unscannedText = computed(() => compatUnscannedText(compat?.unscanned ?? 0))
@@ -31,6 +34,7 @@ const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status 
   <v-dialog
     v-model="model"
     max-width="760"
+    :fullscreen="smAndDown"
     scrollable
   >
     <v-card class="pa-3">
@@ -117,9 +121,14 @@ const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status 
             variant="outlined"
             class="mb-2 pa-3"
           >
-            <div class="font-weight-medium mb-1">
-              {{ mod.slug }}
-            </div>
+            <v-btn
+              :text="mod.slug"
+              :aria-label="`Show ${mod.slug} in the mod list`"
+              variant="text"
+              density="comfortable"
+              class="text-none font-weight-medium mb-1 px-1"
+              @click="emit('select-mod', mod.slug)"
+            />
             <div
               v-for="(finding, i) in mod.findings"
               :key="`${finding.code}-${i}`"
@@ -138,6 +147,7 @@ const isEmpty = computed(() => !!compat && groups.value.length === 0 && (status 
                   size="x-small"
                   variant="tonal"
                   label
+                  class="h-auto py-1 text-wrap text-break"
                 >
                   {{ key }}: {{ value }}
                 </v-chip>
