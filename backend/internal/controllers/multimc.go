@@ -27,7 +27,7 @@ func NewMultiMCController(db *gorm.DB) *MultiMCController {
 	return &MultiMCController{
 		multimcSvc: multimc_svc.NewMultiMCService(
 			db,
-			packwiz_svc.NewPackwizService(db, nil),
+			packwiz_svc.NewPackwizService(db, nil, nil),
 			config.C.PublicURL,
 		),
 	}

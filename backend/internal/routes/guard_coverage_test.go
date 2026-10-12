@@ -54,8 +54,8 @@ func TestProtectedRoutesHavePermissionGuards(t *testing.T) {
 	RegisterAdminRoutes(protected, nil)
 	RegisterOidcAdminRoutes(protected, nil, providers)
 	RegisterStaticDataRoutes(protected, nil)
-	packwizGroup := RegisterPackwizRoutes(protected, nil)
-	RegisterPackRoutes(packwizGroup, nil, nil)
+	packwizGroup := RegisterPackwizRoutes(protected, nil, nil)
+	RegisterPackRoutes(packwizGroup, nil, nil, nil)
 
 	routes := router.Routes()
 	if len(routes) == 0 {

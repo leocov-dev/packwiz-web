@@ -6,9 +6,10 @@ import (
 	"packwiz-web/internal/controllers"
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/services/authz_svc"
+	"packwiz-web/internal/services/compat_svc"
 )
 
-func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.HandlerFunc) *gin.RouterGroup {
+func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, compat *compat_svc.CompatService, handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	packwizGroup := router.Group("packwiz", handlers...)
 	{
 		// ---------------------------------------------------------
@@ -17,7 +18,7 @@ func RegisterPackwizRoutes(router gin.IRouter, db *gorm.DB, handlers ...gin.Hand
 		packwizGroup.GET("loaders", loadersController.GetLoaderVersions, middleware.SkipAudit)
 
 		// ---------------------------------------------------------
-		importController := controllers.NewImportController(db)
+		importController := controllers.NewImportController(db, compat)
 
 		packwizGroup.POST("import", middleware.RequirePermission(authz_svc.PackCreate), importController.ImportPack)
 

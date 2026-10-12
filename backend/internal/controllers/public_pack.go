@@ -18,7 +18,7 @@ type PublicPackController struct {
 }
 
 func NewPublicPackController(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PublicPackController {
-	return &PublicPackController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient)}
+	return &PublicPackController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient, nil)}
 }
 
 // GetPublicPack returns the public view of a pack, or 404 if it is not public.

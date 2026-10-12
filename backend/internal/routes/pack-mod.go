@@ -10,10 +10,11 @@ import (
 	"packwiz-web/internal/middleware"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/authz_svc"
+	"packwiz-web/internal/services/compat_svc"
 )
 
-func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], handlers ...gin.HandlerFunc) *gin.RouterGroup {
-	packModController := controllers.NewPackwizModController(db, riverClient)
+func RegisterPackModRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], compat *compat_svc.CompatService, handlers ...gin.HandlerFunc) *gin.RouterGroup {
+	packModController := controllers.NewPackwizModController(db, riverClient, compat)
 
 	modGroup := router.Group("mod", handlers...)
 

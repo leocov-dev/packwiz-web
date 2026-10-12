@@ -19,8 +19,8 @@ type PackwizModController struct {
 	packwizSvc *packwiz_svc.PackwizService
 }
 
-func NewPackwizModController(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizModController {
-	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient)}
+func NewPackwizModController(db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester) *PackwizModController {
+	return &PackwizModController{packwizSvc: packwiz_svc.NewPackwizService(db, riverClient, scans)}
 }
 
 func (pc *PackwizModController) AddMod(c *gin.Context) {

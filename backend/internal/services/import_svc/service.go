@@ -13,6 +13,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"packwiz-web/internal/log"
 	"packwiz-web/internal/services/packwiz_svc"
 	"packwiz-web/internal/tables"
 	"packwiz-web/internal/types"
@@ -26,15 +27,24 @@ var knownLoaders = []string{"fabric", "forge", "liteloader", "quilt", "neoforge"
 // RemoteLoader reads a live packwiz pack from its pack.toml url.
 type RemoteLoader func(ctx context.Context, packUrl string) (*fileio.RemotePack, error)
 
-type ImportService struct {
-	db   *gorm.DB
-	load RemoteLoader
-	now  func() time.Time
+// ScanRequester schedules a background jar compatibility scan of a pack. It is
+// implemented by compat_svc.CompatService.
+type ScanRequester interface {
+	RequestScan(ctx context.Context, packID uint) error
 }
 
-func NewImportService(db *gorm.DB) *ImportService {
+type ImportService struct {
+	db    *gorm.DB
+	load  RemoteLoader
+	now   func() time.Time
+	scans ScanRequester
+}
+
+// NewImportService builds the service. scans may be nil.
+func NewImportService(db *gorm.DB, scans ScanRequester) *ImportService {
 	return &ImportService{
-		db: db,
+		db:    db,
+		scans: scans,
 		load: func(ctx context.Context, packUrl string) (*fileio.RemotePack, error) {
 			return fileio.LoadRemotePack(ctx, packUrl, fileio.RemoteLoadOptions{})
 		},
@@ -73,6 +83,13 @@ func (s *ImportService) ImportPack(ctx context.Context, request dto.ImportPackRe
 		return tx.Create(&mods).Error
 	}); err != nil {
 		return dto.ImportPackResponse{}, response.Wrap(fmt.Errorf("store imported pack: %w", err))
+	}
+
+	if s.scans != nil && len(mods) > 0 {
+		// after the commit; failing to enqueue must not fail the import
+		if err := s.scans.RequestScan(ctx, pack.ID); err != nil {
+			log.Error(fmt.Errorf("request compat scan of imported pack %d: %w", pack.ID, err))
+		}
 	}
 
 	return dto.ImportPackResponse{
