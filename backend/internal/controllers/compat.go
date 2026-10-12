@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -15,13 +16,19 @@ import (
 	"packwiz-web/internal/types/response"
 )
 
+// compatService is what CompatController needs from the compat service.
+type compatService interface {
+	GetCompat(ctx context.Context, packID uint) (compat_svc.Report, error)
+	RequestManualScan(ctx context.Context, packID uint) (compat_svc.ManualScanResult, error)
+}
+
 // CompatController serves the jar compatibility check of a pack.
 type CompatController struct {
-	compatSvc *compat_svc.CompatService
+	compatSvc compatService
 }
 
 // NewCompatController builds the controller around the compat service.
-func NewCompatController(compatSvc *compat_svc.CompatService) *CompatController {
+func NewCompatController(compatSvc compatService) *CompatController {
 	return &CompatController{compatSvc: compatSvc}
 }
 
@@ -77,6 +84,8 @@ func compatServerError(err error) response.ServerError {
 		return nil
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return response.New(http.StatusNotFound, "pack not found")
+	case errors.Is(err, compat_svc.ErrPackArchived):
+		return response.New(http.StatusConflict, "pack is archived")
 	case errors.Is(err, jobs.ErrClientUnavailable):
 		return response.New(http.StatusServiceUnavailable, "compatibility check is not available")
 	}

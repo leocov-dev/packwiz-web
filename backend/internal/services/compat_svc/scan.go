@@ -41,8 +41,9 @@ func (s *CompatService) RunScan(ctx context.Context, args jobs.CompatScanArgs, j
 	}
 
 	if err := s.scan(ctx, args.PackID); err != nil {
+		// the raw cause stays in the log: it can name tables and constraints
 		log.Error(fmt.Errorf("compat scan failed for pack %d: %w", args.PackID, err))
-		s.markFailed(args.PackID, err)
+		s.markFailed(args.PackID, failureReason(err))
 	}
 	return nil
 }
@@ -65,11 +66,27 @@ func isContextErr(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
-// markFailed records a failed run. Best effort: errors are only logged. It
+// Failure reasons stored with a failed run and shown to every viewer of the
+// pack. They are fixed texts: the raw cause can carry database or file system
+// details and only goes to the log.
+const (
+	failureTimedOut = "scan timed out"
+	failureFailed   = "scan failed"
+)
+
+// failureReason classifies a scan error as a user-safe reason.
+func failureReason(cause error) string {
+	if isContextErr(cause) {
+		return failureTimedOut
+	}
+	return failureFailed
+}
+
+// markFailed records a failed run with a user-safe reason. Best effort: errors are only logged. It
 // uses a fresh context because the job's may be cancelled (timeout, shutdown).
 // A run flipped back to queued while the scan ran (see enqueue) stays queued:
 // it still needs its rescan, and the catch-up job will queue it.
-func (s *CompatService) markFailed(packID uint, cause error) {
+func (s *CompatService) markFailed(packID uint, reason string) {
 	ctx, cancel := context.WithTimeout(context.Background(), failureWriteTimeout)
 	defer cancel()
 
@@ -78,7 +95,7 @@ func (s *CompatService) markFailed(packID uint, cause error) {
 		Updates(map[string]any{
 			"status":      tables.CompatFailed,
 			"finished_at": s.now(),
-			"error":       sanitizeText(cause.Error(), maxErrorText),
+			"error":       reason,
 		}).Error; err != nil {
 		log.Error("failed to record failed compat scan:", err)
 	}

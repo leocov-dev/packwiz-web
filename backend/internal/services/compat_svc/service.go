@@ -88,35 +88,66 @@ type ManualScanResult struct {
 	Status Status
 }
 
+// ErrPackArchived is returned by RequestManualScan for an archived pack.
+var ErrPackArchived = errors.New("pack is archived")
+
 // RequestManualScan starts a scan on a user's request: scheduled right away,
 // but at most one per ManualScanMinInterval per pack and never while a scan is
-// queued or running.
+// queued or running. A missing pack is gorm.ErrRecordNotFound (wrapped), an
+// archived one ErrPackArchived. When no scan is enqueued the result carries
+// the status GetCompat would report.
 func (s *CompatService) RequestManualScan(ctx context.Context, packID uint) (ManualScanResult, error) {
 	if s == nil {
 		return ManualScanResult{}, jobs.ErrClientUnavailable
 	}
 	now := s.now()
-	run, err := s.getRun(ctx, packID)
+	status, run, err := s.liveStatus(ctx, packID, now)
 	if err != nil {
 		return ManualScanResult{}, err
 	}
 	if !shouldEnqueueManual(run, now) {
-		return ManualScanResult{Status: statusOf(run, now)}, nil
+		return ManualScanResult{Status: status}, nil
 	}
 	enqueued, err := s.enqueue(ctx, packID, now)
 	if err != nil {
 		return ManualScanResult{}, err
 	}
-	return ManualScanResult{Enqueued: enqueued, Status: StatusQueued}, nil
+	if enqueued {
+		return ManualScanResult{Enqueued: true, Status: StatusQueued}, nil
+	}
+	// Not enqueued: the pack was archived or deleted since the check above, or
+	// a scan job is already pending. Look again to tell which.
+	status, _, err = s.liveStatus(ctx, packID, s.now())
+	if err != nil {
+		return ManualScanResult{}, err
+	}
+	return ManualScanResult{Status: status}, nil
 }
 
-// statusOf is DeriveStatus for callers that only care about run activity: a
-// stored result is reported as is (the current target is not needed).
-func statusOf(run *tables.PackCompatRun, now time.Time) Status {
-	if run == nil {
-		return StatusUnknown
+// liveStatus loads the pack, its mods and its run, and derives the status
+// against the pack's current content, as GetCompat does. Missing pack:
+// gorm.ErrRecordNotFound (wrapped); archived pack: ErrPackArchived.
+func (s *CompatService) liveStatus(ctx context.Context, packID uint, now time.Time) (Status, *tables.PackCompatRun, error) {
+	pack, mods, err := loadScanInput(s.db.WithContext(ctx), packID, true)
+	if err != nil {
+		return "", nil, err
 	}
-	return DeriveStatus(run, run.TargetHash, now)
+	if pack.DeletedAt.Valid {
+		return "", nil, fmt.Errorf("compat scan of pack %d: %w", packID, ErrPackArchived)
+	}
+	run, err := s.getRun(ctx, packID)
+	if err != nil {
+		return "", nil, err
+	}
+	return statusFor(run, pack, mods, now), run, nil
+}
+
+// statusFor derives the badge status of a run against the pack's current
+// content. It is the one place that combines DeriveStatus with the target
+// hash, shared by GetCompat, RequestManualScan and the list summaries, so they
+// always agree. mods may hold all of the pack's mods or only its jars.
+func statusFor(run *tables.PackCompatRun, pack tables.Pack, mods []tables.Mod, now time.Time) Status {
+	return DeriveStatus(run, TargetHash(targetInputOf(pack, mods)), now)
 }
 
 // enqueue inserts the scan job for a pack and marks its run queued. It reports
@@ -287,7 +318,7 @@ func (s *CompatService) GetCompat(ctx context.Context, packID uint) (Report, err
 	report := Report{
 		Run:      run,
 		Findings: []tables.PackCompatFinding{},
-		Status:   DeriveStatus(run, TargetHash(targetInputOf(pack, mods)), s.now()),
+		Status:   statusFor(run, pack, mods, s.now()),
 	}
 	if run == nil {
 		return report, nil

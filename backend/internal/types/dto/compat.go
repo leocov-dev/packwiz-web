@@ -42,7 +42,8 @@ type CompatResponse struct {
 	Unscanned int `json:"unscanned"`
 	// ScannedAt is when the latest scan finished; null while none has.
 	ScannedAt *time.Time `json:"scannedAt"`
-	// RunError is the reason the latest scan failed.
+	// RunError is a fixed user-safe reason the latest scan failed ("scan timed
+	// out" or "scan failed"); empty otherwise.
 	RunError string              `json:"runError"`
 	Findings []CompatFindingItem `json:"findings"`
 }

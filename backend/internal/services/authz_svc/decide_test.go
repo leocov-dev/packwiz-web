@@ -47,6 +47,10 @@ func TestDecidePack(t *testing.T) {
 		{"archived blocks consume", true, false, nil, NewSet(PackConsume), PackConsume, ErrArchived},
 		{"archived blocks consume for superuser", true, true, nil, nil, PackConsume, ErrArchived},
 		{"archived blocks link", true, false, nil, NewSet(PackLink), PackLink, ErrArchived},
+		// compat: GET compat is pack.view (200 on archived), POST compat/scan is pack.updates.check (409)
+		{"archived allows compat read", true, false, nil, NewSet(PackView), PackView, nil},
+		{"archived blocks compat scan", true, false, nil, NewSet(PackUpdatesCheck), PackUpdatesCheck, ErrArchived},
+		{"archived blocks compat scan for superuser", true, true, nil, nil, PackUpdatesCheck, ErrArchived},
 		{"archived still needs the grant", true, false, nil, nil, PackView, ErrForbidden},
 		{"archived allows snapshot view", true, false, nil, NewSet(PackSnapshotView), PackSnapshotView, nil},
 		{"archived blocks revert for superuser", true, true, nil, nil, PackSnapshotRevert, ErrArchived},
