@@ -21,8 +21,8 @@ const (
 )
 
 // runStaleAfter is how long a queued/running run may stay unfinished before it
-// is reported as failed (job timeout 10 min, rescue after 15 min).
-const runStaleAfter = 30 * time.Minute
+// is reported as failed (job timeout 30 min, rescue after 45 min).
+const runStaleAfter = 60 * time.Minute
 
 // isActiveRun reports whether run is a live queued/running scan at now.
 func isActiveRun(run *tables.PackCompatRun, now time.Time) bool {

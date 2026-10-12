@@ -53,9 +53,9 @@ func NewClient(gdb *gorm.DB, workers *river.Workers) (*river.Client[*sql.Tx], er
 		// uniqueness treats as active) until the rescuer picks it up; River's
 		// default is 1h. Must be greater than the longest per-job timeout
 		// (jobs.CheckUpdatesTimeout, jobs.BulkAddTimeout and
-		// jobs.CompatScanTimeout, 10m; other jobs
+		// jobs.CompatScanTimeout, 30m; other jobs
 		// use River's 1m default).
-		RescueStuckJobsAfter: 15 * time.Minute,
+		RescueStuckJobsAfter: 45 * time.Minute,
 		PeriodicJobs:         slices.Concat(auditPrunePeriodicJobs(), packAccessPrunePeriodicJobs(), compatPeriodicJobs()),
 		Workers:              workers,
 		Logger:               newSlogLogger(),

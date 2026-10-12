@@ -38,8 +38,8 @@ func TestCompatScanInsertOpts(t *testing.T) {
 }
 
 func TestCompatScanTimeoutBelowRescue(t *testing.T) {
-	if CompatScanTimeout >= 15*60*1e9 {
-		t.Errorf("scan timeout %v must stay below RescueStuckJobsAfter (15m)", CompatScanTimeout)
+	if CompatScanTimeout >= 45*60*1e9 {
+		t.Errorf("scan timeout %v must stay below RescueStuckJobsAfter (45m)", CompatScanTimeout)
 	}
 }
 

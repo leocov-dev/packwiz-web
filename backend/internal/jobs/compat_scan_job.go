@@ -53,7 +53,7 @@ type CompatScanner interface {
 
 // CompatScanTimeout bounds one scan. River cancels the job context after this;
 // the client's RescueStuckJobsAfter (client.go) must exceed it.
-const CompatScanTimeout = 10 * time.Minute
+const CompatScanTimeout = 30 * time.Minute
 
 type CompatScanWorker struct {
 	river.WorkerDefaults[CompatScanArgs]

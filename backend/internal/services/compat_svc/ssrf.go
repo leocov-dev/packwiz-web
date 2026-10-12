@@ -17,7 +17,7 @@ const (
 	MaxJarSize int64 = 250 << 20
 	// DownloadTimeout bounds one jar download, including connecting and
 	// following redirects.
-	DownloadTimeout = 60 * time.Second
+	DownloadTimeout = 180 * time.Second
 	// maxRedirects is how many redirects a download may follow.
 	maxRedirects = 5
 	// dialTimeout bounds connecting to one address.

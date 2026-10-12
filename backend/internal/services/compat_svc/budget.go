@@ -7,10 +7,10 @@ import (
 
 const (
 	// ScanDownloadTimeBudget bounds the time one scan spends downloading jars.
-	// It is below jobs.CompatScanTimeout (10 minutes) by more than one
+	// It is below jobs.CompatScanTimeout (30 minutes) by more than one
 	// DownloadTimeout, so the download that crosses the budget still finishes
 	// inside the job timeout.
-	ScanDownloadTimeBudget = 8 * time.Minute
+	ScanDownloadTimeBudget = 24 * time.Minute
 	// ScanDownloadByteBudget bounds the bytes one scan downloads.
 	ScanDownloadByteBudget int64 = 1 << 30
 )

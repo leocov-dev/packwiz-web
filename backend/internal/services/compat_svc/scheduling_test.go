@@ -52,7 +52,7 @@ func TestShouldEnqueueManual(t *testing.T) {
 		{"never scanned", nil, true},
 		{"queued", &tables.PackCompatRun{Status: tables.CompatQueued, StartedAt: now.Add(-time.Second)}, false},
 		{"running", &tables.PackCompatRun{Status: tables.CompatRunning, StartedAt: now.Add(-5 * time.Minute)}, false},
-		{"dead queued run", &tables.PackCompatRun{Status: tables.CompatQueued, StartedAt: now.Add(-time.Hour)}, true},
+		{"dead queued run", &tables.PackCompatRun{Status: tables.CompatQueued, StartedAt: now.Add(-2 * runStaleAfter)}, true},
 		{"finished just now", &tables.PackCompatRun{Status: tables.CompatDone, StartedAt: now.Add(-time.Minute), FinishedAt: at(-10 * time.Second)}, false},
 		{"finished a while ago", &tables.PackCompatRun{Status: tables.CompatDone, StartedAt: now.Add(-time.Hour), FinishedAt: at(-time.Hour + time.Minute)}, true},
 		{"failed just now", &tables.PackCompatRun{Status: tables.CompatFailed, StartedAt: now.Add(-time.Minute), FinishedAt: at(-5 * time.Second)}, false},
