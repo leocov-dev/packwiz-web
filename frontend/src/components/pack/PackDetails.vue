@@ -64,6 +64,7 @@ const updateAllResult = ref<UpdateAllResponse | null>(null)
 const snackbar = useSnackbarStore()
 
 const router = useRouter()
+const route = useRoute()
 const {can} = usePackPermissions(() => pack)
 
 const canManageMenu = computed(() => [
@@ -83,6 +84,15 @@ watch(() => pack.compat, (next) => compat.sync(next))
 watch(showCompatDialog, (open) => {
   if (open) compat.load()
 })
+const onCompatRescan = async () => {
+  const failure = await compat.rescan()
+  if (failure) snackbar.showSnackbar(failure, "error")
+}
+// the mods list reads its filter from the `q` route query
+const onCompatSelectMod = (slug: string) => {
+  showCompatDialog.value = false
+  router.push({query: {...route.query, q: slug}})
+}
 const compatRescanAllowed = computed(() =>
   canRescan(can(Perm.PackUpdatesCheck), pack.isArchived))
 // Optimistic pin changes reported by ModsList (not yet in pack.mods); applied so
@@ -328,7 +338,8 @@ const updateAll = async () => {
       :error="compat.error.value"
       :can-rescan="compatRescanAllowed"
       :rescanning="compat.rescanning.value"
-      @rescan="compat.rescan"
+      @rescan="onCompatRescan"
+      @select-mod="onCompatSelectMod"
     />
 
     <v-sheet

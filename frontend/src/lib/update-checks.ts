@@ -1,4 +1,5 @@
 import type {Mod, UpdateCheckItem, UpdateCheckStatus} from "@/interfaces/pack.ts"
+import {formatAgo} from "@/lib/format-ago.ts"
 import {modVersion} from "@/lib/mod-filters.ts"
 
 export type UpdateChecksMap = ReadonlyMap<number, UpdateCheckItem>
@@ -68,14 +69,7 @@ export function updateAllLabel(count: number): string {
 }
 
 export function formatCheckedAgo(checkedAt: string | null | undefined, now: number = Date.now()): string {
-  const t = Date.parse(checkedAt ?? "")
-  if (Number.isNaN(t)) return ""
-  const minutes = Math.floor(Math.max(0, now - t) / 60000)
-  if (minutes < 1) return "Checked just now"
-  if (minutes < 60) return `Checked ${minutes} min ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `Checked ${hours} h ago`
-  return `Checked ${Math.floor(hours / 24)} d ago`
+  return formatAgo("Checked", checkedAt, now)
 }
 
 export type ModUpdateBadgeKind = "available" | "pinned" | "error"

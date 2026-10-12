@@ -6,6 +6,7 @@ import {
   compatDisplay,
   compatUnscannedText,
   findingTitle,
+  abandonedStatus,
   formatScannedAgo,
   groupFindings,
   isCompatActive,
@@ -107,5 +108,13 @@ describe("misc helpers", () => {
     expect(canRescan(true, false)).toBe(true)
     expect(canRescan(false, false)).toBe(false)
     expect(canRescan(true, true)).toBe(false)
+  })
+})
+
+describe("abandonedStatus", () => {
+  it("replaces busy statuses only", () => {
+    expect(abandonedStatus("queued")).toBe("stale")
+    expect(abandonedStatus("scanning")).toBe("stale")
+    expect(abandonedStatus("errors")).toBe("errors")
   })
 })

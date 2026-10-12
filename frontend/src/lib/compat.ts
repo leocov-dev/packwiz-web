@@ -1,3 +1,4 @@
+import {formatAgo} from "@/lib/format-ago.ts"
 import type {CompatFindingItem, CompatSeverity, CompatStatus} from "@/interfaces/compat.ts"
 
 export interface CompatDisplay {
@@ -128,14 +129,7 @@ export function compatUnscannedText(unscanned: number): string {
 }
 
 export function formatScannedAgo(scannedAt: string | null | undefined, now: number = Date.now()): string {
-  const t = Date.parse(scannedAt ?? "")
-  if (Number.isNaN(t)) return "Never scanned"
-  const minutes = Math.floor(Math.max(0, now - t) / 60000)
-  if (minutes < 1) return "Last scanned just now"
-  if (minutes < 60) return `Last scanned ${minutes} min ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `Last scanned ${hours} h ago`
-  return `Last scanned ${Math.floor(hours / 24)} d ago`
+  return formatAgo("Last scanned", scannedAt, now) || "Never scanned"
 }
 
 export function shouldContinueCompatPolling(status: CompatStatus, elapsedMs: number): boolean {
@@ -146,3 +140,9 @@ export function shouldContinueCompatPolling(status: CompatStatus, elapsedMs: num
 export function canRescan(hasPermission: boolean, archived: boolean): boolean {
   return hasPermission && !archived
 }
+
+export const COMPAT_STALLED_MESSAGE = "The scan is taking too long. Reload the page to check again."
+
+/** Status to show once polling is abandoned: never a busy one, so nothing spins forever. */
+export const abandonedStatus = (status: CompatStatus): CompatStatus =>
+  isCompatActive(status) ? "stale" : status
