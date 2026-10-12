@@ -129,7 +129,7 @@ func NewRouter() *gin.Engine {
 				// -------------------------------------------------------------
 				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db, compatSvc)
 
-				routes.RegisterPackRoutes(packwizGroup, db, riverClient, compatSvc)
+				routes.RegisterPackRoutes(packwizGroup, db, riverClient, compatSvc, compatSvc)
 			}
 		}
 	}

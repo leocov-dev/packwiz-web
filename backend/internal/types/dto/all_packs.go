@@ -23,6 +23,9 @@ type PackResponse struct {
 	CurrentUserRole string `json:"currentUserRole" gorm:"-"`
 	// Permissions are the user's effective permission names on this pack.
 	Permissions []string `json:"permissions" gorm:"-"`
+	// Compat is the jar compatibility badge summary; omitted when the pack was
+	// never scanned.
+	Compat *CompatSummary `json:"compat,omitempty" gorm:"-"`
 }
 
 type AllPacksResponse struct {

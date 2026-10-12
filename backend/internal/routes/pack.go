@@ -11,11 +11,13 @@ import (
 	"packwiz-web/internal/middleware/meta"
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/services/authz_svc"
+	"packwiz-web/internal/services/compat_svc"
 	"packwiz-web/internal/services/packwiz_svc"
 )
 
-func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, handlers ...gin.HandlerFunc) *gin.RouterGroup {
-	packwizController := controllers.NewPackwizController(db, riverClient, scans)
+func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, compatSvc *compat_svc.CompatService, handlers ...gin.HandlerFunc) *gin.RouterGroup {
+	packwizController := controllers.NewPackwizController(db, riverClient, scans, compatSvc)
+	compatController := controllers.NewCompatController(compatSvc)
 	snapshotController := controllers.NewPackSnapshotController(db, scans)
 	accessController := controllers.NewPackAccessController(db)
 	authz := authz_svc.NewService(db)
@@ -36,6 +38,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.HEAD("", can(authz_svc.PackView), packwizController.PackHead)
 			packIdGroup.GET("", can(authz_svc.PackView), packwizController.GetOnePack)
 			packIdGroup.GET("updates", can(authz_svc.PackView), packwizController.GetUpdateChecks)
+			packIdGroup.GET("compat", can(authz_svc.PackView), compatController.GetCompat)
 			packIdGroup.GET("link", can(authz_svc.PackLink), packwizController.GetPersonalizedLink)
 			packIdGroup.GET("changelist", can(authz_svc.PackView), snapshotController.GetChangelist)
 			packIdGroup.GET("changelist/pending", can(authz_svc.PackPublish), snapshotController.GetPendingChanges)
@@ -49,6 +52,7 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.PATCH("edit", can(authz_svc.PackInfoEdit), packwizController.EditPackInfo)
 			packIdGroup.PATCH("update-all", can(authz_svc.PackModUpdate), packwizController.UpdateAll)
 			packIdGroup.POST("updates/check", can(authz_svc.PackUpdatesCheck), packwizController.CheckForUpdates)
+			packIdGroup.POST("compat/scan", can(authz_svc.PackUpdatesCheck), compatController.ScanCompat)
 			packIdGroup.PATCH("rehash", can(authz_svc.PackRehash), packwizController.RehashAll)
 			packIdGroup.PATCH("migrate", can(authz_svc.PackMigrate), packwizController.MigratePack)
 			packIdGroup.POST("migrate/dry-run", can(authz_svc.PackMigrate), packwizController.MigrateDryRun)
