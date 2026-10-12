@@ -109,13 +109,14 @@ POST {{apiRoot}}/v1/packwiz/pack/packA/updates/check?force=false
 GET {{apiRoot}}/v1/packwiz/pack/packA/updates
 
 ### GET jar compatibility state (viewers). {status: unknown|queued|scanning|stale|ok|warnings|errors|failed,
-# counts {errors, warnings, info}, unscanned, scannedAt (null until a scan finished), runError,
+# counts {errors, warnings, info}, unscanned, scannedAt (null until a scan finished), runError (fixed text: "scan timed out" or "scan failed", empty otherwise; details are in the server log),
 # findings: [{modId|null, slug, severity: error|warning|info, code, message, detail}]} sorted severity desc, slug, code.
 # Pack list and single pack responses carry compat: {status, errors, warnings} when the pack was scanned.
 GET {{apiRoot}}/v1/packwiz/pack/packA/compat
 
 ### POST request a compat rescan (same permission as update checks). 202 {status, enqueued: true} when a scan was
-# enqueued; 200 {status, enqueued: false} when one is already active or the last run is under 60s old.
+# enqueued; 200 {status, enqueued: false} when one is already active or the last run is under 60s old (status is
+# the same value GET compat reports). 404 unknown pack, 409 archived pack.
 POST {{apiRoot}}/v1/packwiz/pack/packA/compat/scan
 
 ### PATCH update a mods side

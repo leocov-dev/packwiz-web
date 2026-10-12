@@ -37,7 +37,8 @@ func (s *CompatService) SummariesForPacks(ctx context.Context, packIDs []uint) (
 		}
 	}
 
-	hashes := map[uint]string{}
+	packsByID := map[uint]tables.Pack{}
+	modsByPack := map[uint][]tables.Mod{}
 	if len(doneIDs) > 0 {
 		var packs []tables.Pack
 		if err := db.Unscoped().Select("id", "mc_version", "loader", "loader_version").
@@ -51,27 +52,27 @@ func (s *CompatService) SummariesForPacks(ctx context.Context, packIDs []uint) (
 			Find(&mods).Error; err != nil {
 			return nil, fmt.Errorf("load mods for compat summaries: %w", err)
 		}
-		byPack := make(map[uint][]tables.Mod, len(doneIDs))
 		for _, m := range mods {
-			byPack[m.PackID] = append(byPack[m.PackID], m)
+			modsByPack[m.PackID] = append(modsByPack[m.PackID], m)
 		}
 		for _, p := range packs {
-			hashes[p.ID] = TargetHash(targetInputOf(p, byPack[p.ID]))
+			packsByID[p.ID] = p
 		}
 	}
 
 	now := s.now()
 	for i := range runs {
-		out[runs[i].PackID] = summarize(&runs[i], hashes[runs[i].PackID], now)
+		id := runs[i].PackID
+		out[id] = summarize(&runs[i], packsByID[id], modsByPack[id], now)
 	}
 	return out, nil
 }
 
-// summarize builds the badge summary of one run. currentTargetHash is only
-// read for done runs.
-func summarize(run *tables.PackCompatRun, currentTargetHash string, now time.Time) dto.CompatSummary {
+// summarize builds the badge summary of one run. pack and mods are only read
+// for done runs; mods may be all of the pack's mods or only its jars.
+func summarize(run *tables.PackCompatRun, pack tables.Pack, mods []tables.Mod, now time.Time) dto.CompatSummary {
 	return dto.CompatSummary{
-		Status:   string(DeriveStatus(run, currentTargetHash, now)),
+		Status:   string(statusFor(run, pack, mods, now)),
 		Errors:   run.ErrorCount,
 		Warnings: run.WarningCount,
 	}

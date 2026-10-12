@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"packwiz-web/internal/jobs"
 	"packwiz-web/internal/log"
@@ -56,6 +57,10 @@ func (ps *PackwizService) WithCompatSummaries(summaries CompatSummarizer) *Packw
 	return ps
 }
 
+// compatSummaryTimeout bounds the badge lookup so a slow database cannot hold
+// up a pack list.
+const compatSummaryTimeout = 3 * time.Second
+
 // attachCompat fills each pack's compat summary with one batched lookup. The
 // badge is a nicety, so a failure is logged and the packs are returned as is.
 func (ps *PackwizService) attachCompat(packs []dto.PackResponse) {
@@ -66,7 +71,9 @@ func (ps *PackwizService) attachCompat(packs []dto.PackResponse) {
 	for i := range packs {
 		ids[i] = packs[i].ID
 	}
-	summaries, err := ps.compat.SummariesForPacks(context.Background(), ids)
+	ctx, cancel := context.WithTimeout(context.Background(), compatSummaryTimeout)
+	defer cancel()
+	summaries, err := ps.compat.SummariesForPacks(ctx, ids)
 	if err != nil {
 		if !errors.Is(err, jobs.ErrClientUnavailable) {
 			log.Error(fmt.Errorf("load compat summaries: %w", err))
