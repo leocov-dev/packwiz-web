@@ -8,8 +8,8 @@ func TestTargetHash(t *testing.T) {
 		Loader:           "fabric",
 		LoaderVersion:    "0.16.0",
 		Mods: []HashedMod{
-			{Slug: "a", HashFormat: "sha1", Hash: "h1"},
-			{Slug: "b", HashFormat: "sha512", Hash: "h2"},
+			{Slug: "a", HashFormat: "sha1", Hash: "h1", Side: "both"},
+			{Slug: "b", HashFormat: "sha512", Hash: "h2", Side: "both"},
 		},
 	}
 	h := TargetHash(base)
@@ -31,9 +31,10 @@ func TestTargetHash(t *testing.T) {
 		{"mc version", func(in *TargetInput) { in.MinecraftVersion = "1.21.2" }},
 		{"loader", func(in *TargetInput) { in.Loader = "quilt" }},
 		{"loader version", func(in *TargetInput) { in.LoaderVersion = "0.16.1" }},
-		{"slug", func(in *TargetInput) { in.Mods = []HashedMod{{"x", "sha1", "h1"}, base.Mods[1]} }},
-		{"hash format", func(in *TargetInput) { in.Mods = []HashedMod{{"a", "md5", "h1"}, base.Mods[1]} }},
-		{"hash", func(in *TargetInput) { in.Mods = []HashedMod{{"a", "sha1", "zz"}, base.Mods[1]} }},
+		{"slug", func(in *TargetInput) { in.Mods = []HashedMod{{"x", "sha1", "h1", "both"}, base.Mods[1]} }},
+		{"hash format", func(in *TargetInput) { in.Mods = []HashedMod{{"a", "md5", "h1", "both"}, base.Mods[1]} }},
+		{"hash", func(in *TargetInput) { in.Mods = []HashedMod{{"a", "sha1", "zz", "both"}, base.Mods[1]} }},
+		{"side", func(in *TargetInput) { in.Mods = []HashedMod{{"a", "sha1", "h1", "server"}, base.Mods[1]} }},
 		{"mod removed", func(in *TargetInput) { in.Mods = base.Mods[:1] }},
 		{"field boundary", func(in *TargetInput) { in.MinecraftVersion, in.Loader = "1.21.1f", "abric" }},
 	}

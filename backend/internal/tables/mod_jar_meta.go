@@ -6,6 +6,7 @@ import (
 	"github.com/leocov-dev/packwiz-nxt/jarmeta"
 	"github.com/lib/pq"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 // ModJarMeta is the cached, parsed loader metadata of one mod jar, keyed by
@@ -17,11 +18,27 @@ type ModJarMeta struct {
 	ParserVersion int
 	// Meta is nil when the jar could not be parsed.
 	Meta *datatypes.JSONSlice[jarmeta.LoaderMeta] `gorm:"type:jsonb"`
-	// Loaders are the loader names found in Meta, for prune filtering.
-	Loaders    pq.StringArray `gorm:"type:text[]"`
-	Error      string
-	ParsedAt   time.Time
-	LastUsedAt time.Time
+	// Loaders are the loader names found in Meta, for prune filtering. A nil
+	// slice is stored as '{}' (see BeforeSave), never NULL.
+	Loaders pq.StringArray `gorm:"type:text[]"`
+	Error   string
+	// ParsedAt is set to the current time on create when left zero
+	// (autoCreateTime), so a zero value never reaches the column.
+	ParsedAt time.Time `gorm:"autoCreateTime"`
+	// LastUsedAt is set to the current time on create when left zero
+	// (autoCreateTime). Later touches are explicit UPDATEs by the scanner;
+	// GORM does not maintain it on update.
+	LastUsedAt time.Time `gorm:"autoCreateTime"`
+}
+
+// BeforeSave turns a nil Loaders into an empty slice. A nil pq.StringArray is
+// written as SQL NULL, which violates the NOT NULL column (parse-error rows
+// have no loaders).
+func (m *ModJarMeta) BeforeSave(*gorm.DB) error {
+	if m.Loaders == nil {
+		m.Loaders = pq.StringArray{}
+	}
+	return nil
 }
 
 func (ModJarMeta) TableName() string {

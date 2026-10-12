@@ -44,6 +44,7 @@ func TestPruneCandidates(t *testing.T) {
 		{"unevaluable range keeps", PruneRow{key, oldAt, []string{"fabric"}, []jarmeta.LoaderMeta{metaFor("fabric", "^^bogus^^")}}, false, []PackTarget{fabric121}, false},
 		{"maven range match", PruneRow{key, oldAt, []string{"neoforge"}, []jarmeta.LoaderMeta{metaFor("neoforge", "[1.21,1.22)")}}, false, []PackTarget{{"1.21.1", "neoforge"}}, false},
 		{"maven range mismatch", PruneRow{key, oldAt, []string{"neoforge"}, []jarmeta.LoaderMeta{metaFor("neoforge", "[1.20,1.21)")}}, false, []PackTarget{{"1.21.1", "neoforge"}}, true},
+		{"meta without loaders keeps", PruneRow{key, oldAt, nil, []jarmeta.LoaderMeta{metaFor("fabric", "~1.20")}}, false, []PackTarget{fabric121}, false},
 		{"quilt pack accepts fabric jar", PruneRow{key, oldAt, []string{"fabric"}, []jarmeta.LoaderMeta{metaFor("fabric", "~1.21")}}, false, []PackTarget{{"1.21.1", "quilt"}}, false},
 		{"quilt pack, fabric jar wrong mc", PruneRow{key, oldAt, []string{"fabric"}, []jarmeta.LoaderMeta{metaFor("fabric", "~1.20")}}, false, []PackTarget{{"1.21.1", "quilt"}}, true},
 		{"fabric pack does not accept quilt jar", PruneRow{key, oldAt, []string{"quilt"}, []jarmeta.LoaderMeta{metaFor("quilt", "~1.21")}}, false, []PackTarget{fabric121}, true},

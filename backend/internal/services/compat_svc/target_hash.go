@@ -14,13 +14,16 @@ import (
 const ParserVersion = 1
 
 // targetHashVersion namespaces the hash input so its format can change.
-const targetHashVersion = "v1"
+const targetHashVersion = "v2"
 
 // HashedMod is one pack mod as it enters the target hash.
 type HashedMod struct {
 	Slug       string
 	HashFormat string
 	Hash       string
+	// Side is the mod's side (client/server/both); side_mismatch findings
+	// depend on it.
+	Side string
 }
 
 // TargetInput is everything a scan result depends on.
@@ -37,7 +40,7 @@ type TargetInput struct {
 func TargetHash(in TargetInput) string {
 	lines := make([]string, 0, len(in.Mods))
 	for _, m := range in.Mods {
-		lines = append(lines, joinFields(m.Slug, m.HashFormat, m.Hash))
+		lines = append(lines, joinFields(m.Slug, m.HashFormat, m.Hash, m.Side))
 	}
 	slices.Sort(lines)
 

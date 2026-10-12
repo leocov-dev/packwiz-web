@@ -60,9 +60,12 @@ func matchesAnyTarget(r PruneRow, targets []PackTarget) bool {
 
 // jarMatchesTarget reports whether the jar could be used by a pack with target
 // t. It errs towards true: a missing, unparseable or unevaluable range counts
-// as a match so the row is kept. Rows without loaders (parse errors) match
-// nothing.
+// as a match so the row is kept. Rows without Meta (parse errors) match
+// nothing. A row with Meta but no Loaders is inconsistent; it is kept.
 func jarMatchesTarget(r PruneRow, t PackTarget) bool {
+	if len(r.Loaders) == 0 && len(r.Meta) > 0 {
+		return true
+	}
 	for _, loader := range r.Loaders {
 		if !loaderAccepts(t.Loader, loader) {
 			continue
@@ -78,7 +81,9 @@ func jarMatchesTarget(r PruneRow, t PackTarget) bool {
 	return false
 }
 
-// loaderAccepts mirrors compat: a Quilt pack also accepts Fabric jars.
+// loaderAccepts mirrors compat.Check (packwiz-nxt v0.0.16), which has no
+// exported helper for this: a Quilt pack also accepts Fabric jars. Keep in sync
+// with compat's loader selection, or prune may delete rows compat still uses.
 func loaderAccepts(packLoader, jarLoader string) bool {
 	return packLoader == jarLoader ||
 		(packLoader == string(jarmeta.LoaderQuilt) && jarLoader == string(jarmeta.LoaderFabric))
