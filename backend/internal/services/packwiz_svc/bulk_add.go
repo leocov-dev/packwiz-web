@@ -334,7 +334,13 @@ func (ps *PackwizService) runBulkAdd(ctx context.Context, args jobs.BulkAddArgs)
 		return ps.db.Transaction(write)
 	}
 	detail := map[string]any{"count": len(added), "names": added}
-	return ps.withPackHistory(args.PackID, user.ID, tables.SnapshotModBulkAdd, detail, write)
+	if err := ps.withPackHistory(args.PackID, user.ID, tables.SnapshotModBulkAdd, detail, write); err != nil {
+		return err
+	}
+	// runs in a worker: ctx carries the worker's job client (withPackHistory's
+	// own request has none)
+	ps.requestCompatScan(context.WithoutCancel(ctx), args.PackID)
+	return nil
 }
 
 // insertBulkMods creates the mods of the added lines, in list order, with

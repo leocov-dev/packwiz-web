@@ -2,7 +2,9 @@ package jobs
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/riverqueue/river"
@@ -11,6 +13,12 @@ import (
 
 	"packwiz-web/internal/config"
 )
+
+// ErrClientUnavailable is returned by services that enqueue jobs when the
+// process has no River client for them (an instance built as a job resolver,
+// outside a worker context). Callers that treat enqueueing as best effort may
+// ignore it.
+var ErrClientUnavailable = errors.New("background jobs are not available")
 
 // NewClient builds a River client in poll-only mode, sharing the given
 // GORM connection's underlying *sql.DB pool. No LISTEN/NOTIFY pool is used.
@@ -36,14 +44,19 @@ func NewClient(gdb *gorm.DB, workers *river.Workers) (*river.Client[*sql.Tx], er
 			QueueUpdateChecks: {MaxWorkers: 1},
 			// bulk_add: same 1-worker cap and API rate limit reasons.
 			QueueBulkAdd: {MaxWorkers: 1},
+			// compat_scan: same 1-worker cap, bounding jar download bandwidth,
+			// scratch disk and parse work. Per process like the queues above, so
+			// running `start --worker` next to a worker container doubles it.
+			QueueCompatScan: {MaxWorkers: 1},
 		},
 		// A crashed worker leaves its job "running" (which the update-check
 		// uniqueness treats as active) until the rescuer picks it up; River's
 		// default is 1h. Must be greater than the longest per-job timeout
-		// (jobs.CheckUpdatesTimeout and jobs.BulkAddTimeout, 10m; other jobs
+		// (jobs.CheckUpdatesTimeout, jobs.BulkAddTimeout and
+		// jobs.CompatScanTimeout, 10m; other jobs
 		// use River's 1m default).
 		RescueStuckJobsAfter: 15 * time.Minute,
-		PeriodicJobs:         append(auditPrunePeriodicJobs(), packAccessPrunePeriodicJobs()...),
+		PeriodicJobs:         slices.Concat(auditPrunePeriodicJobs(), packAccessPrunePeriodicJobs(), compatPeriodicJobs()),
 		Workers:              workers,
 		Logger:               newSlogLogger(),
 	})

@@ -1,6 +1,7 @@
 package packwiz_svc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -164,13 +165,16 @@ func ensureHistoryBaseline(tx *gorm.DB, packId, userID uint) error {
 //
 // detail is stored on the snapshot as it is after fn returns, so fn may add
 // to it.
+//
+// After the commit it asks for a compatibility scan of the pack (see
+// ScanRequester); that is how every content or mod write triggers one.
 func (ps *PackwizService) withPackHistory(
 	packId, userID uint,
 	reason tables.SnapshotReason,
 	detail map[string]any,
 	fn func(tx *gorm.DB) error,
 ) error {
-	return ps.db.Transaction(func(tx *gorm.DB) error {
+	err := ps.db.Transaction(func(tx *gorm.DB) error {
 		if _, err := lockPackRow(tx, packId); err != nil {
 			return err
 		}
@@ -182,6 +186,12 @@ func (ps *PackwizService) withPackHistory(
 		}
 		return recordPackHistory(tx, packId, userID, reason, detail)
 	})
+	if err == nil {
+		// the committed change may alter what the pack's jars are checked
+		// against; the request is debounced and only logged on failure
+		ps.requestCompatScan(context.Background(), packId)
+	}
+	return err
 }
 
 // migrateJobActive reports whether a migrate_mods job for the pack is queued

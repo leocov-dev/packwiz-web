@@ -16,8 +16,8 @@ type PackSnapshotController struct {
 	packwizSvc *packwiz_svc.PackwizService
 }
 
-func NewPackSnapshotController(db *gorm.DB) *PackSnapshotController {
-	return &PackSnapshotController{packwizSvc: packwiz_svc.NewPackwizService(db, nil)}
+func NewPackSnapshotController(db *gorm.DB, scans packwiz_svc.ScanRequester) *PackSnapshotController {
+	return &PackSnapshotController{packwizSvc: packwiz_svc.NewPackwizService(db, nil, scans)}
 }
 
 // ListSnapshots lists a pack's history.

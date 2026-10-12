@@ -14,8 +14,8 @@ type ImportController struct {
 	importSvc *import_svc.ImportService
 }
 
-func NewImportController(db *gorm.DB) *ImportController {
-	return &ImportController{importSvc: import_svc.NewImportService(db)}
+func NewImportController(db *gorm.DB, scans import_svc.ScanRequester) *ImportController {
+	return &ImportController{importSvc: import_svc.NewImportService(db, scans)}
 }
 
 // ImportPack imports a live packwiz pack, given its pack.toml url, as a new pack.

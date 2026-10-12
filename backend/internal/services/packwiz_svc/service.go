@@ -32,13 +32,19 @@ type PackwizService struct {
 	// (internal/jobs.MigrateModsResolver) - those never need to enqueue.
 	riverClient *river.Client[*sql.Tx]
 	authz       *authz_svc.Service
+	// scans is asked to schedule a compatibility scan after a pack's mods or
+	// target change. It may be nil (read-only instances), see ScanRequester.
+	scans ScanRequester
 }
 
-func NewPackwizService(db *gorm.DB, riverClient *river.Client[*sql.Tx]) *PackwizService {
+// NewPackwizService builds the service. riverClient and scans may be nil for
+// instances that never enqueue jobs or change pack content.
+func NewPackwizService(db *gorm.DB, riverClient *river.Client[*sql.Tx], scans ScanRequester) *PackwizService {
 	return &PackwizService{
 		db:          db,
 		riverClient: riverClient,
 		authz:       authz_svc.NewService(db),
+		scans:       scans,
 	}
 }
 
@@ -477,6 +483,9 @@ func (ps *PackwizService) UnArchivePack(packId uint) response.ServerError {
 		return response.New(http.StatusInternalServerError, "failed to unarchive pack")
 	}
 
+	// scans of an archived pack are skipped, so it may be behind
+	ps.requestCompatScan(context.Background(), packId)
+
 	return nil
 }
 
@@ -501,6 +510,9 @@ func (ps *PackwizService) SetPackStatus(packId uint, status types.PackStatus, us
 	}); err != nil {
 		return response.New(http.StatusInternalServerError, "failed to set pack status")
 	}
+
+	// publishing or going back to draft: scan the pack as it now is
+	ps.requestCompatScan(context.Background(), packId)
 
 	return nil
 }
@@ -627,6 +639,7 @@ func (ps *PackwizService) UpdateAll(ctx context.Context, packId uint, user table
 		}); err != nil {
 			log.Error(fmt.Sprintf("failed to record history for update-all of pack %d:", packId), err)
 		}
+		ps.requestCompatScan(ctx, packId)
 	}
 
 	return summary.response(), nil
@@ -1774,6 +1787,8 @@ func (ps *PackwizService) ResolveMigratedMods(ctx context.Context, args jobs.Mig
 	if txErr == nil {
 		// mods were updated; stored update checks no longer describe the pack
 		invalidatePackChecks(ps.db, args.PackID)
+		// runs in a worker: ctx carries the worker's job client
+		ps.requestCompatScan(context.WithoutCancel(ctx), args.PackID)
 	}
 	return txErr
 }

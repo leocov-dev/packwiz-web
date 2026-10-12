@@ -13,6 +13,7 @@ import (
 	"packwiz-web/internal/params"
 	"packwiz-web/internal/routes"
 	"packwiz-web/internal/services/audit_svc"
+	"packwiz-web/internal/services/compat_svc"
 	"packwiz-web/internal/services/oidc_svc"
 	"packwiz-web/internal/services/pack_access_svc"
 	"packwiz-web/internal/services/packwiz_svc"
@@ -58,13 +59,17 @@ func NewRouter() *gin.Engine {
 	// jobResolver is only used to satisfy jobs.MigrateModsResolver for the
 	// (unstarted, insert-only) client below - it never needs to enqueue jobs
 	// itself, so it's built without a river client of its own.
-	jobResolver := packwiz_svc.NewPackwizService(db, nil)
+	jobCompat := compat_svc.NewCompatService(db, nil, nil)
+	jobResolver := packwiz_svc.NewPackwizService(db, nil, jobCompat)
 	packAccessSvc := pack_access_svc.NewPackAccessService(db)
-	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc))
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc, jobCompat, jobCompat, jobCompat))
 	if err != nil {
 		log.Error("failed to create river client:", err)
 		panic(err)
 	}
+
+	// request-side compat service: enqueues scans with the client above
+	compatSvc := compat_svc.NewCompatService(db, riverClient, nil)
 
 	// -------------------------------------------------------------------------
 	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
@@ -122,9 +127,9 @@ func NewRouter() *gin.Engine {
 				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 
 				// -------------------------------------------------------------
-				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db)
+				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db, compatSvc)
 
-				routes.RegisterPackRoutes(packwizGroup, db, riverClient)
+				routes.RegisterPackRoutes(packwizGroup, db, riverClient, compatSvc)
 			}
 		}
 	}

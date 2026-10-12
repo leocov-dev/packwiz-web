@@ -1,6 +1,7 @@
 package packwiz_svc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -478,6 +479,7 @@ func (ps *PackwizService) RevertToSnapshot(packId, snapshotId uint, user tables.
 	if changed {
 		// stored update checks described the state that was just replaced
 		invalidatePackChecks(ps.db, packId)
+		ps.requestCompatScan(context.Background(), packId)
 	}
 
 	return dto.RevertSnapshotResponse{Changed: changed, HeadID: snapshotId}, nil
@@ -545,6 +547,8 @@ func (ps *PackwizService) CloneFromSnapshot(packId, snapshotId uint, request dto
 	}); err != nil {
 		return 0, response.Wrap(err)
 	}
+
+	ps.requestCompatScan(context.Background(), newPack.ID)
 
 	return newPack.ID, nil
 }
