@@ -121,47 +121,36 @@ const sortedPacks = computed(() =>
       </template>
 
       <template #loader>
-        <v-row class="my-0">
-          <v-col
-            v-for="n in 5"
+        <div class="pack-grid">
+          <v-skeleton-loader
+            v-for="n in 6"
             :key="n"
-            cols="12"
-            md="4"
-            sm="12"
-          >
-            <v-skeleton-loader type="heading, paragraph, actions" />
-          </v-col>
-        </v-row>
+            type="heading, paragraph, actions"
+          />
+        </div>
       </template>
 
       <template #default="{ items }">
-        <v-row class="my-0">
+        <div class="pack-grid">
           <template
             v-for="(item, i) in items"
             :key="item.raw.id"
           >
-            <v-col
+            <div
               v-if="i === 0 || sectionOf(items[i - 1].raw) !== sectionOf(item.raw)"
-              cols="12"
-              class="pb-0"
+              class="pack-grid__section"
             >
               <div class="text-overline text-medium-emphasis">
                 {{ sectionTitles[sectionOf(item.raw)] }}
               </div>
               <v-divider />
-            </v-col>
-            <v-col
-              cols="12"
-              md="4"
-              sm="12"
-            >
-              <PackCard
-                :pack="item.raw"
-                elevation="4"
-              />
-            </v-col>
+            </div>
+            <PackCard
+              :pack="item.raw"
+              elevation="4"
+            />
           </template>
-        </v-row>
+        </div>
       </template>
 
       <template #no-data>
@@ -184,3 +173,24 @@ const sortedPacks = computed(() =>
     </v-data-iterator>
   </div>
 </template>
+
+<style scoped>
+/* fixed card width range; column count follows available width */
+.pack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 420px));
+  justify-content: start;
+  gap: 16px;
+  padding: 12px;
+}
+
+.pack-grid__section {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 400px) {
+  .pack-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
