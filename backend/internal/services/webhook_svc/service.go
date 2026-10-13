@@ -249,6 +249,17 @@ func (s *Service) Save(ctx context.Context, packID uint, form dto.PackWebhookFor
 
 // -----------------------------------------------------------------------------
 
+func (s *Service) newPayload(pack *tables.Pack, event string) payload {
+	return payload{
+		Event:          event,
+		PackID:         pack.ID,
+		Slug:           pack.Slug,
+		Name:           pack.Name,
+		HeadSnapshotID: pack.HeadSnapshotID,
+		At:             s.now().UTC().Format(time.RFC3339),
+	}
+}
+
 // deliver calls the webhook of a pack with the event and records the outcome.
 func (s *Service) deliver(ctx context.Context, hook *tables.PackWebhook, event string) (outcome, error) {
 	var pack tables.Pack
@@ -262,15 +273,7 @@ func (s *Service) deliver(ctx context.Context, hook *tables.PackWebhook, event s
 		s.record(ctx, hook.PackID, out)
 		return out, nil
 	}
-	body := payload{
-		Event:          event,
-		PackID:         pack.ID,
-		Slug:           pack.Slug,
-		Name:           pack.Name,
-		HeadSnapshotID: pack.HeadSnapshotID,
-		At:             s.now().UTC().Format(time.RFC3339),
-	}
-	out := send(ctx, s.http, hook.Method, hook.URL, headers, body)
+	out := send(ctx, s.http, hook.Method, hook.URL, headers, s.newPayload(&pack, event))
 	s.record(ctx, hook.PackID, out)
 	return out, nil
 }
@@ -317,19 +320,30 @@ func (s *Service) RunWebhook(ctx context.Context, args jobs.PackWebhookArgs) err
 	return nil
 }
 
-// Test calls the saved webhook right away, enabled or not, and records the
-// outcome.
-func (s *Service) Test(ctx context.Context, packID uint) (dto.PackWebhookTestResponse, response.ServerError) {
+// Test calls the webhook described by the form right away, enabled or not,
+// without saving it. A blank header value falls back to the stored value of
+// the header with that name. The outcome is not recorded: it describes an
+// unsaved draft, not the saved webhook's delivery history.
+func (s *Service) Test(ctx context.Context, packID uint, form dto.PackWebhookForm) (dto.PackWebhookTestResponse, response.ServerError) {
+	if form.URL == "" {
+		return dto.PackWebhookTestResponse{}, response.New(http.StatusBadRequest, "enter a webhook URL first")
+	}
 	hook, err := s.load(ctx, packID)
 	if err != nil {
 		return dto.PackWebhookTestResponse{}, response.Wrap(err)
 	}
-	if hook == nil || hook.URL == "" {
-		return dto.PackWebhookTestResponse{}, response.New(http.StatusBadRequest, "save a webhook URL first")
-	}
-	out, err := s.deliver(ctx, hook, "pack.test")
+	// undecryptable stored headers are treated as absent, as in Save
+	existing, _ := s.decryptHeaders(hook)
+	headers, err := mergeHeaders(existing, form.Headers)
 	if err != nil {
-		return dto.PackWebhookTestResponse{}, response.Wrap(err)
+		return dto.PackWebhookTestResponse{}, response.New(http.StatusBadRequest, err.Error())
 	}
+
+	var pack tables.Pack
+	if err := s.db.WithContext(ctx).Select("id", "slug", "name", "head_snapshot_id").
+		First(&pack, "id = ?", packID).Error; err != nil {
+		return dto.PackWebhookTestResponse{}, response.Wrap(fmt.Errorf("load pack %d: %w", packID, err))
+	}
+	out := send(ctx, s.http, form.Method, form.URL, headers, s.newPayload(&pack, "pack.test"))
 	return dto.PackWebhookTestResponse{OK: out.ok(), StatusCode: out.StatusCode, Error: out.Err}, nil
 }

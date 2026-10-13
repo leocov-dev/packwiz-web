@@ -24,7 +24,8 @@ describe("webhook.service", () => {
 
   it("tests the webhook", async () => {
     post.mockResolvedValue({data: {ok: true, statusCode: 200, error: ""}})
-    expect((await testPackWebhook(3)).ok).toBe(true)
-    expect(post).toHaveBeenCalledWith("v1/packwiz/pack/3/webhook/test")
+    const req = {enabled: false, url: "u", method: "POST" as const, headers: []}
+    expect((await testPackWebhook(3, req)).ok).toBe(true)
+    expect(post).toHaveBeenCalledWith("v1/packwiz/pack/3/webhook/test", req)
   })
 })

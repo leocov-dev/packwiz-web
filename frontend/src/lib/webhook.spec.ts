@@ -8,7 +8,7 @@ const form = (over: Partial<WebhookFormData> = {}): WebhookFormData => ({
   enabled: true,
   url: "https://cow.lan/api/servers/1/restart",
   method: "POST",
-  headers: [{name: "Cookie", value: "sid=1", stored: false}],
+  headers: [{name: "Cookie", value: "sid=1", stored: false, visible: false}],
   ...over,
 })
 
@@ -29,16 +29,16 @@ describe("validateWebhookForm", () => {
     expect(validateWebhookForm(form({url: ""}))).not.toBeNull())
 
   it("allows a stored header with a blank value", () =>
-    expect(validateWebhookForm(form({headers: [{name: "Cookie", value: "", stored: true}]}))).toBeNull())
+    expect(validateWebhookForm(form({headers: [{name: "Cookie", value: "", stored: true, visible: false}]}))).toBeNull())
 
   it("requires a value for a new header", () =>
-    expect(validateWebhookForm(form({headers: [{name: "X-A", value: "", stored: false}]}))).toMatch(/needs a value/))
+    expect(validateWebhookForm(form({headers: [{name: "X-A", value: "", stored: false, visible: false}]}))).toMatch(/needs a value/))
 
   it.each([
-    [[{name: "bad name", value: "v", stored: false}]],
-    [[{name: "Host", value: "v", stored: false}]],
-    [[{name: "A", value: "1", stored: false}, {name: "a", value: "2", stored: false}]],
-    [[{name: "A", value: "x\ny", stored: false}]],
+    [[{name: "bad name", value: "v", stored: false, visible: false}]],
+    [[{name: "Host", value: "v", stored: false, visible: false}]],
+    [[{name: "A", value: "1", stored: false, visible: false}, {name: "a", value: "2", stored: false, visible: false}]],
+    [[{name: "A", value: "x\ny", stored: false, visible: false}]],
   ])("rejects bad headers %#", (headers) =>
     expect(validateWebhookForm(form({headers}))).not.toBeNull())
 })
@@ -48,8 +48,8 @@ describe("buildWebhookRequest", () => {
     const req = buildWebhookRequest(form({
       url: "  https://a.example/x ",
       headers: [
-        {name: " Cookie ", value: "", stored: true},
-        {name: "", value: "", stored: false},
+        {name: " Cookie ", value: "", stored: true, visible: false},
+        {name: "", value: "", stored: false, visible: false},
       ],
     }))
     expect(req).toEqual({
@@ -67,7 +67,7 @@ describe("formFromResponse", () => {
       enabled: true, url: "https://a/x", method: "PUT", headers: [{name: "Cookie"}], broken: false,
       lastStatusCode: 0, lastError: "", lastAttemptAt: null, lastSuccessAt: null,
     })
-    expect(f.headers).toEqual([{name: "Cookie", value: "", stored: true}])
+    expect(f.headers).toEqual([{name: "Cookie", value: "", stored: true, visible: false}])
     expect(f.method).toBe("PUT")
   })
 })

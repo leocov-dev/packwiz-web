@@ -14,7 +14,7 @@ import (
 type packWebhookService interface {
 	Get(ctx context.Context, packID uint) (dto.PackWebhookResponse, response.ServerError)
 	Save(ctx context.Context, packID uint, form dto.PackWebhookForm) (dto.PackWebhookResponse, response.ServerError)
-	Test(ctx context.Context, packID uint) (dto.PackWebhookTestResponse, response.ServerError)
+	Test(ctx context.Context, packID uint, form dto.PackWebhookForm) (dto.PackWebhookTestResponse, response.ServerError)
 }
 
 // PackWebhookController serves the per-pack webhook configuration.
@@ -71,7 +71,13 @@ func (wc *PackWebhookController) TestWebhook(c *gin.Context) {
 		return
 	}
 
-	result, err := wc.svc.Test(c.Request.Context(), packId)
+	var form dto.PackWebhookForm
+	if err := mustBindJson(c, &form); err != nil {
+		err.JSON(c)
+		return
+	}
+
+	result, err := wc.svc.Test(c.Request.Context(), packId, form)
 	if err != nil {
 		err.JSON(c)
 		return

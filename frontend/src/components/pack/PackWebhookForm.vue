@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {buildDataLoader} from "@/composables/data-loader.ts"
 import type {PackResponse} from "@/interfaces/pack.ts"
-import type {PackWebhookResponse} from "@/interfaces/webhook.ts"
+import type {PackWebhookResponse, PackWebhookTestResponse} from "@/interfaces/webhook.ts"
 import {getPackWebhook, savePackWebhook, testPackWebhook} from "@/services/webhook.service.ts"
 import {apiErrorMessage} from "@/services/utils.ts"
 import {useSnackbarStore} from "@/stores/snackbar.ts"
@@ -23,6 +23,7 @@ const form = ref<WebhookFormData | null>(null)
 const saving = ref(false)
 const testing = ref(false)
 const error = ref<string | null>(null)
+const testResult = ref<PackWebhookTestResponse | null>(null)
 
 watch(saved, (value) => {
   if (value) form.value = formFromResponse(value)
@@ -31,7 +32,7 @@ watch(saved, (value) => {
 const problem = computed(() => (form.value ? validateWebhookForm(form.value) : null))
 const status = computed(() => (saved.value ? lastAttemptSummary(saved.value) : ""))
 
-const addHeader = () => form.value?.headers.push({name: "", value: "", stored: false})
+const addHeader = () => form.value?.headers.push({name: "", value: "", stored: false, visible: false})
 const removeHeader = (index: number) => form.value?.headers.splice(index, 1)
 
 const save = async () => {
@@ -49,17 +50,14 @@ const save = async () => {
   }
 }
 
-// the test uses the saved webhook, so unsaved edits are not what gets called
+// tests the form as entered, saved or not, so values can be checked before saving
 const test = async () => {
+  if (!form.value || problem.value) return
   error.value = null
+  testResult.value = null
   testing.value = true
   try {
-    const result = await testPackWebhook(pack.id)
-    snackbar.showSnackbar(
-      result.ok ? `Webhook responded HTTP ${result.statusCode}` : `Webhook failed: ${result.error}`,
-      result.ok ? "success" : "error",
-    )
-    saved.value = await getPackWebhook(pack.id)
+    testResult.value = await testPackWebhook(pack.id, buildWebhookRequest(form.value))
   } catch (e) {
     error.value = apiErrorMessage(e, "Error testing webhook...")
     console.error(e)
@@ -67,6 +65,12 @@ const test = async () => {
     testing.value = false
   }
 }
+
+const testSummary = computed(() => {
+  const r = testResult.value
+  if (!r) return ""
+  return r.ok ? `Test succeeded (HTTP ${r.statusCode}).` : `Test failed: ${r.error}`
+})
 
 const back = () => router.push({path: `/packs/${pack.id}`})
 </script>
@@ -164,7 +168,8 @@ const back = () => router.push({path: `/packs/${pack.id}`})
         </h2>
         <p class="text-medium-emphasis mb-4">
           Use headers for credentials. Values are stored encrypted and are never shown again;
-          leave a saved value blank to keep it.
+          leave a saved value blank to keep it. "Send test" calls the URL with the values
+          entered here, without saving them.
         </p>
 
         <v-row
@@ -183,12 +188,20 @@ const back = () => router.push({path: `/packs/${pack.id}`})
             />
           </v-col>
           <v-col>
+            <!-- not type=password, so browsers do not offer to save it; masked by CSS instead -->
             <v-text-field
               v-model="row.value"
               label="Value"
-              type="password"
               autocomplete="off"
+              spellcheck="false"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              :class="{'webhook-secret': !row.visible}"
               :placeholder="row.stored ? 'Saved (unchanged)' : ''"
+              :append-inner-icon="row.visible ? 'mdi-eye-off' : 'mdi-eye'"
+              @click:append-inner="row.visible = !row.visible"
             />
           </v-col>
           <v-col cols="auto">
@@ -219,6 +232,15 @@ const back = () => router.push({path: `/packs/${pack.id}`})
         />
 
         <v-alert
+          v-if="testResult"
+          :type="testResult.ok ? 'success' : 'error'"
+          variant="tonal"
+          density="compact"
+          class="mb-4"
+          :text="testSummary"
+        />
+
+        <v-alert
           v-if="problem"
           class="mb-4"
           type="warning"
@@ -230,7 +252,7 @@ const back = () => router.push({path: `/packs/${pack.id}`})
         <div class="d-flex justify-end ga-2">
           <v-btn
             :loading="testing"
-            :disabled="saving || !saved?.url"
+            :disabled="saving || !!problem || !form.url.trim()"
             text="Send test"
             @click="test"
           />
@@ -246,3 +268,9 @@ const back = () => router.push({path: `/packs/${pack.id}`})
     </v-card>
   </div>
 </template>
+
+<style scoped>
+.webhook-secret :deep(input) {
+  -webkit-text-security: disc;
+}
+</style>

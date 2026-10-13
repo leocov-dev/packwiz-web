@@ -15,7 +15,8 @@ export async function savePackWebhook(packId: number, request: PackWebhookReques
   return response.data
 }
 
-export async function testPackWebhook(packId: number): Promise<PackWebhookTestResponse> {
-  const response = await apiClient.post(`v1/packwiz/pack/${packId}/webhook/test`)
+/** Calls the webhook described by the request without saving it. */
+export async function testPackWebhook(packId: number, request: PackWebhookRequest): Promise<PackWebhookTestResponse> {
+  const response = await apiClient.post(`v1/packwiz/pack/${packId}/webhook/test`, request)
   return response.data
 }

@@ -14,6 +14,8 @@ export interface WebhookHeaderRow {
   value: string
   /** a value is stored on the server; leaving the value blank keeps it */
   stored: boolean
+  /** show the value instead of masking it; UI only, never sent */
+  visible: boolean
 }
 
 export interface WebhookFormData {
@@ -28,7 +30,7 @@ export function formFromResponse(res: PackWebhookResponse): WebhookFormData {
     enabled: res.enabled,
     url: res.url,
     method: res.method || 'POST',
-    headers: res.headers.map(h => ({name: h.name, value: '', stored: true})),
+    headers: res.headers.map(h => ({name: h.name, value: '', stored: true, visible: false})),
   }
 }
 
