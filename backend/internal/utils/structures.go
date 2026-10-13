@@ -2,7 +2,7 @@ package utils
 
 import "strings"
 
-var sensitiveKeyMarkers = []string{"password", "secret", "token"}
+var sensitiveKeyMarkers = []string{"password", "secret", "token", "headers"}
 
 func isSensitiveKey(key string) bool {
 	lower := strings.ToLower(key)

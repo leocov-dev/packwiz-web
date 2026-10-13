@@ -69,7 +69,7 @@ const {can} = usePackPermissions(() => pack)
 
 const canManageMenu = computed(() => [
   Perm.PackUsersView, Perm.PackSnapshotView, Perm.PackView, Perm.PackMigrate, Perm.PackRehash, Perm.PackPublish, Perm.PackVisibility,
-  Perm.PackArchive,
+  Perm.PackArchive, Perm.PackWebhookManage,
 ].some(can))
 const hasToolbar = computed(() => canManageMenu.value || [
   Perm.PackInfoEdit, Perm.PackModAdd, Perm.PackUpdatesCheck, Perm.PackModUpdate,
@@ -502,6 +502,12 @@ const updateAll = async () => {
               prepend-icon="mdi-chart-bar"
               title="Access"
               :to="`/packs/${pack.id}/access`"
+            />
+            <v-list-item
+              v-if="can(Perm.PackWebhookManage)"
+              prepend-icon="mdi-webhook"
+              title="Webhook"
+              :to="`/packs/${pack.id}/webhook`"
             />
             <v-list-item
               v-if="can(Perm.PackMigrate)"

@@ -13,13 +13,15 @@ import (
 	"packwiz-web/internal/services/authz_svc"
 	"packwiz-web/internal/services/compat_svc"
 	"packwiz-web/internal/services/packwiz_svc"
+	"packwiz-web/internal/services/webhook_svc"
 )
 
-func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, compatSvc *compat_svc.CompatService, handlers ...gin.HandlerFunc) *gin.RouterGroup {
+func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Client[*sql.Tx], scans packwiz_svc.ScanRequester, compatSvc *compat_svc.CompatService, webhookSvc *webhook_svc.Service, handlers ...gin.HandlerFunc) *gin.RouterGroup {
 	packwizController := controllers.NewPackwizController(db, riverClient, scans, compatSvc)
 	compatController := controllers.NewCompatController(compatSvc)
 	snapshotController := controllers.NewPackSnapshotController(db, scans)
 	accessController := controllers.NewPackAccessController(db)
+	webhookController := controllers.NewPackWebhookController(webhookSvc)
 	authz := authz_svc.NewService(db)
 
 	packGroup := router.Group("pack", handlers...)
@@ -62,6 +64,13 @@ func RegisterPackRoutes(router gin.IRouter, db *gorm.DB, riverClient *river.Clie
 			packIdGroup.POST("users", can(authz_svc.PackUsersManage), packwizController.AddPackUser)
 			packIdGroup.DELETE(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.RemovePackUser)
 			packIdGroup.PATCH(fmt.Sprintf("users/:%s", params.UserID), can(authz_svc.PackUsersManage), packwizController.EditUserAccess)
+
+			webhookGroup := packIdGroup.Group("webhook")
+			{
+				webhookGroup.GET("", can(authz_svc.PackWebhookManage), webhookController.GetWebhook)
+				webhookGroup.PUT("", can(authz_svc.PackWebhookManage), meta.Tag(meta.CategoryPackWebhook), webhookController.SaveWebhook)
+				webhookGroup.POST("test", can(authz_svc.PackWebhookManage), meta.Tag(meta.CategoryPackWebhookTest), webhookController.TestWebhook)
+			}
 
 			accessGroup := packIdGroup.Group("access")
 			{

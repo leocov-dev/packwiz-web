@@ -17,6 +17,7 @@ import (
 	"packwiz-web/internal/services/oidc_svc"
 	"packwiz-web/internal/services/pack_access_svc"
 	"packwiz-web/internal/services/packwiz_svc"
+	"packwiz-web/internal/services/webhook_svc"
 	"packwiz-web/public"
 	"strings"
 	"time"
@@ -60,9 +61,10 @@ func NewRouter() *gin.Engine {
 	// (unstarted, insert-only) client below - it never needs to enqueue jobs
 	// itself, so it's built without a river client of its own.
 	jobCompat := compat_svc.NewCompatService(db, nil, nil)
-	jobResolver := packwiz_svc.NewPackwizService(db, nil, jobCompat)
+	jobWebhook := webhook_svc.NewService(db, nil, config.C.SessionSecret)
+	jobResolver := packwiz_svc.NewPackwizService(db, nil, jobWebhook.Chain(jobCompat))
 	packAccessSvc := pack_access_svc.NewPackAccessService(db)
-	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc, jobCompat, jobCompat, jobCompat))
+	riverClient, err := jobs.NewClient(db, jobs.NewWorkers(jobResolver, jobResolver, jobResolver, audit_svc.NewAuditService(db), packAccessSvc, jobCompat, jobCompat, jobCompat, jobWebhook))
 	if err != nil {
 		log.Error("failed to create river client:", err)
 		panic(err)
@@ -70,6 +72,9 @@ func NewRouter() *gin.Engine {
 
 	// request-side compat service: enqueues scans with the client above
 	compatSvc := compat_svc.NewCompatService(db, riverClient, nil)
+	// every committed pack change requests a compat scan; the webhook call hangs off the same hook
+	webhookSvc := webhook_svc.NewService(db, riverClient, config.C.SessionSecret)
+	scans := webhookSvc.Chain(compatSvc)
 
 	// -------------------------------------------------------------------------
 	packwizFiles := router.Group(fmt.Sprintf("packwiz/:%s/:%s", params.Token, params.PackSlug))
@@ -127,9 +132,9 @@ func NewRouter() *gin.Engine {
 				routes.RegisterStaticDataRoutes(protectedGroup, db, middleware.SkipAudit)
 
 				// -------------------------------------------------------------
-				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db, compatSvc)
+				packwizGroup := routes.RegisterPackwizRoutes(protectedGroup, db, scans)
 
-				routes.RegisterPackRoutes(packwizGroup, db, riverClient, compatSvc, compatSvc)
+				routes.RegisterPackRoutes(packwizGroup, db, riverClient, scans, compatSvc, webhookSvc)
 			}
 		}
 	}

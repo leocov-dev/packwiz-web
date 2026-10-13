@@ -15,6 +15,9 @@ const (
 	CategoryPackClone  TagCategory = "PackClone"
 	CategoryPackPrune  TagCategory = "PackPrune"
 	CategoryPackRebase TagCategory = "PackRebase"
+
+	CategoryPackWebhook     TagCategory = "PackWebhook"
+	CategoryPackWebhookTest TagCategory = "PackWebhookTest"
 )
 
 func Tag(value TagCategory) gin.HandlerFunc {

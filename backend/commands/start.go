@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"packwiz-web/internal/config"
 	"packwiz-web/internal/database"
 	"packwiz-web/internal/jobs"
 	"packwiz-web/internal/log"
@@ -16,6 +17,7 @@ import (
 	"packwiz-web/internal/services/compat_svc"
 	"packwiz-web/internal/services/pack_access_svc"
 	"packwiz-web/internal/services/packwiz_svc"
+	"packwiz-web/internal/services/webhook_svc"
 )
 
 var (
@@ -44,12 +46,13 @@ var (
 			if runWorker {
 				db := database.GetClient()
 				compat := compat_svc.NewCompatService(db, nil, nil)
+				webhook := webhook_svc.NewService(db, nil, config.C.SessionSecret)
 				// jars of a previously killed worker would otherwise stay on disk
 				if err := compat.PurgeTempFiles(); err != nil {
 					log.Error("failed to purge jar temp files:", err)
 				}
-				resolver := packwiz_svc.NewPackwizService(db, nil, compat)
-				client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver, resolver, audit_svc.NewAuditService(db), pack_access_svc.NewPackAccessService(db), compat, compat, compat))
+				resolver := packwiz_svc.NewPackwizService(db, nil, webhook.Chain(compat))
+				client, err := jobs.NewClient(db, jobs.NewWorkers(resolver, resolver, resolver, audit_svc.NewAuditService(db), pack_access_svc.NewPackAccessService(db), compat, compat, compat, webhook))
 				if err != nil {
 					log.Error("failed to create river client:", err)
 					return

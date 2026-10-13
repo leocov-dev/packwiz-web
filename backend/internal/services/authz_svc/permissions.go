@@ -32,6 +32,8 @@ const (
 	PackSnapshotView   = "pack.snapshot.view"
 	PackSnapshotRevert = "pack.snapshot.revert"
 	PackSnapshotManage = "pack.snapshot.manage"
+
+	PackWebhookManage = "pack.webhook.manage"
 )
 
 // AllPermissions lists every permission name.
@@ -40,7 +42,7 @@ var AllPermissions = []string{
 	PackConsume, PackView, PackLink, PackModAdd, PackModRemove, PackModUpdate, PackModConfigure,
 	PackUpdatesCheck, PackMigrate, PackRehash, PackInfoEdit, PackPublish, PackVisibility,
 	PackArchive, PackUsersView, PackUsersManage, PackSnapshotView, PackSnapshotRevert,
-	PackSnapshotManage,
+	PackSnapshotManage, PackWebhookManage,
 }
 
 // archivedAllowed are the only permissions that can pass on an archived pack.

@@ -14,6 +14,7 @@ var migrationPaths = []string{
 	"../../database/migrations/000017_add_rbac.up.sql",
 	"../../database/migrations/000018_add_pack_snapshots.up.sql",
 	"../../database/migrations/000019_add_snapshot_manage_permission.up.sql",
+	"../../database/migrations/000025_add_pack_webhooks.up.sql",
 }
 
 // expectedMatrix is the role/permission matrix from .plan/rbac.md.
@@ -34,6 +35,7 @@ var expectedMatrix = map[string][]string{
 		PackUpdatesCheck, PackUsersView,
 		PackMigrate, PackRehash, PackInfoEdit, PackPublish, PackVisibility, PackArchive, PackUsersManage,
 		PackSnapshotView, PackSnapshotRevert, PackSnapshotManage,
+		PackWebhookManage,
 	},
 }
 
